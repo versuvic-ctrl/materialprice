@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+requests
+beautifulsoup4
+schedule
+python-dotenv
+numpy
+scipy
+pydantic
+supabase
+playwright
+pandas
+redis
+aioredis
+python-json-logger
