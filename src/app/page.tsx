@@ -1,5 +1,5 @@
 import Layout from '@/components/layout/Layout';
-import DashboardCharts from '@/components/DashboardCharts';
+import DashboardCharts from '@/components/dashboard/DashboardCharts';
 import ReferenceSection from '@/components/dashboard/ReferenceSection';
 import CalculatorPreview from '@/components/dashboard/CalculatorPreview';
 import DashboardClient from '@/components/DashboardClient';
@@ -8,28 +8,19 @@ import DashboardClient from '@/components/DashboardClient';
 
 
 
-// 서버 컴포넌트에서 실제 데이터 가져오기
-async function getDashboardData() {
-  try {
-    const res = await fetch('http://localhost:8000/materials/dashboard-summary', {
-      cache: 'no-store',
-    });
-    
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
-    
-    const data = await res.json();
-    return data;
-  } catch (error) {
-    console.error('Dashboard data fetch error:', error);
-    return null;
-  }
+// 샘플 대시보드 데이터
+function getDashboardData() {
+  return {
+    total_materials: 150,
+    total_categories: 25,
+    average_price: 6500,
+    recent_updates: 12
+  };
 }
 
-export default async function Dashboard() {
-  // 서버에서 실제 데이터 가져오기
-  const dashboardData = await getDashboardData();
+export default function Dashboard() {
+  // 샘플 데이터 사용
+  const dashboardData = getDashboardData();
   
   return (
     <Layout title="대시보드">

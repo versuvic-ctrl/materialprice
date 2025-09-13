@@ -17,7 +17,7 @@ import { Period, PERIOD_OPTIONS } from '@/types/period';
 
 interface PriceData {
   date: string;
-  [key: string]: string | number;
+  [key: string]: string | number | null;
 }
 
 interface MaterialSeries {
@@ -82,7 +82,7 @@ export default function PriceChart({
     // Generate complete period range based on selected period
     const generatePeriodRange = () => {
       const periods: string[] = [];
-      let current = start;
+      let current = new Date(start);
       
       switch (selectedPeriod) {
         case 'weekly':
@@ -123,8 +123,8 @@ export default function PriceChart({
     // Group data by period
     const groupedData: { [key: string]: { [material: string]: number[] } } = {};
 
-    // Initialize all periods
-    periodRange.forEach(period => {
+    // Initialize all periods (periodRange is string[] for non-custom periods)
+    (periodRange as string[]).forEach(period => {
       groupedData[period] = {};
     });
 
@@ -166,7 +166,7 @@ export default function PriceChart({
     });
 
     // Calculate averages and create final data
-    const result = periodRange.map(periodKey => {
+    const result = (periodRange as string[]).map(periodKey => {
       const item: PriceData = { date: periodKey };
       
       materials.forEach(material => {
@@ -242,16 +242,20 @@ export default function PriceChart({
   const formatXAxisLabel = (dateStr: string) => {
     try {
       const date = parseISO(dateStr);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const day = date.getDate();
+      
       switch (selectedPeriod) {
         case 'weekly':
-          const weekNumber = Math.ceil((date.getDate() - startOfMonth(date).getDate() + 1) / 7);
-          return `${format(date, 'MM', { locale: ko })}월${weekNumber}주`;
+          const weekOfMonth = Math.ceil(day / 7);
+          return `${year}년${month}월${weekOfMonth}주`;
         case 'monthly':
-          return format(date, 'yyyy/MM');
+          return `${year}년${month}월`;
         case 'yearly':
-          return format(date, 'yyyy');
+          return `${year}년`;
         default:
-          return format(date, 'MM/dd');
+          return `${month}/${day}`;
       }
     } catch {
       return dateStr;
