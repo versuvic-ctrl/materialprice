@@ -1,3 +1,21 @@
+/**
+ * ASMEMaterialSelector.tsx - ASME 자재 선택 드롭다운 컴포넌트
+ * 
+ * 🎯 기능:
+ * - ASME 표준 자재 검색 및 선택
+ * - 카테고리별 필터링 (탄소강, 스테인리스강, 알루미늄 등)
+ * - 실시간 검색 (자재 코드, 이름)
+ * - 드롭다운 UI로 사용자 친화적 인터페이스
+ * 
+ * 🔗 연관 파일:
+ * - data/asmeMaterials.ts: ASME 자재 데이터 및 유틸리티 함수
+ * - components/ui/*: 재사용 가능한 UI 컴포넌트들
+ * - 계산기 페이지에서 자재 선택 시 사용
+ * 
+ * ⭐ 중요도: ⭐⭐ 중요 - 엔지니어링 계산에 필요한 자재 선택 기능
+ * 
+ * 📊 데이터 소스: 정적 ASME 자재 데이터베이스
+ */
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,11 +37,12 @@ import {
   type ASMEMaterial
 } from '@/data/asmeMaterials';
 
+// 컴포넌트 Props 타입 정의
 interface ASMEMaterialSelectorProps {
-  selectedMaterial?: ASMEMaterial;
-  onMaterialSelect: (material: ASMEMaterial) => void;
-  placeholder?: string;
-  className?: string;
+  selectedMaterial?: ASMEMaterial;                    // 현재 선택된 자재
+  onMaterialSelect: (material: ASMEMaterial) => void; // 자재 선택 시 콜백 함수
+  placeholder?: string;                               // 플레이스홀더 텍스트
+  className?: string;                                 // 추가 CSS 클래스
 }
 
 export const ASMEMaterialSelector: React.FC<ASMEMaterialSelectorProps> = ({
@@ -32,20 +51,23 @@ export const ASMEMaterialSelector: React.FC<ASMEMaterialSelectorProps> = ({
   placeholder = "ASME 자재 선택",
   className = ""
 }) => {
+  // 검색어 상태
   const [searchQuery, setSearchQuery] = useState('');
+  // 선택된 카테고리 ('all' 또는 특정 카테고리)
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  // 드롭다운 열림/닫힘 상태
   const [isOpen, setIsOpen] = useState(false);
 
-  // 필터링된 자재 목록
+  // 필터링된 자재 목록 (카테고리 + 검색어 조합)
   const filteredMaterials = useMemo(() => {
     let materials = asmeMaterials;
     
-    // 카테고리 필터링
+    // 1단계: 카테고리 필터링
     if (selectedCategory !== 'all') {
       materials = getMaterialsByCategory(selectedCategory);
     }
     
-    // 검색어 필터링
+    // 2단계: 검색어 필터링 (자재 코드, 이름 기준)
     if (searchQuery.trim()) {
       materials = searchMaterials(searchQuery).filter(material => 
         selectedCategory === 'all' || material.category === selectedCategory
@@ -55,10 +77,11 @@ export const ASMEMaterialSelector: React.FC<ASMEMaterialSelectorProps> = ({
     return materials;
   }, [searchQuery, selectedCategory]);
 
+  // 자재 선택 처리 함수
   const handleMaterialSelect = (material: ASMEMaterial) => {
-    onMaterialSelect(material);
-    setIsOpen(false);
-    setSearchQuery('');
+    onMaterialSelect(material);  // 부모 컴포넌트에 선택된 자재 전달
+    setIsOpen(false);           // 드롭다운 닫기
+    setSearchQuery('');         // 검색어 초기화
   };
 
   return (

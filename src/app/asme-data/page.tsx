@@ -1,3 +1,30 @@
+/**
+ * asme-data/page.tsx - ASME 표준 자재 데이터 관리 페이지
+ * 
+ * 🎯 기능:
+ * - ASME 표준 기반 자재 정보 검색 및 필터링
+ * - 카테고리별 자재 분류 (압력용기, 플랜지, 피팅, 밸브, 배관, 탱크)
+ * - 자재 선택 및 BOM(Bill of Materials) 추가
+ * - Excel 형태로 자료 내보내기
+ * - P&ID 편집기와 연동
+ * 
+ * 🔗 연관 파일:
+ * - Layout: 공통 레이아웃 컴포넌트
+ * - localStorage: 선택된 자재 데이터 저장
+ * 
+ * ⭐ 중요도: ⭐⭐⭐ 매우 중요 - 엔지니어링 자재 관리 핵심
+ * 
+ * 📊 데이터 구조:
+ * - ASMEMaterial 인터페이스: 자재 정보 표준화
+ * - 카테고리/서브카테고리 계층 구조
+ * - ASME/API 표준 규격 준수
+ * 
+ * 🔧 주요 기능:
+ * - 실시간 검색 및 필터링
+ * - 다중 자재 선택
+ * - CSV 내보내기
+ * - P&ID 연동
+ */
 'use client';
 
 import Layout from '@/components/layout/Layout';
@@ -10,26 +37,28 @@ import {
   Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 
+// ASME 자재 정보 인터페이스
 interface ASMEMaterial {
-  id: string;
-  code: string;
-  name: string;
-  category: string;
-  subcategory: string;
-  specification: string;
-  grade: string;
-  size: string;
-  pressure: string;
-  temperature: string;
-  material: string;
-  weight: number;
-  price: number;
-  supplier: string;
-  description: string;
-  standard: string;
-  lastUpdated: string;
+  id: string;           // 고유 식별자
+  code: string;         // 자재 코드 (예: ASME-PV-001)
+  name: string;         // 자재명
+  category: string;     // 주 카테고리 (압력용기, 플랜지 등)
+  subcategory: string;  // 세부 카테고리
+  specification: string; // ASME 규격 (예: ASME VIII Div.1)
+  grade: string;        // 재료 등급 (예: SA-516 Gr.70)
+  size: string;         // 크기 정보
+  pressure: string;     // 설계 압력
+  temperature: string;  // 설계 온도
+  material: string;     // 재질 (Carbon Steel, Stainless Steel 등)
+  weight: number;       // 중량 (kg)
+  price: number;        // 가격 (원)
+  supplier: string;     // 공급업체
+  description: string;  // 상세 설명
+  standard: string;     // 적용 표준
+  lastUpdated: string;  // 최종 업데이트 날짜
 }
 
+// ASME 표준 자재 데이터베이스 (실제 환경에서는 API로 대체)
 const asmeMaterials: ASMEMaterial[] = [
   {
     id: '1',
@@ -185,37 +214,43 @@ const asmeMaterials: ASMEMaterial[] = [
   }
 ];
 
+// 자재 카테고리 분류 체계
 const categories = ['전체', '압력용기', '플랜지', '피팅', '밸브', '배관', '탱크'];
+
+// 카테고리별 세부 분류
 const subcategories = {
-  '압력용기': ['헤드', '동체', '노즐'],
-  '플랜지': ['Weld Neck', 'Slip On', 'Blind', 'Socket Weld'],
-  '피팅': ['엘보', '티', '리듀서', '캡'],
-  '밸브': ['게이트밸브', '글로브밸브', '체크밸브', '볼밸브'],
-  '배관': ['무계목관', '용접관', '스테인리스관'],
-  '탱크': ['수직탱크', '수평탱크', '구형탱크']
+  '압력용기': ['헤드', '동체', '노즐'],                    // 압력용기 구성요소
+  '플랜지': ['Weld Neck', 'Slip On', 'Blind', 'Socket Weld'], // 플랜지 타입
+  '피팅': ['엘보', '티', '리듀서', '캡'],                   // 배관 피팅
+  '밸브': ['게이트밸브', '글로브밸브', '체크밸브', '볼밸브'],    // 밸브 종류
+  '배관': ['무계목관', '용접관', '스테인리스관'],             // 배관 타입
+  '탱크': ['수직탱크', '수평탱크', '구형탱크']               // 탱크 형태
 };
 
+// ASME 자료 페이지 메인 컴포넌트
 export default function ASMEDataPage() {
-  const [selectedCategory, setSelectedCategory] = useState('전체');
-  const [selectedSubcategory, setSelectedSubcategory] = useState('전체');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filteredMaterials, setFilteredMaterials] = useState(asmeMaterials);
-  const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
+  // 상태 관리
+  const [selectedCategory, setSelectedCategory] = useState('전체');      // 선택된 주 카테고리
+  const [selectedSubcategory, setSelectedSubcategory] = useState('전체'); // 선택된 세부 카테고리
+  const [searchTerm, setSearchTerm] = useState('');                     // 검색어
+  const [filteredMaterials, setFilteredMaterials] = useState(asmeMaterials); // 필터링된 자재 목록
+  const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]); // 선택된 자재 ID 목록
 
+  // 필터링 로직 - 카테고리, 서브카테고리, 검색어에 따른 자재 목록 업데이트
   useEffect(() => {
     let filtered = asmeMaterials;
 
-    // 카테고리 필터
+    // 주 카테고리 필터 적용
     if (selectedCategory !== '전체') {
       filtered = filtered.filter(material => material.category === selectedCategory);
     }
 
-    // 서브카테고리 필터
+    // 세부 카테고리 필터 적용
     if (selectedSubcategory !== '전체') {
       filtered = filtered.filter(material => material.subcategory === selectedSubcategory);
     }
 
-    // 검색어 필터
+    // 검색어 필터 적용 (자재명, 코드, 규격에서 검색)
     if (searchTerm) {
       filtered = filtered.filter(material => 
         material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -227,19 +262,22 @@ export default function ASMEDataPage() {
     setFilteredMaterials(filtered);
   }, [selectedCategory, selectedSubcategory, searchTerm]);
 
+  // 카테고리 변경 핸들러 - 서브카테고리 초기화
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
-    setSelectedSubcategory('전체');
+    setSelectedSubcategory('전체'); // 카테고리 변경 시 서브카테고리 리셋
   };
 
+  // 자재 선택/해제 토글 함수
   const toggleMaterialSelection = (materialId: string) => {
     setSelectedMaterials(prev => 
       prev.includes(materialId) 
-        ? prev.filter(id => id !== materialId)
-        : [...prev, materialId]
+        ? prev.filter(id => id !== materialId)  // 이미 선택된 경우 제거
+        : [...prev, materialId]                 // 선택되지 않은 경우 추가
     );
   };
 
+  // 선택된 자재를 BOM(Bill of Materials)에 추가
   const exportSelectedToBOM = () => {
     const selected = asmeMaterials.filter(material => 
       selectedMaterials.includes(material.id)
@@ -250,18 +288,23 @@ export default function ASMEDataPage() {
       return;
     }
 
-    // P&ID 편집기로 데이터 전송 (localStorage 사용)
+    // P&ID 편집기와 연동을 위해 localStorage에 저장
     localStorage.setItem('selectedASMEMaterials', JSON.stringify(selected));
     alert(`${selected.length}개 자재가 선택되었습니다. P&ID 편집기에서 확인하세요.`);
   };
 
+  // Excel(CSV) 파일로 자재 데이터 내보내기
   const exportToExcel = () => {
+    // 선택된 자재가 있으면 선택된 것만, 없으면 필터링된 전체 목록
     const selected = selectedMaterials.length > 0 
       ? asmeMaterials.filter(material => selectedMaterials.includes(material.id))
       : filteredMaterials;
 
+    // CSV 형태로 데이터 구성
     const csvContent = [
+      // 헤더 행
       ['코드', '자재명', '카테고리', '규격', '등급', '크기', '압력', '온도', '재질', '중량(kg)', '가격(원)', '공급업체'],
+      // 데이터 행들
       ...selected.map(material => [
         material.code,
         material.name,
@@ -278,6 +321,7 @@ export default function ASMEDataPage() {
       ])
     ].map(row => row.join(',')).join('\n');
 
+    // 파일 다운로드 처리
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -293,7 +337,6 @@ export default function ASMEDataPage() {
     <Layout title="ASME 자재 데이터">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">ASME 자재 데이터베이스</h1>
         <p className="text-gray-600">
           ASME 표준 기반 자재 정보를 검색하고 P&ID 편집기에서 활용하세요
         </p>

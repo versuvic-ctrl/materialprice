@@ -1,3 +1,23 @@
+/**
+ * materials/page.tsx - 자재 가격 조회 페이지
+ * 
+ * 🎯 기능:
+ * - 4단계 계층형 자재 카테고리 선택 (대분류 > 중분류 > 소분류 > 규격)
+ * - 동적 자재 가격 차트 (선택된 자재들의 가격 변동 추이)
+ * - 자재 비교 및 물성 정보 표시
+ * - 자재 계산기 (무게, 부피, 비용 계산)
+ * - 시장 전망 및 가격 변동률 지표
+ * 
+ * 🔗 연관 파일:
+ * - store/materialStore.ts: Zustand 전역 상태 관리
+ * - components/materials/MaterialsChart.tsx: 자재 가격 차트
+ * - lib/supabase.ts: Supabase 클라이언트 설정
+ * 
+ * ⭐ 중요도: ⭐⭐⭐ 필수 - 핵심 자재 조회 기능
+ * 
+ * 📊 데이터 소스: Supabase (동적) + 정적 물성 데이터
+ * 🔄 상태 관리: Zustand (전역) + React Query (서버 상태)
+ */
 'use client';
 
 import React, { memo } from 'react';
@@ -20,7 +40,8 @@ import { createClient } from '@supabase/supabase-js';
 import useMaterialStore from '@/store/materialStore'; // [교체] Zustand 스토어 import
 import MaterialsChart from '@/components/materials/MaterialsChart'; // [교체] 새로운 차트 컴포넌트 import
 
-// [유지] 하단 자재 정보, 비교 테이블 등에서 정적 데이터로 사용
+// 정적 자재 물성 데이터 (자재 비교 테이블 및 계산기에서 사용)
+// price: 원/kg, density: g/cm³, tensile: MPa, yield: MPa, elastic: GPa, thermal: W/m·K
 const MATERIAL_DATA = {
   'SUS304': { price: 8500, density: 7.93, tensile: 520, yield: 205, elastic: 200, thermal: 16.2 },
   'SUS316': { price: 9200, density: 8.0, tensile: 515, yield: 205, elastic: 200, thermal: 16.3 },
@@ -28,13 +49,14 @@ const MATERIAL_DATA = {
   'Carbon Steel': { price: 2800, density: 7.85, tensile: 400, yield: 250, elastic: 200, thermal: 50 }
 };
 
-// [추가] Supabase 클라이언트 및 데이터 페칭 훅
+// Supabase 클라이언트 초기화 (자재 카테고리 데이터 조회용)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// 한글 자음 순서 정렬 함수
+// 한글 자음 순서로 배열을 정렬하는 유틸리티 함수
+// 카테고리 목록을 사용자가 찾기 쉽도록 가나다 순으로 정렬
 const sortKorean = (arr: string[]) => {
   return arr.sort((a, b) => {
     return a.localeCompare(b, 'ko-KR', { 
@@ -44,6 +66,9 @@ const sortKorean = (arr: string[]) => {
   });
 };
 
+// 계층형 카테고리 데이터를 가져오는 React Query 훅
+// level: 카테고리 레벨 (대분류/중분류/소분류/규격)
+// filters: 상위 카테고리 선택 조건
 const useCategories = (level: 'major' | 'middle' | 'sub' | 'specification', filters: object) => {
   return useQuery({
     queryKey: ['categories', level, filters],
@@ -56,6 +81,7 @@ const useCategories = (level: 'major' | 'middle' | 'sub' | 'specification', filt
         return [];
       }
       
+      // Supabase RPC 함수 호출로 카테고리 목록 조회
       const { data, error } = await supabase.rpc('get_distinct_categories', {
         p_level: level,
         p_filters: filters
@@ -69,7 +95,7 @@ const useCategories = (level: 'major' | 'middle' | 'sub' | 'specification', filt
       console.log(`${level} categories result:`, data);
       const categories = data?.map((item: { name: string }) => item.name) || [];
       
-      // 한글 자음 순서로 정렬
+      // 한글 자음 순서로 정렬하여 반환
       return sortKorean(categories);
     },
     // enabled 옵션: 상위 필터값이 모두 존재할 때만 쿼리를 실행
@@ -78,35 +104,32 @@ const useCategories = (level: 'major' | 'middle' | 'sub' | 'specification', filt
 };
 
 const MaterialsPage: React.FC = () => {
-  // [교체] 모든 로컬 state(useState)를 Zustand 스토어의 전역 state와 action으로 대체
+  // Zustand 전역 스토어에서 카테고리 선택 상태 및 액션 가져오기
   const {
-    selectedLevel1,
-    selectedLevel2,
-    selectedLevel3,
-    selectedLevel4,
-    setCategory,
-    selectedMaterialsForChart,
-    hiddenMaterials,
-    removeMaterialFromChart,
-    toggleMaterialVisibility,
-    clearAllMaterials,
+    selectedLevel1,              // 대분류 선택값
+    selectedLevel2,              // 중분류 선택값
+    selectedLevel3,              // 소분류 선택값
+    selectedLevel4,              // 규격 선택값
+    setCategory,                 // 카테고리 선택 액션
+    selectedMaterialsForChart,   // 차트에 표시할 자재 목록
+    hiddenMaterials,             // 숨겨진 자재 Set
+    removeMaterialFromChart,     // 차트에서 자재 제거
+    toggleMaterialVisibility,    // 자재 표시/숨김 토글
+    clearAllMaterials,           // 모든 자재 제거
   } = useMaterialStore();
 
-  // [교체] 하드코딩된 카테고리 데이터를 React Query를 통해 Supabase에서 동적으로 가져옴
+  // React Query를 통해 계층형 카테고리 데이터를 동적으로 조회
   const { data: level1Categories, isLoading: level1Loading } = useCategories('major', {});
   const { data: level2Categories, isLoading: level2Loading } = useCategories('middle', { major_category: selectedLevel1 });
   const { data: level3Categories, isLoading: level3Loading } = useCategories('sub', { major_category: selectedLevel1, middle_category: selectedLevel2 });
   const { data: level4Categories, isLoading: level4Loading } = useCategories('specification', { major_category: selectedLevel1, middle_category: selectedLevel2, sub_category: selectedLevel3 });
 
-  // 기존의 useEffect, useMemo, useCallback 훅들은 모두 Zustand와 React Query가 대체하므로 제거됨
+  // 상태 관리는 Zustand로, 서버 상태는 React Query로 처리하여 컴포넌트 로직 단순화
 
   return (
-    <Layout>
+    <Layout title="자재 가격 조회">
       <div className="space-y-6">
         {/* === 이 아래부터는 기존 UI 구조를 그대로 유지합니다 === */}
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold tracking-tight">자재 가격 조회</h1>
-        </div>
 
         {/* 가격 변동률 지표 (이 부분은 추후 동적 데이터로 연결 가능) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

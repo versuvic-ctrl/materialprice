@@ -1,3 +1,25 @@
+/**
+ * calculator/page.tsx - 엔지니어링 계산기 페이지
+ * 
+ * 🎯 기능:
+ * - 다양한 엔지니어링 계산기 제공 (Tank 부피, NPSH, 상사법칙 등)
+ * - 3D 시각화 컴포넌트 (Tank, Pump 모델)
+ * - 실시간 계산 결과 표시
+ * - 계산 공식 및 설명 제공
+ * 
+ * 🔗 연관 파일:
+ * - lib/api.ts: 계산 로직 API 함수들
+ * - components/TankVisualization.tsx: Tank 3D 모델
+ * - components/PumpVisualization.tsx: Pump 3D 모델
+ * 
+ * ⭐ 중요도: ⭐⭐ 중요 - 엔지니어링 도구 제공
+ * 
+ * 🧮 계산기 종류:
+ * - Tank 부피/무게 계산
+ * - NPSH (Net Positive Suction Head) 계산
+ * - 펌프 상사법칙 계산
+ * - 압력, 유량, 열전달 등 (개발 예정)
+ */
 'use client';
 
 import { useState } from 'react';
@@ -7,6 +29,8 @@ import { calculateTankVolume, calculateNPSH, calculateAffinity, CalculationResul
 import dynamic from 'next/dynamic';
 import Layout from '@/components/layout/Layout';
 
+// Tank 3D 시각화 컴포넌트 (동적 로딩)
+// SSR 비활성화로 클라이언트에서만 렌더링
 const TankVisualization = dynamic(() => import('@/components/TankVisualization'), {
   ssr: false,
   loading: () => (
@@ -16,6 +40,8 @@ const TankVisualization = dynamic(() => import('@/components/TankVisualization')
   )
 });
 
+// Pump 3D 시각화 컴포넌트 (동적 로딩)
+// SSR 비활성화로 클라이언트에서만 렌더링
 const PumpVisualization = dynamic(() => import('@/components/PumpVisualization'), {
   ssr: false,
   loading: () => (
@@ -26,38 +52,46 @@ const PumpVisualization = dynamic(() => import('@/components/PumpVisualization')
 });
 
 export default function CalculatorPage() {
+  // 선택된 계산기 타입 상태
   const [selectedCalculator, setSelectedCalculator] = useState<string>('');
+  // 계산 진행 중 로딩 상태
   const [isLoading, setIsLoading] = useState(false);
+  // 계산 결과 저장 상태
   const [result, setResult] = useState<CalculationResult | null>(null);
   
+  // Tank 계산기 입력값 상태
   const [tankInputs, setTankInputs] = useState({
-    diameter: '',
-    height: '',
-    topHeadType: 'flat',
-    bottomHeadType: 'flat',
-    material: 'carbon'
+    diameter: '',           // 직경 (m)
+    height: '',            // 높이 (m)
+    topHeadType: 'flat',   // 상부 헤드 타입
+    bottomHeadType: 'flat', // 하부 헤드 타입
+    material: 'carbon'     // 재질
   });
   
+  // NPSH 계산기 입력값 상태
   const [npshInputs, setNpshInputs] = useState({
-    atmosphericPressure: '',
-    vaporPressure: '',
-    staticHead: '',
-    frictionLoss: ''
+    atmosphericPressure: '', // 대기압 (kPa)
+    vaporPressure: '',      // 증기압 (kPa)
+    staticHead: '',         // 정적 수두 (m)
+    frictionLoss: ''        // 마찰 손실 (m)
   });
   
+  // 상사법칙 계산기 입력값 상태
   const [affinityInputs, setAffinityInputs] = useState({
-    q1: '',
-    h1: '',
-    p1: '',
-    n1: '',
-    n2: ''
+    q1: '', // 기존 유량 (m³/h)
+    h1: '', // 기존 양정 (m)
+    p1: '', // 기존 동력 (kW)
+    n1: '', // 기존 회전수 (rpm)
+    n2: ''  // 새 회전수 (rpm)
   });
 
+  // 선택된 계산기에 따라 해당 계산 함수를 호출하는 핸들러
   const handleCalculate = async () => {
     setIsLoading(true);
     try {
       let calculationResult;
       
+      // Tank 부피/무게 계산
       if (selectedCalculator === 'tank') {
         calculationResult = await calculateTankVolume({
           diameter: parseFloat(tankInputs.diameter),
@@ -66,14 +100,18 @@ export default function CalculatorPage() {
           bottomHeadType: tankInputs.bottomHeadType,
           material: tankInputs.material
         });
-      } else if (selectedCalculator === 'npsh') {
+      } 
+      // NPSH 계산
+      else if (selectedCalculator === 'npsh') {
         calculationResult = await calculateNPSH({
           atmospheric_pressure: parseFloat(npshInputs.atmosphericPressure),
           vapor_pressure: parseFloat(npshInputs.vaporPressure),
           static_head: parseFloat(npshInputs.staticHead),
           friction_loss: parseFloat(npshInputs.frictionLoss)
         });
-      } else if (selectedCalculator === 'affinity') {
+      } 
+      // 펌프 상사법칙 계산
+      else if (selectedCalculator === 'affinity') {
         calculationResult = await calculateAffinity({
           q1: parseFloat(affinityInputs.q1),
           h1: parseFloat(affinityInputs.h1),
@@ -92,7 +130,27 @@ export default function CalculatorPage() {
     }
   };
 
+  // 선택된 계산기에 따라 해당 입력 폼을 렌더링하는 함수
   const renderCalculatorInputs = () => {
+    // 개발 예정인 계산기 목록
+    const developmentCalculators = ['pressure', 'flow', 'heat', 'pipe', 'valve', 'stress', 'vibration'];
+    
+    if (developmentCalculators.includes(selectedCalculator)) {
+      return (
+        <div className="text-center py-12">
+          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            🚧
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            개발중
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400">
+            이 계산기는 현재 개발 중입니다.
+          </p>
+        </div>
+      );
+    }
+    
     if (selectedCalculator === 'tank') {
       return (
         <div className="space-y-4">
@@ -357,90 +415,175 @@ export default function CalculatorPage() {
 
   return (
     <Layout title="엔지니어링 계산기">
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-6">
-          <Link
-            href="/"
-            className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            대시보드로 돌아가기
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            엔지니어링 계산기
-          </h1>
+      <div className="max-w-6xl mx-auto p-6">
+        {/* 상단 계산기 탭 버튼 (2줄 x 5열) */}
+        <div className="mb-4">
+          <div className="grid grid-cols-5 gap-2">
+            {/* 첫 번째 줄 */}
+            <button
+               onClick={() => setSelectedCalculator('tank')}
+               className={`p-2 rounded-lg text-left transition-all duration-200 ${
+                 selectedCalculator === 'tank'
+                   ? 'bg-blue-50 dark:bg-blue-900 dark:bg-opacity-20 border-2 border-blue-200 dark:border-blue-700'
+                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+               }`}
+             >
+               <div className="flex items-center space-x-2">
+                 <span className="text-lg">🛢️</span>
+                 <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                   Tank 부피
+                 </h3>
+               </div>
+             </button>
+            
+            <button
+               onClick={() => setSelectedCalculator('npsh')}
+               className={`p-2 rounded-lg text-left transition-all duration-200 ${
+                 selectedCalculator === 'npsh'
+                   ? 'bg-green-50 dark:bg-green-900 dark:bg-opacity-20 border-2 border-green-200 dark:border-green-700'
+                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+               }`}
+             >
+               <div className="flex items-center space-x-2">
+                 <span className="text-lg">💧</span>
+                 <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                   NPSH 계산
+                 </h3>
+               </div>
+             </button>
+            
+            <button
+               onClick={() => setSelectedCalculator('affinity')}
+               className={`p-2 rounded-lg text-left transition-all duration-200 ${
+                 selectedCalculator === 'affinity'
+                   ? 'bg-purple-50 dark:bg-purple-900 dark:bg-opacity-20 border-2 border-purple-200 dark:border-purple-700'
+                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+               }`}
+             >
+               <div className="flex items-center space-x-2">
+                 <span className="text-lg">⚙️</span>
+                 <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                   상사법칙
+                 </h3>
+               </div>
+             </button>
+            
+            <button
+               onClick={() => setSelectedCalculator('pressure')}
+               className={`p-2 rounded-lg text-left transition-all duration-200 ${
+                 selectedCalculator === 'pressure'
+                   ? 'bg-red-50 dark:bg-red-900 dark:bg-opacity-20 border-2 border-red-200 dark:border-red-700'
+                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+               }`}
+             >
+               <div className="flex items-center space-x-2">
+                 <span className="text-lg">📊</span>
+                 <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                   압력 계산
+                 </h3>
+               </div>
+             </button>
+            
+            <button
+               onClick={() => setSelectedCalculator('flow')}
+               className={`p-2 rounded-lg text-left transition-all duration-200 ${
+                 selectedCalculator === 'flow'
+                   ? 'bg-yellow-50 dark:bg-yellow-900 dark:bg-opacity-20 border-2 border-yellow-200 dark:border-yellow-700'
+                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+               }`}
+             >
+               <div className="flex items-center space-x-2">
+                 <span className="text-lg">🌊</span>
+                 <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                   유량 계산
+                 </h3>
+               </div>
+             </button>
+            
+            {/* 두 번째 줄 */}
+            <button
+               onClick={() => setSelectedCalculator('heat')}
+               className={`p-2 rounded-lg text-left transition-all duration-200 ${
+                 selectedCalculator === 'heat'
+                   ? 'bg-orange-50 dark:bg-orange-900 dark:bg-opacity-20 border-2 border-orange-200 dark:border-orange-700'
+                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+               }`}
+             >
+               <div className="flex items-center space-x-2">
+                 <span className="text-lg">🔥</span>
+                 <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                   열전달
+                 </h3>
+               </div>
+             </button>
+            
+            <button
+               onClick={() => setSelectedCalculator('pipe')}
+               className={`p-2 rounded-lg text-left transition-all duration-200 ${
+                 selectedCalculator === 'pipe'
+                   ? 'bg-indigo-50 dark:bg-indigo-900 dark:bg-opacity-20 border-2 border-indigo-200 dark:border-indigo-700'
+                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+               }`}
+             >
+               <div className="flex items-center space-x-2">
+                 <span className="text-lg">🔧</span>
+                 <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                   배관 설계
+                 </h3>
+               </div>
+             </button>
+            
+            <button
+               onClick={() => setSelectedCalculator('valve')}
+               className={`p-2 rounded-lg text-left transition-all duration-200 ${
+                 selectedCalculator === 'valve'
+                   ? 'bg-teal-50 dark:bg-teal-900 dark:bg-opacity-20 border-2 border-teal-200 dark:border-teal-700'
+                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+               }`}
+             >
+               <div className="flex items-center space-x-2">
+                 <span className="text-lg">🎛️</span>
+                 <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                   밸브 계산
+                 </h3>
+               </div>
+             </button>
+            
+            <button
+               onClick={() => setSelectedCalculator('stress')}
+               className={`p-2 rounded-lg text-left transition-all duration-200 ${
+                 selectedCalculator === 'stress'
+                   ? 'bg-pink-50 dark:bg-pink-900 dark:bg-opacity-20 border-2 border-pink-200 dark:border-pink-700'
+                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+               }`}
+             >
+               <div className="flex items-center space-x-2">
+                 <span className="text-lg">⚡</span>
+                 <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                   응력 해석
+                 </h3>
+               </div>
+             </button>
+            
+            <button
+               onClick={() => setSelectedCalculator('vibration')}
+               className={`p-2 rounded-lg text-left transition-all duration-200 ${
+                 selectedCalculator === 'vibration'
+                   ? 'bg-cyan-50 dark:bg-cyan-900 dark:bg-opacity-20 border-2 border-cyan-200 dark:border-cyan-700'
+                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+               }`}
+             >
+               <div className="flex items-center space-x-2">
+                 <span className="text-lg">📳</span>
+                 <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                   진동 해석
+                 </h3>
+               </div>
+             </button>
+          </div>
         </div>
         
         <div className="flex gap-6">
-          {/* 좌측 계산기 탭 사이드바 */}
-          <div className="w-64 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              계산기 선택
-            </h2>
-            <div className="space-y-2">
-              <button
-                onClick={() => setSelectedCalculator('tank')}
-                className={`w-full p-4 rounded-lg text-left transition-all duration-200 ${
-                  selectedCalculator === 'tank'
-                    ? 'bg-blue-50 dark:bg-blue-900 dark:bg-opacity-20 border-2 border-blue-200 dark:border-blue-700'
-                    : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                    🏗️
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900 dark:text-white">
-                      Tank 부피 계산
-                    </h3>
-                  </div>
-                </div>
-              </button>
-              
-              <button
-                onClick={() => setSelectedCalculator('npsh')}
-                className={`w-full p-4 rounded-lg text-left transition-all duration-200 ${
-                  selectedCalculator === 'npsh'
-                    ? 'bg-green-50 dark:bg-green-900 dark:bg-opacity-20 border-2 border-green-200 dark:border-green-700'
-                    : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                    💧
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900 dark:text-white">
-                      NPSH 계산
-                    </h3>
-                  </div>
-                </div>
-              </button>
-              
-              <button
-                onClick={() => setSelectedCalculator('affinity')}
-                className={`w-full p-4 rounded-lg text-left transition-all duration-200 ${
-                  selectedCalculator === 'affinity'
-                    ? 'bg-purple-50 dark:bg-purple-900 dark:bg-opacity-20 border-2 border-purple-200 dark:border-purple-700'
-                    : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                    ⚙️
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900 dark:text-white">
-                      상사법칙 계산
-                    </h3>
-                  </div>
-                </div>
-              </button>
-            </div>
-            
-
-          </div>
           
           {/* 우측 메인 컨텐츠 */}
           <div className="flex-1">
@@ -518,11 +661,16 @@ export default function CalculatorPage() {
                          <PumpVisualization />
                        </div>
                      )}
-                     {selectedCalculator !== 'tank' && selectedCalculator !== 'npsh' && selectedCalculator !== 'affinity' && (
+                     {!['tank', 'npsh', 'affinity'].includes(selectedCalculator) && (
                        <div className="h-96 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                         <p className="text-gray-500 dark:text-gray-400">
-                           3D 시각화는 Tank, NPSH, 상사법칙 계산기에서 지원됩니다
-                         </p>
+                         <div className="text-center">
+                           <div className="w-12 h-12 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                             🚧
+                           </div>
+                           <p className="text-gray-500 dark:text-gray-400">
+                             3D 시각화 개발중
+                           </p>
+                         </div>
                        </div>
                      )}
                   </div>

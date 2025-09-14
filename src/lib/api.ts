@@ -1,12 +1,32 @@
 /**
- * API 클라이언트 모듈
+ * api.ts - FastAPI 백엔드 통신 클라이언트
  * 
- * FastAPI 백엔드와의 통신을 담당합니다.
+ * 기능:
+ * - FastAPI 백엔드 서버와의 HTTP 통신
+ * - 자재 가격 데이터 조회 및 비교
+ * - 엔지니어링 계산 (탱크 부피, NPSH, 친화법칙)
+ * - Supabase 데이터 프록시 접근
+ * 
+ * 연관 파일:
+ * - app/calculator/page.tsx (계산 기능 사용)
+ * - components/CalculatorPreview.tsx (계산 미리보기)
+ * - lib/supabase.ts (데이터 소스 보완)
+ * 
+ * 중요도: ⭐⭐ 중요 - 계산 기능과 API 통신 담당
+ * 
+ * 백엔드 의존성:
+ * - FastAPI 서버 (localhost:8000)
+ * - Python 계산 엔진
+ * - 자재 가격 크롤링 시스템
  */
 
+/** 
+ * 백엔드 API 기본 URL
+ * 환경변수 NEXT_PUBLIC_API_URL 또는 기본값 localhost:8000 사용
+ */
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// API 응답 타입 정의
+// ==================== 타입 정의 ====================
 export interface MaterialPrice {
   material: string;
   price: number;
@@ -180,22 +200,45 @@ class ApiClient {
   }
 }
 
-// 싱글톤 인스턴스
+// ==================== 인스턴스 및 편의 함수 ====================
+
+/**
+ * API 클라이언트 싱글톤 인스턴스
+ * 전역에서 하나의 인스턴스만 사용하여 연결 관리 최적화
+ */
 const apiClient = new ApiClient();
 
 export default apiClient;
 
-// 개별 함수로도 export (편의성을 위해)
+// ==================== 편의 함수 Export ====================
+// 클래스 메서드를 직접 호출할 수 있는 함수들
+// 사용 예: import { getCurrentPrices } from '@/lib/api'
+
+/** 현재 자재 가격 조회 */
 export const getCurrentPrices = () => apiClient.getCurrentPrices();
+
+/** 자재 가격 이력 조회 */
 export const getMaterialHistory = (material: string, period?: string, startDate?: string, endDate?: string) => 
   apiClient.getMaterialHistory(material, period, startDate, endDate);
+
+/** 자재 가격 비교 */
 export const compareMaterials = (materials: string[]) => 
   apiClient.compareMaterials(materials);
+
+/** 탱크 부피 계산 */
 export const calculateTankVolume = (input: TankCalculationInput) => 
   apiClient.calculateTankVolume(input);
+
+/** NPSH 계산 */
 export const calculateNPSH = (input: NPSHCalculationInput) => 
   apiClient.calculateNPSH(input);
+
+/** 친화법칙 계산 */
 export const calculateAffinity = (input: AffinityCalculationInput) => 
   apiClient.calculateAffinity(input);
+
+/** Supabase 자재 데이터 조회 */
 export const getSupabaseMaterials = () => apiClient.getSupabaseMaterials();
+
+/** 백엔드 헬스 체크 */
 export const healthCheck = () => apiClient.healthCheck();

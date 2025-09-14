@@ -95,7 +95,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         ${isCollapsed ? 'w-16 lg:w-16' : 'w-64 lg:w-64'}
       `}>
         {/* Logo Section */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
               <ChartBarIcon className="w-5 h-5 text-white" />

@@ -1,8 +1,16 @@
+/**
+ * button.tsx - 재사용 가능한 버튼 컴포넌트
+ * 
+ * 🎯 기능: 다양한 스타일과 크기의 버튼 제공
+ * 🔗 연관: shadcn/ui 기반, 전체 애플리케이션에서 사용
+ * ⭐ 중요도: ⭐⭐⭐ 필수 - 기본 UI 컴포넌트
+ */
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
+// 버튼 스타일 변형 정의 (CVA 사용)
 const buttonVariants = cva(
   "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
   {
