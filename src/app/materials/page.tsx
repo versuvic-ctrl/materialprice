@@ -36,7 +36,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar, CalendarDays, BarChart3 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { useQuery } from '@tanstack/react-query';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../../lib/supabaseClient';
 import useMaterialStore from '@/store/materialStore'; // [교체] Zustand 스토어 import
 import MaterialsChart from '@/components/materials/MaterialsChart'; // [교체] 새로운 차트 컴포넌트 import
 
@@ -49,11 +49,7 @@ const MATERIAL_DATA = {
   'Carbon Steel': { price: 2800, density: 7.85, tensile: 400, yield: 250, elastic: 200, thermal: 50 }
 };
 
-// Supabase 클라이언트 초기화 (자재 카테고리 데이터 조회용)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Supabase 클라이언트는 lib/supabaseClient.ts에서 import
 
 // 한글 자음 순서로 배열을 정렬하는 유틸리티 함수
 // 카테고리 목록을 사용자가 찾기 쉽도록 가나다 순으로 정렬
