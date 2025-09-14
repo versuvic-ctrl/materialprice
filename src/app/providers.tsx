@@ -49,7 +49,6 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       {/* React Query 개발 도구 - 쿼리 상태 시각화 */}
       <ReactQueryDevtools 
         initialIsOpen={false}  // 기본적으로 닫힌 상태로 시작
-        position="bottom-right" // 화면 우하단에 위치
       /> 
     </QueryClientProvider>
   );

@@ -31,7 +31,7 @@ const AdminPage: React.FC = () => {
           <Card>
             <CardHeader><CardTitle>수동으로 지금 실행하기</CardTitle></CardHeader>
             <CardContent>
-              <p className="mb-4">정해진 시간과 상관없이 크롤러를 즉시 실행하고 싶을 경우, 아래 페이지에서 'Run workflow' 버튼을 누르세요.</p>
+              <p className="mb-4">정해진 시간과 상관없이 크롤러를 즉시 실행하고 싶을 경우, 아래 페이지에서 &apos;Run workflow&apos; 버튼을 누르세요.</p>
                <a href={`${GITHUB_REPO_URL}/actions/workflows/crawler.yml`} target="_blank" rel="noopener noreferrer">
                 <Button variant="outline"><PlayIcon className="w-4 h-4 mr-2" />수동 실행 페이지로 이동</Button>
               </a>
