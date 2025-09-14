@@ -73,14 +73,14 @@ export default function DashboardChartGrid() {
   const { interval, setInterval, startDate, endDate, setDateRange } = useMaterialStore();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* 공통 컨트롤 영역 */}
       <Card>
-        <CardContent className="p-4 flex flex-wrap items-center justify-end gap-4">
+        <CardContent className="p-3 flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-2">
             <Label htmlFor="interval-dashboard" className="text-sm font-medium">조회 간격</Label>
             <Select value={interval} onValueChange={(value: any) => setInterval(value)}>
-              <SelectTrigger id="interval-dashboard" className="w-28"><SelectValue /></SelectTrigger>
+              <SelectTrigger id="interval-dashboard" className="w-24 h-8"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="weekly">주간</SelectItem>
                 <SelectItem value="monthly">월간</SelectItem>
@@ -90,17 +90,17 @@ export default function DashboardChartGrid() {
           </div>
           <div className="flex items-center gap-2">
             <Label htmlFor="start-date-dashboard" className="text-sm font-medium">시작일</Label>
-            <Input id="start-date-dashboard" type="date" value={startDate} onChange={(e) => setDateRange(e.target.value, endDate)} className="w-40" />
+            <Input id="start-date-dashboard" type="date" value={startDate} onChange={(e) => setDateRange(e.target.value, endDate)} className="w-36 h-8" />
           </div>
           <div className="flex items-center gap-2">
             <Label htmlFor="end-date-dashboard" className="text-sm font-medium">종료일</Label>
-            <Input id="end-date-dashboard" type="date" value={endDate} onChange={(e) => setDateRange(startDate, e.target.value)} className="w-40" />
+            <Input id="end-date-dashboard" type="date" value={endDate} onChange={(e) => setDateRange(startDate, e.target.value)} className="w-36 h-8" />
           </div>
         </CardContent>
       </Card>
 
       {/* 차트 그리드 영역 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-2 gap-3">
         {DASHBOARD_CHARTS_CONFIG.map((chartConfig) => (
           <DashboardMiniChart
             key={chartConfig.title}

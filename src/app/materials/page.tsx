@@ -123,7 +123,7 @@ const MaterialsPage: React.FC = () => {
   // 상태 관리는 Zustand로, 서버 상태는 React Query로 처리하여 컴포넌트 로직 단순화
 
   return (
-    <Layout title="자재 가격 조회">
+    <Layout title="자재가격 상세">
       <div className="space-y-6">
         {/* === 이 아래부터는 기존 UI 구조를 그대로 유지합니다 === */}
 
@@ -197,7 +197,7 @@ const MaterialsPage: React.FC = () => {
             <CardHeader className="py-1.5 px-3">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-xs font-medium text-gray-600">
-                  선택된 자재 ({selectedMaterialsForChart.length}개)
+                  실시간 자재 가격 비교 분석 ({selectedMaterialsForChart.length}개)
                 </CardTitle>
                 <Button 
                   variant="outline" 
@@ -249,8 +249,6 @@ const MaterialsPage: React.FC = () => {
         {/* [교체] 차트 영역: 기존 DashboardCharts를 MaterialsChart로 교체 */}
         <MaterialsChart />
         
-        {/* --- 아래의 모든 UI는 기존 구조 그대로 유지됩니다 --- */}
-
         {/* 요약 정보 카드 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Card className="border border-gray-200">
@@ -274,20 +272,7 @@ const MaterialsPage: React.FC = () => {
           {/* ... ASME 물성정보 & 가격정보 Card, 물성 정보 Card ... */}
         </div>
 
-        {/* 자재 계산기 */}
-        <Card className="border border-gray-200">
-           {/* ... 기존 자재 계산기 코드 ... */}
-        </Card>
 
-        {/* 자재 비교 테이블 */}
-        <Card className="border border-gray-200">
-            {/* ... 기존 자재 비교 테이블 코드 ... */}
-        </Card>
-
-        {/* 시장 전망 */}
-        <Card className="border border-gray-200">
-            {/* ... 기존 시장 전망 코드 ... */}
-        </Card>
       </div>
     </Layout>
   );

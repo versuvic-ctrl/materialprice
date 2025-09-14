@@ -45,25 +45,40 @@ const useMaterialStore = create<MaterialState>((set) => ({
   selectedMaterialsForChart: [],
   hiddenMaterials: new Set(),
 
-  // 카테고리 변경 시 하위 카테고리 초기화
+  // 카테고리 변경 시 하위 카테고리 초기화 및 상태 업데이트
   setCategory: (level, value) => set((state) => {
+    const updates: Partial<MaterialState> = {};
+    
     if (level === 1) {
-      return { selectedLevel1: value, selectedLevel2: '', selectedLevel3: '', selectedLevel4: '' };
-    }
-    if (level === 2) {
-      return { selectedLevel2: value, selectedLevel3: '', selectedLevel4: '' };
-    }
-    if (level === 3) {
-      return { selectedLevel3: value, selectedLevel4: '' };
-    }
-    if (level === 4) {
-      // 4단계 선택 시 자동으로 차트에 추가
-      if (value && !state.selectedMaterialsForChart.includes(value)) {
-          return { selectedLevel4: value, selectedMaterialsForChart: [...state.selectedMaterialsForChart, value] };
+      updates.selectedLevel1 = value;
+      // 1단계 변경 시 하위 모든 단계 초기화
+      if (state.selectedLevel1 !== value) {
+        updates.selectedLevel2 = '';
+        updates.selectedLevel3 = '';
+        updates.selectedLevel4 = '';
       }
-      return { selectedLevel4: value };
+    } else if (level === 2) {
+      updates.selectedLevel2 = value;
+      // 2단계 변경 시 하위 단계들 초기화
+      if (state.selectedLevel2 !== value) {
+        updates.selectedLevel3 = '';
+        updates.selectedLevel4 = '';
+      }
+    } else if (level === 3) {
+      updates.selectedLevel3 = value;
+      // 3단계 변경 시 4단계 초기화
+      if (state.selectedLevel3 !== value) {
+        updates.selectedLevel4 = '';
+      }
+    } else if (level === 4) {
+      updates.selectedLevel4 = value;
+      // 4단계 선택 시 자동으로 차트에 추가 (중복 방지)
+      if (value && !state.selectedMaterialsForChart.includes(value)) {
+        updates.selectedMaterialsForChart = [...state.selectedMaterialsForChart, value];
+      }
     }
-    return {};
+    
+    return updates;
   }),
   
   setInterval: (interval) => set({ interval }),

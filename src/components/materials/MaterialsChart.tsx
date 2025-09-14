@@ -1,31 +1,10 @@
-/**
- * MaterialsChart.tsx - 자재 가격 추이 메인 차트 컴포넌트
- * 
- * 기능:
- * - 선택된 자재들의 가격 변화를 상세한 라인 차트로 시각화
- * - 이중 Y축 지원 (가격 차이가 큰 자재들을 함께 표시)
- * - 날짜 범위 및 집계 간격 설정 UI 제공
- * - React Query를 사용한 데이터 캐싱 및 상태 관리
- * - Zustand 스토어와 연동하여 자재 선택 상태 공유
- * 
- * 연관 파일:
- * - src/app/materials/page.tsx (자재 페이지에서 사용)
- * - src/store/materialStore.ts (자재 선택 및 설정 상태 관리)
- * - src/lib/supabase.ts (데이터베이스 연동)
- * - src/components/ui/* (UI 컴포넌트들)
- * 
- * 중요도: ⭐⭐⭐ 필수 - 자재 분석의 핵심 차트 기능
- * 
- * 데이터베이스 의존성:
- * - get_price_data RPC 함수 (Supabase)
- * - material_prices 테이블
- */
+// src/components/materials/MaterialsChart.tsx
 'use client';
 
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -34,20 +13,69 @@ import { Input } from '@/components/ui/input';
 import useMaterialStore from '@/store/materialStore';
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase 클라이언트 초기화 (환경변수에서 URL과 키 가져옴)
+// Supabase 클라이언트 초기화 (lib/supabaseClient.ts에서 가져와도 무방합니다)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-/**
- * 자재 가격 데이터를 Supabase에서 가져오는 함수
- * @param materials - 조회할 자재 specification 배열
- * @param startDate - 조회 시작 날짜
- * @param endDate - 조회 종료 날짜
- * @param interval - 데이터 집계 간격 (주간/월간/연간)
- * @returns 가격 데이터 배열
- */
+// [유지] 자재명을 간략하게 표시하는 함수
+const shortenMaterialName = (name: string): string => {
+    if (name.includes('SUS304')) return 'SUS304';
+    if (name.includes('SUS316')) return 'SUS316';
+    if (name.includes('AL6061')) return 'AL6061';
+    if (name.includes('고장력철근')) return '고장력철근';
+    if (name.includes('H형강')) return 'H형강';
+    if (name.includes('COPPER')) return '구리';
+    if (name.includes('NICKEL')) return '니켈';
+    if (name.includes('SILVER')) return '은';
+    if (name.includes('PTFE')) return 'PTFE';
+    if (name.includes('ABS')) return 'ABS';
+    if (name.includes('PC')) return 'PC';
+    if (name.includes('HDPE')) return 'HDPE';
+    
+    const words = name.split(/[\s-_]+/);
+    if (words[0] && words[0].length <= 20) return words[0];
+    return name.length > 20 ? name.substring(0, 20) + '...' : name;
+};
+
+// [유지] 숫자에 천 단위 구분자 추가하는 함수
+const formatNumber = (value: number): string => {
+  return new Intl.NumberFormat('ko-KR').format(value);
+};
+
+// 단위 정보를 포함한 툴팁 포맷팅 함수
+const formatTooltipValue = (value: number, unit?: string): string => {
+  return `${new Intl.NumberFormat('ko-KR').format(value)}${unit ? ` ${unit}` : ''}`;
+};
+
+// Y축 도메인 계산 함수 (패딩 포함)
+const calculateYAxisDomain = (data: any[], materials: string[]) => {
+  if (!data.length) return ['auto', 'auto'];
+  
+  const allValues: number[] = [];
+  data.forEach(item => {
+    materials.forEach(material => {
+      if (item[material] !== undefined && item[material] !== null) {
+        allValues.push(item[material]);
+      }
+    });
+  });
+  
+  if (allValues.length === 0) return ['auto', 'auto'];
+  
+  const minValue = Math.min(...allValues);
+  const maxValue = Math.max(...allValues);
+  const range = maxValue - minValue;
+  const padding = range * 0.1; // 10% padding
+  
+  return [
+    Math.max(0, minValue - padding),
+    maxValue + padding
+  ];
+};
+
+// [수정] 데이터 페칭 함수 - Supabase RPC 호출은 동일하나, 이제 완벽한 데이터를 반환합니다.
 const fetchPriceData = async (
   materials: string[],
   startDate: string,
@@ -57,258 +85,261 @@ const fetchPriceData = async (
   if (materials.length === 0) return [];
 
   const { data, error } = await supabase.rpc('get_price_data', {
-    p_specifications: materials,
     p_start_date: startDate,
     p_end_date: endDate,
     p_interval: interval,
-    // 다른 카테고리 필터는 필요 시 추가
     p_major_categories: null,
     p_middle_categories: null,
     p_sub_categories: null,
+    p_specifications: materials,
   });
 
   if (error) {
-    console.error('Error fetching price data:', error);
-    throw new Error(error.message);
+    console.error('Error fetching price data:', {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      fullError: JSON.stringify(error, null, 2)
+    });
+    throw new Error(`Supabase RPC Error: ${error.message || error.details || 'Unknown error'}`);
   }
 
   return data;
 };
 
-/**
- * DB에서 받은 데이터를 Recharts가 사용할 수 있는 형태로 변환
- * @param data - Supabase RPC로부터 받은 원본 데이터 배열
- * @param materials - 자재 목록 (현재 미사용)
- * @returns Recharts에 적합한 데이터 배열
- */
-const transformDataForChart = (data: any[], materials: string[]) => {
-  if (!data || data.length === 0) return [];
-  
+// [수정] 차트 데이터 변환 함수 - 배열 타입 보장
+const transformDataForChart = (data: any[], visibleMaterials: string[]) => {
+  if (!data || !Array.isArray(data) || data.length === 0) return [];
+
   const groupedData = data.reduce((acc, item) => {
     const { time_bucket, specification, average_price } = item;
+    
     if (!acc[time_bucket]) {
       acc[time_bucket] = { time_bucket };
     }
     acc[time_bucket][specification] = parseFloat(average_price);
     return acc;
   }, {});
-
-  return Object.values(groupedData);
+  
+  // Object.values() 결과를 명시적으로 배열로 변환
+  const resultArray = Array.from(Object.values(groupedData));
+  
+  const result = resultArray.map((group: any) => {
+      visibleMaterials.forEach(material => {
+          if (!(material in group)) {
+              group[material] = null; // 데이터 없는 부분은 null로 채워 'connectNulls'가 잘 동작하도록 함
+          }
+      });
+      return group;
+  });
+  
+  // 날짜순으로 정렬 - 배열임을 보장
+  return Array.isArray(result) ? result.sort((a, b) => a.time_bucket.localeCompare(b.time_bucket)) : [];
 };
 
-// 차트 라인 색상 팔레트 (최대 6개 자재까지 지원)
-const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+// [삭제] assignYAxis 함수는 더 이상 필요하지 않습니다.
+
+// [유지] 색상 팔레트
+const COLORS = [
+  '#6366f1', '#ef4444', '#10b981', '#f59e0b',
+  '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16',
+];
+
+// Y축 가격 포맷팅 함수
+const formatYAxisPrice = (value: number): string => {
+  // 모든 가격을 원 단위로 표시
+  return `${value.toLocaleString('ko-KR', { 
+    minimumFractionDigits: 0, 
+    maximumFractionDigits: 0 
+  })}원`;
+};
+
+// [유지] 커스텀 범례 컴포넌트
+const CustomizedLegend = (props: any) => {
+  const { payload, visibleMaterials } = props;
+
+  if (!payload || !visibleMaterials || visibleMaterials.length === 0) return null;
+
+  // 단순화된 규칙에 따라 범례 아이템을 좌/우로 분리
+  const leftPayload = payload.filter((p: any) => p.dataKey === visibleMaterials[0]);
+  const rightPayload = payload.filter((p: any) => visibleMaterials.slice(1).includes(p.dataKey as string));
+
+  return (
+    <div className="flex justify-between items-start px-2 text-xs pointer-events-none">
+      <div className="flex flex-col items-start bg-white/70 p-1 rounded">
+        {leftPayload.map((entry: any, index: number) => (
+          <div key={`item-${index}`} className="flex items-center space-x-1 mb-1">
+            <div style={{ width: 8, height: 8, backgroundColor: entry.color }} />
+            <span className="text-xs">{shortenMaterialName(entry.value as string)} (좌)</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-col items-end bg-white/70 p-1 rounded">
+        {rightPayload.map((entry: any, index: number) => (
+          <div key={`item-${index}`} className="flex items-center space-x-1 mb-1">
+            <span className="text-xs">(우) {shortenMaterialName(entry.value as string)}</span>
+            <div style={{ width: 8, height: 8, backgroundColor: entry.color }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 
 const MaterialsChart: React.FC = () => {
-  // Zustand 스토어에서 차트 설정 및 자재 선택 상태 가져오기
   const {
-    interval,                    // 집계 간격 (주간/월간/연간)
-    setInterval,                 // 집계 간격 설정 함수
-    startDate,                   // 조회 시작 날짜
-    endDate,                     // 조회 종료 날짜
-    setDateRange,                // 날짜 범위 설정 함수
-    selectedMaterialsForChart,   // 차트에 표시할 선택된 자재들
-    hiddenMaterials,             // 숨김 처리된 자재들 (Set)
+    interval, setInterval, startDate, endDate, setDateRange,
+    selectedMaterialsForChart, hiddenMaterials,
   } = useMaterialStore();
 
-  // 숨김 처리되지 않은 자재들만 필터링
   const visibleMaterials = selectedMaterialsForChart.filter(m => !hiddenMaterials.has(m));
 
   const { data: rawData, isLoading, isError, error } = useQuery({
     queryKey: ['materialPrices', visibleMaterials, startDate, endDate, interval],
     queryFn: () => fetchPriceData(visibleMaterials, startDate, endDate, interval),
-    enabled: visibleMaterials.length > 0, // 선택된 자재가 있을 때만 쿼리 실행
+    enabled: visibleMaterials.length > 0,
     staleTime: 1000 * 60 * 5, // 5분
   });
-
-  const chartData = useMemo(() => transformDataForChart(rawData, visibleMaterials), [rawData, visibleMaterials]);
-
-  /**
-   * 가격 범위 분석 및 이중 Y축 그룹 분할
-   * 가격 차이가 10배 이상 나는 자재들을 주축/보조축으로 분리하여
-   * 모든 자재의 변화를 명확하게 볼 수 있도록 함
-   */
-  const { primaryMaterials, secondaryMaterials, needsSecondaryAxis } = useMemo(() => {
-    if (!chartData || chartData.length === 0 || visibleMaterials.length < 2) {
-      return { 
-        primaryMaterials: visibleMaterials, 
-        secondaryMaterials: [], 
-        needsSecondaryAxis: false 
-      };
+  
+  const chartData = useMemo(() => {
+    const transformed = transformDataForChart(rawData, visibleMaterials);
+    return Array.isArray(transformed) ? transformed : [];
+  }, [rawData, visibleMaterials]);
+  
+  const rightAxisMaterials = visibleMaterials.length > 1 ? visibleMaterials.slice(1) : [];
+  
+  // 단위 정보 추출 (첫 번째 데이터에서)
+  const unit = useMemo(() => {
+    if (rawData && rawData.length > 0) {
+      return rawData[0].unit || '';
     }
-    
-    // 각 자재의 평균 가격 계산
-    const materialAvgPrices = visibleMaterials.map(material => {
-      const prices: number[] = [];
-      chartData.forEach(item => {
-        const price = (item as Record<string, number>)[material];
-        if (typeof price === 'number' && !isNaN(price)) {
-          prices.push(price);
-        }
-      });
-      const avgPrice = prices.length > 0 ? prices.reduce((sum, p) => sum + p, 0) / prices.length : 0;
-      return { material, avgPrice };
-    });
-    
-    // 가격 순으로 정렬
-    materialAvgPrices.sort((a, b) => a.avgPrice - b.avgPrice);
-    
-    if (materialAvgPrices.length < 2) {
-      return { 
-        primaryMaterials: visibleMaterials, 
-        secondaryMaterials: [], 
-        needsSecondaryAxis: false 
-      };
-    }
-    
-    const minPrice = materialAvgPrices[0].avgPrice;
-    const maxPrice = materialAvgPrices[materialAvgPrices.length - 1].avgPrice;
-    
-    // 가격 차이가 10배 이상이면 보조 Y축 사용
-    const priceRatio = maxPrice / (minPrice || 1);
-    const needsSecondary = priceRatio >= 10;
-    
-    if (!needsSecondary) {
-      return { 
-        primaryMaterials: visibleMaterials, 
-        secondaryMaterials: [], 
-        needsSecondaryAxis: false 
-      };
-    }
-    
-    // 중간값을 기준으로 분할
-    const medianIndex = Math.floor(materialAvgPrices.length / 2);
-    const primary = materialAvgPrices.slice(0, medianIndex).map(item => item.material);
-    const secondary = materialAvgPrices.slice(medianIndex).map(item => item.material);
-    
-    return { 
-      primaryMaterials: primary, 
-      secondaryMaterials: secondary, 
-      needsSecondaryAxis: true 
-    };
+    return '';
+  }, [rawData]);
+  
+  // 좌측 Y축 도메인 계산 (첫 번째 자재)
+  const leftYAxisDomain = useMemo(() => {
+    const leftMaterials = visibleMaterials.length > 0 ? [visibleMaterials[0]] : [];
+    return calculateYAxisDomain(chartData, leftMaterials);
   }, [chartData, visibleMaterials]);
 
+  // 우측 Y축 도메인 계산 (나머지 자재들)
+  const rightYAxisDomain = useMemo(() => {
+    const rightMaterials = visibleMaterials.length > 1 ? visibleMaterials.slice(1) : [];
+    return calculateYAxisDomain(chartData, rightMaterials);
+  }, [chartData, visibleMaterials]);
+
+  // 범례 높이 계산 (동적 공간 확보)
+  const legendHeight = useMemo(() => {
+    if (visibleMaterials.length === 0) return 0;
+    const leftItems = visibleMaterials.length > 0 ? 1 : 0;
+    const rightItems = visibleMaterials.length > 1 ? visibleMaterials.length - 1 : 0;
+    const maxItems = Math.max(leftItems, rightItems);
+    return maxItems * 18 + 8; // 각 아이템당 18px + 최소 패딩 8px
+  }, [visibleMaterials]);
+
+  // 차트 높이 계산 (범례 공간 확보)
+  const chartHeight = useMemo(() => {
+    return 340 + legendHeight; // 기본 340px + 범례 높이
+  }, [legendHeight]);
+
   return (
-    <Card className="border border-gray-200">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold text-gray-800">
-          자재 가격 추이
+    <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+      <CardHeader className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+        <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+          <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
+          실시간 자재 가격 비교 분석
           {selectedMaterialsForChart.length > 0 && (
-            <span className="text-sm font-normal text-gray-500 ml-2">
-              ({visibleMaterials.length}개 자재 표시 중)
+            <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
+              {visibleMaterials.length}개 표시
             </span>
           )}
+          {unit && (
+            <span className="text-sm font-normal text-gray-500">({unit})</span>
+          )}
         </CardTitle>
-        <div className="flex justify-end items-center gap-4 pt-2">
-            <Select value={interval} onValueChange={(value: any) => setInterval(value)}>
-                <SelectTrigger className="w-24">
-                    <SelectValue placeholder="기간" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="weekly">주간</SelectItem>
-                    <SelectItem value="monthly">월간</SelectItem>
-                    <SelectItem value="yearly">연간</SelectItem>
-                </SelectContent>
-            </Select>
-            <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setDateRange(e.target.value, endDate)}
-                className="w-40"
-            />
-            <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setDateRange(startDate, e.target.value)}
-                className="w-40"
-            />
+        <div className="flex justify-end items-center gap-3 pt-3">
+          <Select value={interval} onValueChange={(value: any) => setInterval(value)}>
+            <SelectTrigger className="w-28 h-9 border-gray-300 hover:border-gray-400 transition-colors">
+              <SelectValue placeholder="기간" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="weekly">주간</SelectItem>
+              <SelectItem value="monthly">월간</SelectItem>
+              <SelectItem value="yearly">연간</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input type="date" value={startDate} onChange={(e) => setDateRange(e.target.value, endDate)} className="w-40 h-9 border-gray-300 hover:border-gray-400 transition-colors" />
+          <Input type="date" value={endDate} onChange={(e) => setDateRange(startDate, e.target.value)} className="w-40 h-9 border-gray-300 hover:border-gray-400 transition-colors" />
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="h-96">
+      <CardContent className="p-6 bg-white">
+        <div 
+          className="bg-white rounded-lg p-2 border-0 shadow-none relative"
+          style={{ height: `${chartHeight}px` }}
+        >
           {isLoading ? (
-            <Skeleton className="h-full w-full" />
+            <div className="space-y-4"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /><Skeleton className="h-64 w-full" /></div>
           ) : isError ? (
-            <div className="flex items-center justify-center h-full text-red-500">
-              데이터 로딩 실패: {error.message}
-            </div>
+            <div className="text-red-500 text-center py-8 bg-red-50 rounded-lg border border-red-200"><div className="text-red-600 font-medium">데이터 로딩 실패: {error.message}</div></div>
           ) : !chartData || chartData.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-gray-500">
-              표시할 데이터가 없거나, 조회할 자재를 선택해주세요.
-            </div>
+            <div className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg border border-gray-200"><div className="text-gray-600 font-medium">표시할 데이터가 없거나, 조회할 자재를 선택해주세요.</div></div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 5, right: needsSecondaryAxis ? 60 : 20, left: 30, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="time_bucket" tick={{ fontSize: 12 }} />
-                
-                {/* 주 Y축 (왼쪽) - 낮은 가격대 자재용 */}
-                <YAxis 
-                  yAxisId="primary"
-                  tickFormatter={(value) => `₩${value.toFixed(1)}`}
-                  tick={{ fontSize: 12 }}
-                  domain={[(dataMin: number) => Math.max(0, dataMin * 0.95), (dataMax: number) => dataMax * 1.05]}
-                />
-                
-                {/* 보조 Y축 (오른쪽) - 높은 가격대 자재용 */}
-                {needsSecondaryAxis && (
-                  <YAxis 
-                    yAxisId="secondary"
-                    orientation="right"
-                    tickFormatter={(value) => `₩${value.toFixed(1)}`}
-                    tick={{ fontSize: 12 }}
-                    domain={[(dataMin: number) => Math.max(0, dataMin * 0.95), (dataMax: number) => dataMax * 1.05]}
+            <>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 30, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="2 2" horizontal={true} vertical={true} stroke="#d1d5db" opacity={0.5} />
+                  <XAxis dataKey="time_bucket" stroke="#6b7280" fontSize={12} tickLine={false} axisLine={true} tick={{ fill: '#6b7280', fontWeight: 500 }} />
+                  
+                  <YAxis yAxisId="left" stroke="#6b7280" tickFormatter={formatYAxisPrice} fontSize={12} tickLine={false} axisLine={true} tick={{ fill: '#6b7280', fontWeight: 500 }} domain={leftYAxisDomain} />
+                  
+                  {rightAxisMaterials.length > 0 && (
+                    <YAxis yAxisId="right" orientation="right" stroke="#6b7280" tickFormatter={formatYAxisPrice} fontSize={12} tickLine={false} axisLine={true} tick={{ fill: '#6b7280', fontWeight: 500 }} domain={rightYAxisDomain} />
+                  )}
+
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontSize: '14px', fontWeight: 500 }}
+                    labelStyle={{ color: '#374151', fontWeight: 600 }}
+                    formatter={(value: number, name: string) => [formatTooltipValue(value, unit), shortenMaterialName(name)]}
+                    labelFormatter={(label) => `기간: ${label}`}
                   />
-                )}
-                
-                <Tooltip
-                  formatter={(value: number, name: string) => {
-                    const axis = needsSecondaryAxis && secondaryMaterials.includes(name) ? '(우축)' : '(좌축)';
-                    return [`₩${value.toFixed(1)} ${axis}`, name];
-                  }}
-                  labelFormatter={(label) => `기간: ${label}`}
-                />
-                
-                <Legend 
-                  formatter={(value: string) => {
-                    if (needsSecondaryAxis) {
-                      const axis = secondaryMaterials.includes(value) ? '(우축)' : '(좌축)';
-                      return `${value} ${axis}`;
-                    }
-                    return value;
-                  }}
-                />
-                
-                {/* 주 Y축 자재들 (낮은 가격대) */}
-                {primaryMaterials.map((material, index) => (
-                  <Line
-                    key={material}
-                    yAxisId="primary"
-                    type="monotone"
-                    dataKey={material}
-                    stroke={COLORS[index % COLORS.length]}
-                    strokeWidth={2}
-                    dot={false}
-                    connectNulls
-                  />
-                ))}
-                
-                {/* 보조 Y축 자재들 (높은 가격대) */}
-                {needsSecondaryAxis && secondaryMaterials.map((material, index) => (
-                  <Line
-                    key={material}
-                    yAxisId="secondary"
-                    type="monotone"
-                    dataKey={material}
-                    stroke={COLORS[(primaryMaterials.length + index) % COLORS.length]}
-                    strokeWidth={2}
-                    strokeDasharray="5 5" // 보조축 라인은 점선으로 구분
-                    dot={false}
-                    connectNulls
-                  />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
+
+                  {visibleMaterials.map((material, index) => (
+                    <Line
+                      key={material}
+                      yAxisId={index === 0 ? 'left' : 'right'} // [핵심] 첫 번째는 left, 나머지는 right
+                      type="monotone"
+                      dataKey={material}
+                      stroke={COLORS[index % COLORS.length]}
+                      strokeWidth={3}
+                      dot={{ 
+                        fill: COLORS[index % COLORS.length], 
+                        strokeWidth: 2, 
+                        r: 4,
+                        stroke: 'white'
+                      }}
+                      activeDot={{ 
+                        r: 6, 
+                        stroke: COLORS[index % COLORS.length],
+                        strokeWidth: 2,
+                        fill: 'white'
+                      }}
+                      connectNulls // [핵심] 데이터가 null인 부분을 이어줍니다.
+                    />
+                  ))}
+                </LineChart>
+               </ResponsiveContainer>
+               {visibleMaterials.length > 0 && (
+                 <div style={{ marginTop: '8px' }}>
+                   <CustomizedLegend payload={chartData.length > 0 ? visibleMaterials.map((material, index) => ({ 
+                     value: material, 
+                     color: COLORS[index % COLORS.length], 
+                     dataKey: material 
+                   })) : []} visibleMaterials={visibleMaterials} />
+                 </div>
+               )}
+             </>
           )}
         </div>
       </CardContent>

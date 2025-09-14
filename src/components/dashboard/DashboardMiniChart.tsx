@@ -145,10 +145,10 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-1">
         <CardTitle className="text-md font-semibold">{title}</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-2">
         <div className="h-64 w-full">
           {isLoading ? (
             <Skeleton className="h-full w-full" />
@@ -162,8 +162,8 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 5, right: 10, left: 15, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.5} />
+              <LineChart data={chartData} margin={{ top: 2, right: 2, left: 1, bottom: 2 }}>
+                <CartesianGrid strokeDasharray="2 2" strokeOpacity={0.5} vertical={true} />
                 <XAxis dataKey="time_bucket" tick={{ fontSize: 10 }} />
                 <YAxis
                   tick={{ fontSize: 10 }}
@@ -172,7 +172,7 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
                 />
                 <Tooltip
                   wrapperClassName="text-xs"
-                  formatter={(value: number) => `₩${value.toLocaleString()}`}
+                  formatter={(value: number) => `${value.toLocaleString('ko-KR')}원`}
                 />
                 <Legend iconSize={10} wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
                 {materials.map((material, index) => (
