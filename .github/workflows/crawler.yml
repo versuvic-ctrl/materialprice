@@ -1,0 +1,43 @@
+name: Crawl Material Prices
+
+on:
+  # 1. 매일 UTC 17시 (한국 시간 새벽 2시)에 자동으로 실행
+  schedule:
+    - cron: '0 17 * * *'
+  
+  # 2. GitHub 페이지에서 수동으로 실행할 수 있는 버튼 추가
+  workflow_dispatch:
+
+jobs:
+  build-and-crawl:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 코드 가져오기
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2. 파이썬 설치
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      # 3. 크롤링용 브라우저 설치
+      - name: Install Playwright Browsers
+        run: python -m playwright install --with-deps
+
+      # 4. 파이썬 라이브러리 설치
+      - name: Install Python dependencies
+        run: pip install -r crawler/requirements.txt
+      
+      # 5. GitHub Secrets를 이용해 임시 .env.local 파일 생성
+      - name: Create .env.local file
+        run: |
+          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> .env.local
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env.local
+          echo "KPI_USERNAME=${{ secrets.KPI_USERNAME }}" >> .env.local
+          echo "KPI_PASSWORD=${{ secrets.KPI_PASSWORD }}" >> .env.local
+
+      # 6. 크롤러 스크립트 실행
+      - name: Run Crawler
+        run: python crawler/site/kpi_crawler.py
