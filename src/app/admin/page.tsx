@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Layout from '@/components/layout/Layout';
-import AdminAuth from '@/components/auth/AdminAuth';
+import { AdminAuth } from '@/components/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChartBarIcon, PlayIcon, CodeBracketIcon } from '@heroicons/react/24/outline';
