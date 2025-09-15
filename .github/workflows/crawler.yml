@@ -26,6 +26,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+         # ↓↓↓↓↓↓ 이 부분을 추가하세요 ↓↓↓↓↓↓
+      - name: Check file structure
+        uses: actions/github-script@v6
+        with:
+          script: |
+            echo "--- Current Directory ---"
+            pwd
+            echo "--- File List (Root) ---"
+            ls -l
+      echo "--- File List (All) ---"
+      ls -R
+      # End of file structure check
 
       - name: Set up Python 3.9
         uses: actions/setup-python@v4
