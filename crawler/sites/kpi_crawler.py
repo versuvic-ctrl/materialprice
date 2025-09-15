@@ -917,7 +917,35 @@ class KpiCrawler:
 
             log(f"대분류 '{major['name']}' 크롤링 시작...")
             await self.page.goto(major['url'])
-            await self.page.wait_for_selector("#div_cate")
+            
+            # 페이지 로딩 대기 - 카테고리 목록이 표시될 때까지 대기
+            try:
+                # 카테고리 목록 컨테이너 대기 (여러 선택자 시도)
+                selectors_to_try = [
+                    ".part-list",  # 기존 선택자
+                    "ul li a[href*='CATE_CD=']",  # 카테고리 링크들
+                    "li a[href*='/www/price/category.asp']",  # 카테고리 페이지 링크들
+                    ".category-list",  # 가능한 카테고리 리스트 클래스
+                ]
+                
+                page_loaded = False
+                for selector in selectors_to_try:
+                    try:
+                        await self.page.wait_for_selector(selector, timeout=10000)
+                        log(f"페이지 로딩 완료 - 선택자: {selector}")
+                        page_loaded = True
+                        break
+                    except Exception as e:
+                        log(f"선택자 {selector} 대기 실패: {str(e)}")
+                        continue
+                
+                if not page_loaded:
+                    log("모든 선택자 시도 실패, 기본 대기 시간 적용")
+                    await self.page.wait_for_timeout(3000)
+                    
+            except Exception as e:
+                log(f"페이지 로딩 대기 중 오류: {str(e)}")
+                await self.page.wait_for_timeout(3000)
 
             # openSub() 버튼 클릭하여 모든 중분류와 소분류를 한번에 펼치기
             open_sub_selector = 'a[href="javascript:openSub();"]'
