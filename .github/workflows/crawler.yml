@@ -35,9 +35,9 @@ jobs:
             pwd
             echo "--- File List (Root) ---"
             ls -l
-      echo "--- File List (All) ---"
-      ls -R
-      # End of file structure check
+            echo "--- File List (All) ---"
+            ls -R
+            # End of file structure check
 
       - name: Set up Python 3.9
         uses: actions/setup-python@v4
