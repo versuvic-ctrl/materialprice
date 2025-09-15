@@ -58,4 +58,4 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           REDIS_URL: ${{ secrets.REDIS_URL }}
         # --major="공통자재" --start-year=2020 --start-month=1 형식으로 인자 전달
-        run: python ./crawler/kpi_crawler.py --major="${{ matrix.category }}" --start-year=2020 --start-month=1
+        run: python ./crawler/sites/kpi_crawler.py --major="${{ matrix.category }}" --start-year=2020 --start-month=1
