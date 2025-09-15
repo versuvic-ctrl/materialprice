@@ -51,49 +51,766 @@ def check_running_crawler():
 # --- 3. Playwright 웹 크롤러 클래스 ---
 class KpiCrawler:
     """한국물가정보(KPI) 사이트 크롤러"""
+    # <<< 포함할 중분류 및 소분류 설정 >>>
+    #
+    #   - 중분류 전체를 포함하려면: "중분류명": "__ALL__"
+    #   - 특정 소분류만 포함하려면: "중분류명": ["포함할 소분류명1", "포함할 소분류명2"]
+    #   - 지정되지 않은 중분류/소분류는 자동으로 제외됩니다
+    #
+    INCLUSION_LIST = {
 
-    def __init__(self, crawl_mode="full", max_concurrent=3):
+    "공통자재": {
+        # --- 아래 목록을 직접 보시고 필요 없는 줄을 삭제하여 사용하세요 ---
+        "봉강": [
+            "이형철근(이형봉강)(1)",
+            "이형철근(이형봉강)(2)",
+            "특수철근",
+            "원형철근(원형봉강)",
+            "스파이럴철근",
+            "나선철선",
+            "PC강봉"
+        ],
+        "형강": [
+            "ㄱ형강",
+            "ㄷ형강",
+            "I형강",
+            "레일",
+            "철골브레이스",
+            "TSC BEAM",
+            "OCFT COLUMN",
+            "C형강",
+            "HyFo BEAM",
+            "ACT COLUMN",
+            "ACT PILE",
+            "H형강",
+            "용접경량H형강"
+        ],
+        "강판": [
+            "열연강판-1",
+            "열연강판-2",
+            "후판-1",
+            "후판-2",
+            "냉연강판-1",
+            "냉연강판-2",
+            "아연도강판-1",
+            "아연도강판-2",
+            "프린트강판",
+            "착색아연도강판(칼라강판)(1)-1",
+            "착색아연도강판(칼라강판)(1)-2",
+            "착색아연도강판(칼라강판)(2)",
+        ],
+        "강관": [
+            "구조용강관",
+            "구조용각관"
+        ],
+        "특수강": [
+            "구조용스테인리스관(1)",
+            "구조용스테인리스관(2)",
+            "구조용스테인리스관(3)",
+            "스테인리스강판(1)",
+            "스테인리스강판(2)",
+            "스테인리스강판(3)-1",
+            "스테인리스강판(3)-2",
+            "스테인리스강판(4)-1",
+            "스테인리스강판(4)-2",
+            "스테인리스채널-H형강",
+            "스테인리스앵글",
+            "스테인리스환봉",
+            "스테인리스와이어로프",
+            "주철품ㆍ주강품",
+            "특수강"
+        ],
+        "볼트ㆍ너트": [
+            "너트",
+            "접시머리렌지볼트",
+            "보통6각볼트",
+            "스테인리스6각볼트-1",
+            "스테인리스6각볼트-2",
+            "콜라6각볼트(Gr 10.9)-1",
+            "콜라6각볼트(Gr 10.9)-2",
+            "콜라너트",
+            "아이볼트",
+            "아이너트",
+            "전산볼트",
+            "스터드볼트(B7)-1",
+            "스터드볼트(B7)-2",
+            "U볼트",
+            "절연U볼트",
+            "앵커볼트(1)",
+            "앵커볼트(2)",
+            "앵커볼트(3)",
+            "앵커볼트(4)",
+            "풀림방지너트"
+        ],
+        "비철금속": [
+            "동제품(1)",
+            "동제품(2)",
+            "알루미늄제품(1)",
+            "알루미늄제품(2)",
+            "비철지금(非鐵地金)",
+            "연(납)제품(鉛製品)"
+        ],
+        "시멘트ㆍ콘크리트": [
+            "레미콘-1",
+            "레미콘-2",
+            "시멘트-1",
+            "시멘트-2",
+            "시멘트-3",
+            "시멘트-4",
+            "방수·방청시멘트",
+            "특수레미콘",
+            "모르터-1",
+            "모르터-2",
+            "특수시멘트ㆍ타일시멘트(1)",
+            "특수시멘트ㆍ타일시멘트(2)",
+            "특수시멘트ㆍ타일시멘트(3)",
+            "드라이모르터(1)",
+            "드라이모르터(2)"
+        ],
+        "가설자재": [
+            "PDF (더블 프레임) 패널",
+            "복공판 및 안전발판(1)",
+            "복공판 및 안전발판(2)",
+            "레벨봉",
+            "유로폼",
+            "복공판",
+            "강관비계",
+            "강관써포트",
+            "조립식틀비계(이동식틀비계)",
+        ],
+    },
+
+    "토목자재": {
+        "지수판": [
+            "강재토류판",
+            "지수판"
+        ],
+        "배수판": [
+            "차수판(1)",
+            "차수판(2)",
+            "배수판"
+        ],
+          "파일류": [
+            "스크류파일",
+            "고강도콘크리트파일(PHC-A종)(1)",
+            "고강도콘크리트파일(PHC-B, C종)(2)",
+            "PHC 두부보강자재 ",
+            "에코스파이럴",
+            "PHC파일 두부보강캡(하부판 스틸제품)",
+            "PHC파일 두부보강캡(하부판 P.E제품)",
+            "강관파일(1)",
+            "강관파일(2)",
+            "복합말뚝(SCP)",
+            "복합말뚝(HCP)",
+            "MSTRUT(고강도강관버팀보)",
+            "U형시트파일(열간압연강널말뚝)",
+            "다동심/다축 기초 파일",
+        ],
+        "도로포장재": [
+            "아스팔트(1)",
+            "아스팔트(2)",
+            "아스팔트콘크리트(1)",
+            "아스팔트콘크리트(2)",
+            "아스팔트콘크리트(3)",
+            "하이브리드 투수콘",
+            "투수성콘크리트도로포장재(1)",
+            "투수성콘크리트도로포장재(2)",
+            "흙포장재(1)",
+            "흙포장재(2)",
+            "박층포장재",
+            "도로포장용보수재(1)",
+            "도로포장용보수재(2)",
+            "도로포장용보수재(3)",
+            "코르크포장재"
+        ],
+        "경계블록": [
+            "인조화강석경계블록",
+            "콘크리트경계블록(1)",
+            "콘크리트경계블록(2)",
+        ],
+        "맨홀": [            "조립식맨홀(1)",
+            "조립식맨홀(2)",
+            "맨홀(1)",
+            "맨홀(2)",
+            "맨홀(3)",
+        ],
+        "그레이팅": [
+            "스틸그레이팅(1)",
+            "스틸그레이팅(2)",
+        ],
+        "철근콘크리트관": [
+            "PC관",
+            "철근콘크리트수로관(1)",
+            "철근콘크리트수로관(2)",
+        ]
+    },
+
+    "건축자재": {
+        "벽돌": [
+            "콘크리트벽돌(시멘트벽돌)(1)",
+            "콘크리트벽돌(시멘트벽돌)(2)",
+            "내화벽돌"
+        ],
+        "경량콘크리트판": [
+            "조립식내ㆍ외벽패널",
+            "압출성형시멘트판"
+        ],
+        "미장재": [
+            "불연성 무기질계 접착제",
+            "무기질계 내외장 마감재",
+            "외벽단열마감재(1)",
+            "외벽단열마감재(2)",
+            "퍼라이트",
+            "내화피복재"
+        ],
+        "지붕재": [
+            "캐노피지붕재(차양)",
+            "세라믹사이딩(외벽재+지붕재)",
+            "복합강판",
+            "징크"
+        ],
+        "접착제": [
+            "접착제(1)",
+            "접착제(2)"
+        ],
+        "도료": [
+            "방화ㆍ방염ㆍ내열페인트(1)",
+            "방화ㆍ방염ㆍ내열페인트(2)",
+            "방청페인트(1)",
+            "방청페인트(2)",
+            "케이블난연도료",
+            "세라믹코팅제(1)",
+            "세라믹코팅제(2)",
+            "단열페인트",
+            "에폭시도료(1)",
+            "에폭시도료(2)"
+        ],
+        "내ㆍ외장패널": [
+            "준불연 성능 벽마감재(상업용·주거용·사무용공간)",
+            "알루미늄패널(1)",
+            "알루미늄패널(2)",
+            "외벽·외장아연도금강판(금속제패널)",
+            "준불연실내마감패널",
+            "세라믹패널",
+            "아연도강판패널",
+            "외장패널(금속제패널)",
+            "외장패널(석제, 타일 단열패널)",
+        ],
+        "보온ㆍ단열재": [
+            "미네랄울보온판",
+            "진공단열재(미라클히트)",
+            "진공단열재(파워백)",
+            "글라스울단열보온재(1)",
+            "글라스울단열보온재(2)",
+            "발포폴리스티렌판(1)",
+            "발포폴리스티렌판(압출)(2)-1",
+            "발포폴리스티렌판(압출)(2)-2",
+            "발포폴리스티렌판(스티로폴)(3)",
+            "발포폴리스티렌판(스티로폴)(4)",
+            "준불연 경질 폴리우레탄 폼 단열재",
+            "가교발포폴리에틸렌 보온판 (카이론)",
+            "폴리에스터섬유단열재",
+            "심재 준불연 발포폴리스티렌 단열재(EPS)",
+            "경질폴리우레탄폼단열재(1)-1",
+            "경질폴리우레탄폼단열재(1)-2",
+        ],
+        "조립식건물재": [
+            "경량철골천장부재(1)",
+            "경량철골천장부재(2)",
+            "샌드위치패널(1)",
+            "샌드위치패널(2)",
+            "샌드위치패널(3)",
+            "칸막이(1)",
+            "칸막이(2)",
+            "칸막이(3)",
+        ],
+    },
+
+    "plumbingmbing": {
+        "배관재(Ⅰ)": [
+            "일반배관용탄소강관(1)",
+            "일반배관용탄소강관(2)",
+            "압력배관용탄소강관(ASTM A53)(1)",
+            "압력배관용탄소강관(SPPS 38)(2)",
+            "연료가스배관용탄소강관",
+            "송유관",
+            "강관제관이음쇠(나사식)",
+            "강관제관이음쇠(용접식/흑관)-1",
+            "강관제관이음쇠(용접식/흑관)-2",
+            "강관제관이음쇠(용접식/백관)",
+            "강관제관이음쇠(용접식/레듀샤/흑관)-1",
+            "강관제관이음쇠(용접식/레듀샤/백관)-2",
+            "단조플랜지",
+            "단열이중보온관",
+            "폴리에틸렌피복강관-1",
+            "폴리에틸렌피복강관-2",
+            "폴리에틸렌피복강관이형관-1",
+            "폴리에틸렌피복강관이형관-2",
+            "폴리에틸렌피복강관이형관-3",
+            "배관용스테인리스강관(일반용)-1",
+            "배관용스테인리스강관(일반용)-2",
+            "배관용스테인리스강관(공업용)",
+            "스테인리스Seamless강관-1",
+            "스테인리스Seamless강관-2",
+            "스테인리스주름관",
+            "스테인리스플랜지",
+            "스테인리스관이음쇠(용접식)(1)",
+            "스테인리스관이음쇠(용접식)(2)",
+            "동파이프",
+            "동관이음쇠",
+            "복합파이프·이음관",
+            "FRP DUCT 성형관 및 이음관"
+        ],
+        "배관재(Ⅱ)": [
+            "폴리부틸렌파이프(PB)",
+            "경질염화비닐관(PVC파이프)",
+            "PVC이음관(수도용)",
+            "PVC, CPVC 파이프 및 이음관(1)",
+            "PVC, CPVC 파이프 및 이음관(2)",
+            "일반용폴리에틸렌파이프",
+            "수도용폴리에틸렌파이프(1)-1",
+            "수도용폴리에틸렌파이프(1)-2",
+            "수도용폴리에틸렌파이프(2)",
+            "폴리에틸렌파이프ㆍ이음관(1)-1",
+            "폴리에틸렌파이프ㆍ이음관(1)-2",
+            "폴리에틸렌파이프ㆍ이음관(2)",
+            "폴리에틸렌파이프ㆍ이음관(3)-1",
+            "폴리에틸렌파이프ㆍ이음관(3)-2",
+            "UHP PVDF SDR21/PN16 배관재(1)",
+            "UHP PVDF SDR21/PN16 배관재(2)",
+            "ECTFE SDR21 배관재",
+            "익스팬션조인트",
+        ],
+        "밸브": [
+            "PVC밸브-1",
+            "PVC밸브-2",
+            "주강제밸브",
+            "주철제밸브",
+            "청동제밸브",
+            "볼밸브(1)",
+            "볼밸브(2)",
+            "스테인리스단조밸브(F304)(일반용)",
+            "스테인리스단조밸브(F316)(가스용)",
+            "단조밸브(A105)(일반용)",
+            "컨트롤밸브",
+            "스테인리스볼밸브-1",
+            "스테인리스볼밸브-2",
+            "스테인리스밸브",
+            "주강제밸브(CAST CARBON STEEL VALVE)",
+            "체크밸브(판)",
+            "버터플라이밸브(1)",
+            "버터플라이밸브(2)",
+            "버터플라이밸브(3)",
+            "버터플라이밸브(4)",
+            "스팀트랩",
+            "온도조절밸브",
+            "안전밸브(1)",
+            "안전밸브(2)",
+            "감압밸브",
+            "세퍼레이터",
+            "스트레이너(1)",
+            "스트레이너(2)",
+            "자동밸브",
+        ],
+        "펌프류": [
+            "축류펌프",
+            "사류펌프",
+            "입축 사류 · 축류 펌프",
+            "양흡입(보류트)펌프-1",
+            "양흡입(보류트)펌프-2",
+            "다단와권(보류트)펌프(1)",
+            "다단와권(보류트)펌프(2)",
+            "다단와권(횡형편흡입)펌프",
+            "단단와권(보류트)펌프(1)",
+            "단단와권(보류트)펌프(2)",
+            "다단와권(터빈)펌프",
+            "정량펌프-1",
+            "정량펌프-2",
+            "내산펌프",
+            "부스타(가압)펌프(1)-1",
+            "부스타(가압)펌프(1)-2",
+            "부스타(가압)펌프(2)-1",
+            "부스타(가압)펌프(2)-2",
+            "수중모터펌프(1)",
+            "수중모터펌프(2)",
+            "인라인펌프(1)",
+            "인라인펌프(2)",
+            "입형다단펌프(1)",
+            "입형다단펌프(2)",
+            "자동펌프(1)",
+            "자동펌프(2)",
+            "튜브ㆍ호스펌프",
+            "진공펌프"
+        ],
+        "조ㆍ탱크류": [
+            "스테인리스물탱크(1)-1",
+            "스테인리스물탱크(1)-2",
+            "FRP약품탱크",
+            "FRP물탱크-1",
+            "FRP물탱크-2",
+            "PE케미칼탱크",
+            "PE물탱크",
+            "FRP정화조(1)",
+            "FRP정화조(2)",
+        ],
+        "파이프커버": [
+            "가교발포폴리에틸렌보온재(카이론)-1",
+            "가교발포폴리에틸렌보온재(카이론)-2",
+            "유리섬유보온재",
+            "아마젤에어로젤단열재",
+            "미네랄울보온재",
+            "고무발포보온재(카이플렉스)-1",
+            "고무발포보온재(카이플렉스)-2",
+            "AES울 불연성단열재",
+            "HITLIN PIPE COVER HG비발수 TYPE 보온재-1",
+            "HITLIN PIPE COVER HG비발수 TYPE 보온재-2",
+            "HITLIN PIPE COVER HG발수 TYPE 보온재-1",
+            "HITLIN PIPE COVER HG발수 TYPE 보온재-2",
+            "HITLIN PIPE COVER  HGA비발수 TYPE 보온재-1",
+            "HITLIN PIPE COVER  HGA비발수 TYPE 보온재-2",
+            "락킹식보온외장커버(파이프보온)",
+            "락킹식보온외장커버(엘보보온)",
+            "락킹식보온외장커버(밸브보온)",
+            "후크식 보온외장조립카바(파이프보온)",
+            "후크식 보온외장조립카바(엘보보온)",
+            "후크식 보온외장조립카바(밸브보온)"
+        ]
+    },
+
+    "전기자재": {
+        "절연전선": [
+            "내열비닐절연전선(HIV)",
+            "난연PVC절연접지용전선(F-GV)",
+            "저독난연가교폴리올레핀절연전선(HFIX)",
+            "난연성폴리프렉스구출선(MLFC)",
+            "옥외용비닐절연전선(OW)",
+            "인입용비닐절연전선(DV)",
+            "고무절연캡타이어케이블(PNCT)(1)",
+            "고무절연캡타이어케이블(PNCT)(2)",
+            "비닐절연비닐캡타이어케이블(VCT)(1)",
+            "비닐절연비닐캡타이어케이블(VCT)(2)",
+            "전기기기용비닐절연전선(KIV)",
+            "기구용비닐코드",
+            "고무코드(CTF)",
+            "클로로프렌피복인출선(CR배선)",
+            "용접용케이블(WCT)"
+        ],
+        "전력케이블": [
+            "절연난연PVC시스케이블(FW-CV, TFR-CV)",
+            "합금 케이블(하이랙스, HiRaCS)",
+            "절연저독성난연폴리올레핀시스케이블(HFCO)",
+            "수밀형저독성난연동심중성선케이블(FR-CN/CO-W)",
+            "수밀형동심중성선케이블(CN/CV-W)"
+        ],
+        "제어용케이블": [
+            "절연저독성난연폴리올레핀시스제어용케이블(HFCCO)",
+            "절연저독성난연폴리올레핀시스차폐제어용케이블(HFCCO-SㆍSB)",
+            "절연저독성난연폴리올레핀시스알루미늄마일라테이프제어용케이블(HFCCO-AMSㆍI/C AMS)",
+            "절연난연시스제어케이블(FW-CVV)",
+            "절연난연시스제어차폐케이블(FW-CVV-SㆍSB)",
+            "절연난연시스알루미늄마일라테이프차폐제어케이블(FW-CVV-AMSㆍI/C AMS)"
+        ],
+        "소방용케이블": [
+            "난연PVC시스트레이용내화케이블(TFR-8)",
+            "저독성난연폴리올레핀시스트레이용난연내화케이블(NFR-8)",
+            "난연PVC시스화재경보용내열케이블(TFR-3)",
+            "저독성난연폴리올레핀시스화재경보용내열케이블(NFR-3)",
+            "전선관일체형내화전선"
+        ],
+        "통신용케이블": [
+            "비닐절연비닐시스전화용국내케이블",
+            "폴리에틸렌절연비닐시스내쌍케이블(CPEV)",
+            "PCM(DS1)케이블",
+            "광케이블",
+            "고주파폴리에틸렌절연동축케이블(ECX)",
+            "인터폰선ㆍ전화선ㆍ점퍼선(TIVㆍTOVㆍTJV)",
+            "위성방송수신용케이블(HFBT)",
+            "신호용케이블",
+            "LAN(UTP)케이블(1)",
+            "LAN(UTP)케이블(2)"
+        ],
+        "기타특수케이블": [
+            "가요성알루미늄피케이블",
+            "전선·케이블",
+            "수중케이블(CVF)",
+            "알루미늄도체케이블(ACSR)",
+            "엘리베이터케이블",
+            "테프론전선",
+            "전기용나동선",
+            "에나멜동선ㆍ동부스바",
+            "누수/누유감지시스템",
+            "히팅케이블(1)",
+            "히팅케이블(2)",
+            "히팅케이블(3)",
+        ],
+        "전선원부자재": [
+            "부스덕트 및 부품(1)",
+            "부스덕트 및 부품(2)",
+            "부스덕트 및 부품(3)",
+            "부스덕트 및 부품(4)",
+            "슬리브-1",
+            "슬리브-2",
+            "케이블접속재 및 접속자재",
+            "압착단자, 동관단자, EYECAP",
+            "단자대",
+            "BIMETAL LUG"
+        ],
+        "전선관": [
+            "광케이블통신관",
+            "나사없는전선관",
+            "나사없는전선관 및 부속품(1)",
+            "나사없는전선관 및 부속품(2)",
+            "나사없는전선관용 원터치이음쇠(EZ커넥터)",
+            "강제전선관",
+            "FC통신관",
+            "강제전선관부품-1",
+            "강제전선관부품-2",
+            "노출배관용부품(전선관용)",
+            "경질비닐(PVC)전선관",
+            "경질비닐(PVC)전선관부품",
+            "합성수지제가요전선관",
+            "합성수지제가요전선관부품",
+            "파상형경질(ELP)전선관",
+            "폴리에틸렌(PE)전선관",
+            "후렉시블전선관",
+            "후렉시블전선관부품(1)",
+            "후렉시블전선관부품(2)",
+            "몰드",
+            "전선덕트"
+        ],
+        "전선관로재": [
+            "레이스웨이",
+            "케이블타이",
+            "케이블연소방지제 방화커버",
+            "트레이관통부 FireZero Tray 방화커버",
+            "금속제박스 및 커버(전선관용)",
+            "풀박스",
+            "플라스틱콘트롤BOX(1)",
+            "플라스틱콘트롤BOX(2)",
+            "플라스틱콘트롤BOX(3)",
+            "케이블트레이(KSC8464) 및 부속품(1)",
+            "케이블트레이(KSC8464) 및 부속품(2)-1",
+            "케이블트레이(KSC8464) 및 부속품(2)-2",
+            "CABLE TRAY (사다리형, LADDER TRAY)",
+            "내진서포트행거·내진연결조인트",
+            "광덕트",
+            "래더트레이",
+            "하이박스"
+        ],
+        "전력기기": [
+            "전기차충전소 안전시설물",
+            "저손실하이브리드변압기",
+            "정류기충전기",
+            "변압기(1)",
+            "변압기(2)",
+            "변압기(3)",
+            "변압기(4)",
+            "무정전전원장치",
+            "자동전압조정기",
+            "회전위상변환기",
+            "소프트스타터",
+            "전해용콘덴서(1)",
+            "전해용콘덴서(2)",
+            "기기용콘덴서",
+            "인버터판넬/에너지절전기",
+            "진상용콘덴서",
+            "TWTX 전동기",
+            "유도전동기",
+            "인버터판넬",
+            "마이크로서지필터",
+            "조작트랜스포머",
+            "인버터(1)",
+            "인버터(2)",
+            "인버터(3)",
+            "인버터(4)",
+            "에너지회생장치",
+            "직류전동기제어컨버터",
+            "직류전동기제어반"
+        ],
+        "배전기기": [
+            "변류기보호장치",
+            "피뢰기(LA)",
+            "아크차단기",
+            "누전차단기(ELB)(1)-1",
+            "누전차단기(ELB)(1)-2",
+            "누전차단기(ELB)(2)",
+            "배선용차단기(1)",
+            "배선용차단기(2)",
+            "배선용차단기(3)",
+            "고압전동기 원격 절연저항 측정 시스템",
+            "배선용차단기(MCCB)함",
+            "기중차단기(DC)",
+            "기중차단기(A.C.B)",
+            "고압개폐기",
+            "전자개폐기",
+            "무정전절체스위치",
+            "진공차단기(V.C.B)",
+            "회로ㆍ가조정형차단기",
+            "전자접촉기",
+            "진공접촉기(VCS)",
+            "열동형과부하계전기",
+            "블록형전원분배기"
+        ],
+        "절연재료": [
+            "절연재료"
+        ],
+        "수ㆍ배전반": [
+            "분전반KIT",
+            "분전반 · 계량기함",
+            "IoT스마트컨버터",
+            "지능형분전반",
+            "소수력발전장치"
+        ],
+        "배전제어기기": [
+            "배전제어부품",
+            "계전기(릴레이)(1)",
+            "계전기(릴레이)(2)",
+            "계전기(릴레이)(3)",
+            "계전기(릴레이)(4)",
+            "산업용자동제어기기부품"
+        ],
+        "자동화기기": [
+            "원격통합관리시스템",
+            "원격감시시스템(1)",
+            "원격감시시스템(2)",
+            "원격감시시스템(3)",
+            "프로그래머블 로직 콘트롤러(1)",
+            "프로그래머블 로직 콘트롤러(2)",
+            "프로그래머블 로직 콘트롤러(3)",
+            "프로그래머블 로직 콘트롤러(4)",
+            "전력선통신기반통합제어시스템",
+            "원방감시제어시스템(1)",
+            "원방감시제어시스템(2)",
+            "누수·누액·누유감지시스템",
+            "스마트센서·아이솔레이터"
+        ],
+        "전등": [
+            "형광등",
+            "항공등화(비행장조명기구)(1)",
+            "항공등화(2)",
+            "LED전구",
+            "LED 형광등",
+            "LED 투광등",
+            "나트륨등",
+            "메탈하라이드등",
+            "재실감지센서-1",
+            "재실감지센서-2"
+        ],
+    },
+
+    "석유화학": {
+        "유화제품": [
+            "석유화학제품"
+        ],
+        "화공약품": [
+            "화공약품",
+            "시약",
+            "에어졸(1)",
+            "에어졸(2)",
+            "활성탄소"
+        ],
+        "합성수지·고무제품": [
+            "PVC호스(1)",
+            "PVC호스(2)",
+            "불포화폴리에스터수지",
+            "방진ㆍ방음패드",
+            "고무호스",
+            "고압호스",
+            "고무판(1)",
+            "고무판(2)",
+            "고무용약품",
+            "Flake Lining 재",
+            "PTFE(테프론)판",
+            "POM(아세탈)판",
+            "MC(나일론)판",
+            "ABS판",
+            "PET판",
+            "포맥스판",
+            "PVC평판",
+            "PPㆍPE평판",
+            "PVCㆍPPㆍPE봉",
+            "ABS봉",
+            "PTFE(테프론)봉",
+            "에폭시봉",
+            "아크릴봉",
+            "아크릴거울",
+            "아크릴평판",
+            "압출아크릴판",
+            "아크릴파이프"
+        ],
+        "연료": [
+            "연탄",
+            "무연탄",
+            "연료유",
+            "연료가스",
+            "가스"
+        ],
+        "가스기기": [
+            "가스기기(1)",
+            "가스기기(2)",
+            "가스기기(3)",
+            "가스용기"
+        ],
+        "윤활유": [
+            "워셔액",
+            "절연유",
+            "부동액",
+            "그리스(1)",
+            "그리스(2)",
+            "자동차용윤활유",
+            "산업용윤활유"
+        ]
+    }
+    }
+
+    def __init__(self, target_major: str, start_year: str, start_month: str, max_concurrent=3):
         self.base_url = "https://www.kpi.or.kr"
-        self.crawl_mode = crawl_mode  # "full", "test", "common-all"
         self.max_concurrent = max_concurrent
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.supabase = supabase  # 전역 supabase 객체 참조
-        self.test_targets = [
-            {"major": "공통자재", "middle": "봉강", "sub": "이형철근(이형봉강)(1)"},
-            {"major": "공통자재", "middle": "형강", "sub": "H형강"},
-        ]
-        # 크롤링 모드에 따른 시작 연도 설정
-        if crawl_mode == "test":
-            self.start_year = "2025"
-        else:
-            self.start_year = "2020"
-        self.start_month = "01"
+        
+        # 새로 추가된 속성들
+        self.target_major_category = target_major
+        self.start_year = start_year
+        self.start_month = start_month
+        
         self.processor = create_data_processor('kpi')
         
         # 배치 처리용 변수
         self.batch_data = []
         self.batch_size = 5  # 소분류 5개마다 처리
         self.processed_count = 0
+        log(f"크롤러 초기화: 타겟='{self.target_major_category}', 시작날짜={self.start_year}-{self.start_month}")
 
     async def run(self):
         """크롤링 프로세스 실행"""
-        async with async_playwright() as p:
-            # headless=False로 브라우저 동작 확인
-            browser = await p.chromium.launch(headless=False)
-            self.context = await browser.new_context()
-            self.page = await self.context.new_page()
+        browser = None
+        try:
+            async with async_playwright() as p:
+                # headless=False를 True로 변경하여 서버 환경에서 실행되도록 합니다.
+                browser = await p.chromium.launch(headless=True) # ◀◀◀ 이 부분을 수정하세요!
+                self.context = await browser.new_context()
+                self.page = await self.context.new_page()
 
-            await self._login()
-            await self._navigate_to_category()
-            await self._crawl_categories()
-            
-            # 마지막 남은 배치 데이터 처리
-            await self._process_final_batch()
-            
-            log(f"\n=== 크롤링 완료: 총 {self.processed_count}개 소분류 처리됨 ===\n")
+                await self._login()
+                await self._navigate_to_category()
+                await self._crawl_categories()
+                
+                # 마지막 남은 배치 데이터 처리
+                await self._process_final_batch()
+                
+                log(f"\n🟢 === 크롤링 완료: 총 {self.processed_count}개 소분류 처리됨 === 🟢\n")
 
-            await browser.close()
-            return self.processor
+                await browser.close()
+                return self.processor
+        except Exception as e:
+            log(f"크롤링 중 오류 발생: {str(e)}", "ERROR")
+            if browser:
+                try:
+                    await browser.close()
+                except:
+                    pass
+            raise
 
     async def _login(self):
         """로그인 페이지로 이동하여 로그인 수행"""
@@ -141,14 +858,9 @@ class KpiCrawler:
             major_links.append({'name': text, 'url': f"{self.base_url}{href}"})
 
         for major in major_links:
-            # 크롤링 모드에 따른 필터링
-            if self.crawl_mode == "test":
-                test_majors = [t['major'] for t in self.test_targets]
-                if major['name'] not in test_majors:
-                    continue  # 테스트 모드일 경우 대상 대분류만 실행
-            elif self.crawl_mode == "common-all":
-                if major['name'] != "공통자재":
-                    continue  # 공통자재 전체 모드일 경우 공통자재만 실행
+            # <<< 여기에 코드 추가 (3/4) - 대분류 필터링 >>>
+            if major['name'] != self.target_major_category:
+                continue  # 타겟 대분류가 아니면 건너뛰기
 
             log(f"대분류 '{major['name']}' 크롤링 시작...")
             await self.page.goto(major['url'])
@@ -210,13 +922,22 @@ class KpiCrawler:
             for middle_info in middle_categories_info:
                 middle_name = middle_info['name']
                 middle_href = middle_info['href']
+                # <<< 중분류 포함 로직 >>>
+                inclusions_for_major = self.INCLUSION_LIST.get(major['name'], {})
                 
-                # 크롤링 모드에 따른 중분류 필터링
-                if self.crawl_mode == "test":
-                    test_middles = [t['middle'] for t in self.test_targets 
-                                   if t['major'] == major['name']]
-                    if middle_name not in test_middles:
-                        continue  # 테스트 모드일 경우 대상 중분류만 실행
+                # 대분류에 설정이 없으면 모든 중분류 제외
+                if not inclusions_for_major:
+                    log(f"  [SKIP] 포함 목록 없음: 중분류 '{middle_name}' 건너뜁니다.")
+                    continue
+                
+                # 대분류가 "__ALL__"로 설정된 경우 모든 중분류 포함
+                if inclusions_for_major == "__ALL__":
+                    log(f"  중분류 '{middle_name}' 포함 (대분류 전체 포함 설정)")
+                else:
+                    # 중분류가 포함 목록에 없으면 제외
+                    if middle_name not in inclusions_for_major:
+                        log(f"  [SKIP] 포함 목록에 없음: 중분류 '{middle_name}' 건너뜁니다.")
+                        continue
 
                 try:
                     # 중분류 페이지로 이동
@@ -307,21 +1028,29 @@ class KpiCrawler:
                                             middle_name,
                                             sub_categories_info):
         """소분류들을 병렬로 크롤링"""
-        # 크롤링 모드에 따른 소분류 필터링
-        if self.crawl_mode == "test":
-            filtered_subs = []
-            for sub_info in sub_categories_info:
-                sub_name = sub_info['name']
-                is_target = any(
-                    (t['major'] == major_name and
-                     t['middle'] == middle_name and
-                     t['sub'] == sub_name)
-                    for t in self.test_targets
-                )
-                if is_target:
-                    filtered_subs.append(sub_info)
-            sub_categories_info = filtered_subs
-        # common-all 모드에서는 모든 소분류 처리 (필터링 없음)
+        # <<< 소분류 포함 로직 >>>
+        inclusions_for_major = self.INCLUSION_LIST.get(major_name, {})
+        
+        # 대분류가 "__ALL__"로 설정된 경우 모든 중분류와 소분류 포함
+        if inclusions_for_major == "__ALL__":
+            log(f"    대분류 '{major_name}' 전체 포함 설정 - 중분류 '{middle_name}' 모든 소분류 포함")
+        else:
+            sub_inclusion_rule = inclusions_for_major.get(middle_name, [])
+            
+            # 중분류가 "__ALL__"이 아닌 경우, 특정 소분류만 포함
+            if sub_inclusion_rule != "__ALL__":
+                if isinstance(sub_inclusion_rule, list) and sub_inclusion_rule:
+                    filtered_subs = []
+                    for sub_info in sub_categories_info:
+                        if sub_info['name'] in sub_inclusion_rule:
+                            filtered_subs.append(sub_info)
+                        else:
+                            log(f"    [SKIP] 포함 목록에 없음: 소분류 '{sub_info['name']}' 건너뜁니다.")
+                    sub_categories_info = filtered_subs  # 필터링된 목록으로 교체
+                else:
+                    # 빈 리스트이거나 잘못된 형식인 경우 모든 소분류 제외
+                    log(f"    [SKIP] 포함할 소분류 없음: 중분류 '{middle_name}' 모든 소분류 건너뜁니다.")
+                    return
 
         if not sub_categories_info:
             log(f"    중분류 '{middle_name}': "
@@ -451,10 +1180,12 @@ class KpiCrawler:
                     df = result.to_dataframe()
 
                     if not df.empty:
+                        # DataFrame을 딕셔너리 리스트로 변환하여 저장
+                        processed_data = df.to_dict(orient='records')
                         # Supabase에 저장 (중복 체크 활성화)
-                        result.save_to_supabase(df, 'kpi_price_data', check_duplicates=True)
+                        saved_count = await result.save_to_supabase(processed_data, 'kpi_price_data', check_duplicates=True)
                         log(f"  ✅ '{sub_name}' 완료: "
-                            f"{len(df)}개 데이터 → Supabase 저장 성공")
+                            f"{len(df)}개 데이터 → Supabase 저장 {saved_count}개 성공")
                     else:
                         log(f"  ⚠️ '{sub_name}' 완료: 저장할 데이터 없음")
 
@@ -532,12 +1263,21 @@ class KpiCrawler:
                                         middle_name, sub_name, sub_url):
         """소분류 페이지에서 월별 가격 데이터를 추출"""
         try:
+            # 페이지 상태 확인
+            if page.is_closed():
+                log(f"페이지가 닫혀있어 '{sub_name}' 처리를 건너뜁니다.", "ERROR")
+                return None
+                
             # 페이지는 이미 로드된 상태로 전달됨
-            await page.wait_for_load_state('networkidle')
+            await page.wait_for_load_state('networkidle', timeout=30000)
 
             # '물가추이 보기' 탭으로 이동
-            await page.get_by_role('link', name='물가추이 보기').click()
-            await page.wait_for_selector("#ITEM_SPEC_CD", timeout=10000)
+            try:
+                await page.get_by_role('link', name='물가추이 보기').click()
+                await page.wait_for_selector("#ITEM_SPEC_CD", timeout=10000)
+            except Exception as e:
+                log(f"물가추이 보기 탭 클릭 실패: {str(e)}", "ERROR")
+                return None
 
             # 규격 선택 옵션들 가져오기
             spec_options = await page.locator('#ITEM_SPEC_CD option').all()
@@ -566,7 +1306,7 @@ class KpiCrawler:
 
         except Exception as e:
             log(f"  소분류 '{sub_name}' 처리 중 오류 "
-                f"[대분류: {major_name}, 중분류: {middle_name}]: {str(e)}")
+                f"[대분류: {major_name}, 중분류: {middle_name}]: {str(e)}", "ERROR")
             return None
 
         # 수집된 데이터 처리 - 새로운 DataProcessor 인스턴스 생성
@@ -804,7 +1544,9 @@ class KpiCrawler:
             log(f"'{spec_name}' 오류: {str(e)}", "ERROR")
 
     def _clean_region_name(self, region_str):
-        """지역명 정리 함수"""
+        """지역명 정리 함수 - '서울1', '부산2' 형태로 정규화"""
+        import re
+        
         # 동그라미 숫자를 일반 숫자로 변환
         circle_to_num = {
             '①': '1', '②': '2', '③': '3', '④': '4', '⑤': '5',
@@ -813,6 +1555,15 @@ class KpiCrawler:
         clean_region = region_str.strip()
         for circle, num in circle_to_num.items():
             clean_region = clean_region.replace(circle, num)
+        
+        # '서1울' → '서울1' 형태로 변환
+        pattern = r'^([가-힣])(\d+)([가-힣]+)$'
+        match = re.match(pattern, clean_region)
+        
+        if match:
+            first_char, number, rest = match.groups()
+            clean_region = f"{first_char}{rest}{number}"
+        
         return clean_region
 
     def _is_valid_date_header(self, header_text):
@@ -911,7 +1662,7 @@ class KpiCrawler:
         return header_text
 
     def _is_valid_region_name(self, region_name):
-        """지역명 유효성 검증 함수"""
+        """지역명 유효성 검증 함수 - '서울1', '부산2' 형태 허용"""
         if not region_name or not region_name.strip():
             return False
 
@@ -929,9 +1680,16 @@ class KpiCrawler:
         ]
 
         # 숫자가 포함된 지역명도 허용 (예: 서울1, 부산2)
+        # 새로운 패턴: 지역명 + 숫자 (서울1, 부산2 등)
         for region in valid_regions:
             if region in region_str:
-                return True
+                # 지역명이 포함되어 있고, 숫자가 뒤에 오는 패턴 허용
+                pattern = f"{region}\\d*$"
+                if re.search(pattern, region_str):
+                    return True
+                # 기존 패턴도 허용 (지역명만)
+                if region_str == region:
+                    return True
 
         # 날짜 패턴이 포함된 경우 지역명이 아님 (더 엄격하게)
         date_patterns = [
@@ -1287,39 +2045,43 @@ class KpiCrawler:
 
 
 # --- 4. 메인 실행 함수 ---
-async def main():
-    """메인 실행 로직"""
-    # 명령행 인수로 모드 결정
-    crawl_mode = "full"  # 기본값
-    if '--test' in sys.argv:
-        crawl_mode = "test"
-    elif '--common-all' in sys.argv:
-        crawl_mode = "common-all"
-    
-    crawler = KpiCrawler(crawl_mode=crawl_mode, max_concurrent=2)
-    await crawler.run()
+# <<< 파일 맨 아래 부분을 이 코드로 전체 교체 (5/5) >>>
 
-    # 크롤링 완료 메시지
-    log("크롤링 완료", "SUCCESS")
+async def main():
+    """메인 실행 로직: 명령행 인자 파싱 및 크롤러 실행"""
+    # GitHub Actions 환경에 최적화된 인자 파싱 방식
+    # 예: --major="공통자재"
+    args = {arg.split('=')[0].strip('-'): arg.split('=')[1].strip('"\'') for arg in sys.argv[1:] if '=' in arg}
+    
+    target_major = args.get('major')
+    start_year = args.get('start-year', '2020')
+    start_month = args.get('start-month', '01').zfill(2)
+
+    # --major 인자가 없으면 전체 대분류 크롤링
+    if not target_major:
+        log("--major 인자가 없습니다. 전체 대분류를 크롤링합니다.", "INFO")
+        all_major_categories = list(KpiCrawler.INCLUSION_LIST.keys())
+        log(f"크롤링할 대분류: {all_major_categories}", "INFO")
+        
+        for major in all_major_categories:
+            log(f"=== {major} 크롤링 시작 ===", "SUMMARY")
+            crawler = KpiCrawler(target_major=major, start_year=start_year, start_month=start_month)
+            await crawler.run()
+            log(f"🟢 {major} 크롤링 완료", "SUCCESS")
+        
+        log("🟢 전체 대분류 크롤링 완료", "SUCCESS")
+        return
+
+    log(f"'{target_major}' 대분류 크롤링 시작 (시작 날짜: {start_year}-{start_month})", "SUMMARY")
+    crawler = KpiCrawler(target_major=target_major, start_year=start_year, start_month=start_month)
+    await crawler.run()
+    log(f"🟢 '{target_major}' 대분류 크롤링 완료.", "SUCCESS")
+
 
 if __name__ == "__main__":
-    # 중복 실행 체크
     running_crawlers = check_running_crawler()
     if running_crawlers:
-        log(f"이미 실행 중인 크롤러 {len(running_crawlers)}개 발견", "ERROR")
-        log("기존 크롤러 완료 후 재실행하세요")
+        log(f"이미 실행 중인 크롤러 {len(running_crawlers)}개 발견. 기존 크롤러 완료 후 재실행하세요.", "ERROR")
         sys.exit(1)
     
-    # 명령행 인수로 모드 선택
-    # python kpi_crawler.py --test : 테스트 모드 (테스트 타겟만 크롤링)
-    # python kpi_crawler.py --common-all : 공통자재 전체 크롤링 모드
-    # python kpi_crawler.py : 전체 크롤링 모드
-    
-    if '--test' in sys.argv:
-        log("테스트 모드 시작", "INFO")
-    elif '--common-all' in sys.argv:
-        log("공통자재 전체 크롤링 시작", "INFO")
-    else:
-        log("전체 크롤링 시작", "INFO")
-
     asyncio.run(main())

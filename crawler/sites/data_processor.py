@@ -7,14 +7,32 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from supabase import create_client, Client
+import redis # Redis 라이브러리 추가
 
 # 환경변수 로드
 load_dotenv("../../.env.local")
+# 상대 경로가 작동하지 않을 경우 절대 경로 시도
+if not os.environ.get("NEXT_PUBLIC_SUPABASE_URL"):
+    load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env.local"))
 
 # Supabase 클라이언트 초기화
 SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# Redis 클라이언트 초기화
+REDIS_URL = os.environ.get("REDIS_URL")
+redis_client = None
+if REDIS_URL:
+    try:
+        # decode_responses=True: Redis에서 받은 데이터를 자동으로 UTF-8 문자열로 변환
+        redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+        # Redis 서버에 연결 테스트
+        redis_client.ping()
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ Redis 클라이언트 초기화 성공")
+    except Exception as e:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✗ Redis 연결 실패: {e}")
+        redis_client = None
 
 
 def log(message: str, level: str = "INFO"):
@@ -48,25 +66,7 @@ class BaseDataProcessor(ABC):
     
     @abstractmethod
     def transform_to_standard_format(self, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """사이트별 원본 데이터를 표준 형식으로 변환하는 추상 메서드
-        
-        Args:
-            raw_data: 사이트별 원본 데이터
-            
-        Returns:
-            표준 형식으로 변환된 데이터 리스트
-            각 항목은 다음 구조를 가져야 함:
-            {
-                'major_category': str,
-                'middle_category': str, 
-                'sub_category': str,
-                'specification': str,
-                'unit': str,
-                'region': str,
-                'date': str,  # YYYY-MM-DD 형식
-                'price': int or None
-            }
-        """
+        """사이트별 원본 데이터를 표준 형식으로 변환하는 추상 메서드"""
         pass
     
     def to_dataframe(self) -> pd.DataFrame:
@@ -86,9 +86,26 @@ class BaseDataProcessor(ABC):
     def check_existing_data(self, major_category: str, middle_category: str, 
                            sub_category: str, specification: str, 
                            table_name: str = 'kpi_price_data') -> set:
-        """Supabase에서 기존 데이터의 (날짜, 지역, 가격, 규격) 조합을 확인"""
+        """Supabase 또는 Redis 캐시에서 기존 데이터의 (날짜, 지역, 가격, 규격) 조합을 확인"""
+        
+        # 1. 캐시 키(key) 생성: 각 품목별로 고유한 키를 만듦
+        cache_key = f"existing_data:{table_name}:{major_category}:{middle_category}:{sub_category}:{specification}"
+
+        # 2. Redis 캐시 먼저 확인 (Cache HIT)
+        if redis_client:
+            try:
+                cached_data = redis_client.get(cache_key)
+                if cached_data is not None:
+                    log(f"        - [Cache HIT] Redis에서 기존 데이터 로드")
+                    # Redis는 문자열로 저장되므로, 원래의 set 형태로 변환
+                    loaded_list = json.loads(cached_data)
+                    return {tuple(item) for item in loaded_list}
+            except Exception as e:
+                log(f"        - Redis 조회 중 오류: {e}", "ERROR")
+
+        # 3. 캐시가 없으면(Cache MISS) Supabase에서 데이터 조회 (기존 로직)
+        log(f"        - [Cache MISS] Supabase에서 기존 데이터 조회")
         try:
-            log(f"        - 중복 체크 시작: {major_category} > {middle_category} > {sub_category} > {specification}")
             response = supabase.table(table_name).select(
                 'date, region, price, specification'
             ).eq(
@@ -101,28 +118,82 @@ class BaseDataProcessor(ABC):
                 'specification', specification
             ).execute()
             
+            existing_data_set = set()
             if response.data:
-                existing_data = set()
                 for item in response.data:
-                    # 날짜, 지역, 가격, 규격 조합으로 중복 체크
                     combo = (item['date'], item['region'], str(item['price']), item['specification'])
-                    existing_data.add(combo)
-                log(f"        - 기존 데이터 발견: {len(existing_data)}개 (날짜-지역-가격-규격 조합)")
-                return existing_data
+                    existing_data_set.add(combo)
+                log(f"        - 기존 데이터 발견: {len(existing_data_set)}개")
             else:
                 log("        - 기존 데이터 없음: 전체 추출 필요")
-                return set()
+            
+            # 4. 조회한 결과를 Redis에 저장 (24시간 동안 유효)
+            if redis_client:
+                try:
+                    # Python의 set은 JSON으로 바로 변환 불가하므로 list로 변경
+                    data_to_cache = [list(item) for item in existing_data_set]
+                    # TTL(Time To Live)을 86400초 (24시간)로 설정하여 저장
+                    redis_client.set(cache_key, json.dumps(data_to_cache), ex=86400)
+                    log(f"        - 조회된 데이터를 Redis에 24시간 동안 캐싱 완료")
+                except Exception as e:
+                    log(f"        - Redis 캐싱 중 오류: {e}", "ERROR")
+            
+            return existing_data_set
                 
         except Exception as e:
-            log(f"        - 기존 데이터 확인 중 오류: {str(e)}")
-            return set()  # 오류 시 전체 추출
+            log(f"        - Supabase 확인 중 오류: {str(e)}")
+            return set()  # 오류 발생 시 빈 set 반환
     
     def filter_new_data_only(self, df: pd.DataFrame, table_name: str = 'kpi_price_data') -> pd.DataFrame:
         """기존 데이터와 비교하여 새로운 데이터만 필터링 (날짜-지역-가격-규격 조합 기준)"""
         if df.empty:
             return df
         
-        # 카테고리별로 그룹화하여 한 번에 조회
+        # pandas를 활용한 데이터 품질 검증 및 정제
+        log("📊 pandas를 활용한 데이터 품질 검증 시작...")
+        
+        # 1. 필수 필드 null 값 제거
+        original_count = len(df)
+        df = df.dropna(subset=['region', 'price', 'date', 'specification'])
+        after_null_check = len(df)
+        if original_count != after_null_check:
+            log(f"    - 필수 필드 null 제거: {original_count - after_null_check}개")
+        
+        # 2. 유효하지 않은 가격 제거 (0 이하 또는 비정상적으로 큰 값)
+        df = df[(df['price'] > 0) & (df['price'] < 999999999)]
+        after_price_check = len(df)
+        if after_null_check != after_price_check:
+            log(f"    - 유효하지 않은 가격 제거: {after_null_check - after_price_check}개")
+        
+        # 3. 지역명 표준화 및 검증
+        valid_regions = ['강원', '경기', '경남', '경북', '광주', '대구', '대전', 
+                        '부산', '서울', '세종', '울산', '인천', '전남', '전북', 
+                        '제주', '충남', '충북', '수원', '성남', '춘천']
+        
+        # 지역명이 유효한 지역을 포함하는지 확인 (숫자 포함 허용)
+        def is_valid_region(region_name):
+            if not region_name or pd.isna(region_name):
+                return False
+            region_str = str(region_name).strip()
+            return any(valid_region in region_str for valid_region in valid_regions)
+        
+        df = df[df['region'].apply(is_valid_region)]
+        after_region_check = len(df)
+        if after_price_check != after_region_check:
+            log(f"    - 유효하지 않은 지역명 제거: {after_price_check - after_region_check}개")
+        
+        # 4. 중복 데이터 제거 (같은 날짜, 지역, 규격, 가격)
+        df = df.drop_duplicates(subset=['date', 'region', 'specification', 'price'])
+        after_duplicate_check = len(df)
+        if after_region_check != after_duplicate_check:
+            log(f"    - 중복 데이터 제거: {after_region_check - after_duplicate_check}개")
+        
+        log(f"📊 데이터 품질 검증 완료: {original_count}개 → {after_duplicate_check}개")
+        
+        if df.empty:
+            log("📊 품질 검증 후 저장할 데이터가 없습니다.")
+            return df
+        
         category_groups = df.groupby(['major_category', 'middle_category', 'sub_category', 'specification'])
         
         new_records = []
@@ -132,7 +203,6 @@ class BaseDataProcessor(ABC):
         for (major_cat, middle_cat, sub_cat, spec), group_df in category_groups:
             log(f"    - 중복 체크: {major_cat} > {middle_cat} > {sub_cat} > {spec}")
             
-            # 해당 카테고리의 기존 데이터 조회 (한 번만)
             existing_data = self.check_existing_data(
                 major_cat, middle_cat, sub_cat, spec, table_name
             )
@@ -140,7 +210,6 @@ class BaseDataProcessor(ABC):
             group_new_count = 0
             group_duplicate_count = 0
             
-            # 그룹 내 모든 레코드에 대해 중복 체크
             for _, record in group_df.iterrows():
                 record_key = (record['date'], record['region'], str(record['price']), record['specification'])
                 if record_key not in existing_data:
@@ -149,8 +218,9 @@ class BaseDataProcessor(ABC):
                 else:
                     group_duplicate_count += 1
                     skipped_count += 1
-                    log(f"        - 중복 SKIP: {record['date']} | {record['region']} | {record['price']}원 | {record['specification']}")
             
+            if group_duplicate_count > 0:
+                log(f"        - 중복 SKIP: {group_duplicate_count}개")
             log(f"        - 그룹 결과: 신규 {group_new_count}개, 중복 {group_duplicate_count}개")
         
         if new_records:
@@ -164,100 +234,115 @@ class BaseDataProcessor(ABC):
         """DataFrame을 Supabase 테이블에 저장"""
         if df.empty:
             log("저장할 데이터가 없습니다.")
-            return
+            return 0
         
-        # 중복 체크가 활성화된 경우 새로운 데이터만 필터링
         if check_duplicates:
-            df = self.filter_new_data_only(df, table_name)
-            if df.empty:
+            df_to_save = self.filter_new_data_only(df, table_name)
+            if df_to_save.empty:
                 log("저장할 신규 데이터가 없습니다.")
-                return
+                return 0
+        else:
+            df_to_save = df
         
         try:
-            records = df.to_dict(orient='records')
-            # 유효하지 않은 데이터를 필터링
+            records = df_to_save.to_dict(orient='records')
             valid_records = []
             for record in records:
                 if self._is_valid_record(record):
-                    # 날짜 형식 정규화
+                    # 날짜 정규화
                     record['date'] = self._normalize_date(record['date'])
+                    
+                    # unit 필드가 없으면 기본값 설정
+                    if 'unit' not in record or not record['unit']:
+                        record['unit'] = 'kg'  # 기본 단위
+                    
                     valid_records.append(record)
                 else:
                     log(f"유효하지 않은 데이터 제외: {record}")
             
             if not valid_records:
                 log("유효한 데이터가 없어 저장을 건너뜁니다.")
-                return
+                return 0
             
-            data, error = supabase.table(table_name).upsert(valid_records).execute()
-            if error and error.message:
-                log(f"❌ Supabase 저장 실패: {error.message}")
-            else:
-                record_count = len(valid_records)
-                log(f"📊 {record_count}개 데이터 → '{table_name}' 테이블 저장 완료")
+            # Supabase upsert는 기본적으로 500~1000개 단위로 나누어 보내는 것이 안정적
+            chunk_size = 500
+            total_chunks = (len(valid_records) + chunk_size - 1) // chunk_size
+            saved_count = 0
+            
+            log(f"🔄 Supabase 저장 시작: {len(valid_records)}개 데이터를 {total_chunks}개 청크로 분할")
+            
+            for i in range(0, len(valid_records), chunk_size):
+                chunk = valid_records[i:i + chunk_size]
+                chunk_num = i // chunk_size + 1
+                
+                try:
+                    log(f"📤 청크 {chunk_num}/{total_chunks} 저장 시도 중... ({len(chunk)}개 데이터)")
+                    response = supabase.table(table_name).upsert(chunk).execute()
+                    # Supabase Python 클라이언트는 response.data와 response.count를 반환
+                    if response.data is not None:
+                        chunk_saved = len(response.data)
+                        saved_count += chunk_saved
+                        log(f"📦 청크 {chunk_num}/{total_chunks} 저장 완료 ({chunk_saved}개)")
+                    else:
+                        log(f"⚠️ 청크 {chunk_num}/{total_chunks} 저장 응답이 비어있음", "ERROR")
+                        log(f"🔍 응답 상세: {response}", "DEBUG")
+                except Exception as chunk_error:
+                    log(f"❌ Supabase 저장 실패 (청크 {chunk_num}): {str(chunk_error)}", "ERROR")
+                    log(f"🔍 실패한 청크 데이터 샘플: {chunk[0] if chunk else 'None'}", "DEBUG")
+                    # 실패한 청크는 건너뛰고 계속 진행
+                    continue
+
+            log(f"📊 총 {saved_count}개 데이터 → '{table_name}' 테이블 저장 완료")
+            return saved_count
         except Exception as e:
-            log(f"Supabase 저장 중 예외 발생: {e}")
+            log(f"❌ Supabase 저장 중 예외 발생: {e}", "ERROR")
+            log(f"🔍 예외 상세: {type(e).__name__}: {str(e)}", "DEBUG")
+            return 0
     
     def _is_valid_record(self, record: Dict[str, Any]) -> bool:
         """레코드의 유효성을 검증"""
         required_fields = ['major_category', 'middle_category', 'sub_category', 
                           'specification', 'region', 'date']
         
-        # 필수 필드 존재 확인
         for field in required_fields:
-            if field not in record or not record[field]:
+            if field not in record or pd.isna(record[field]) or not record[field]:
                 return False
         
-        # 날짜 유효성 검증
         if not self._is_valid_date_value(record['date']):
             return False
         
-        # 가격 유효성 검증 (None 허용)
         price = record.get('price')
         if price is not None and not isinstance(price, (int, float)):
+             # NaN 값도 유효하지 않은 것으로 처리
+            if pd.isna(price):
+                return False
             return False
         
         return True
     
     def _is_valid_date_value(self, date_value: Any) -> bool:
-        """날짜 값이 유효한지 검증하는 함수"""
-        if date_value is None:
+        """날짜 값이 유효한지 확인"""
+        if date_value is None or date_value == '':
             return False
         
-        # 문자열인 경우
         if isinstance(date_value, str):
             date_str = date_value.strip()
             
-            # 빈 문자열 체크
-            if not date_str:
-                return False
+            # "2025. 1" 형식 허용
+            if re.match(r'^\d{4}\.\s*\d{1,2}$', date_str):
+                return True
             
-            # 지역명 패턴 체크 (한국 지역명들)
-            region_patterns = [
-                '강원', '경기', '경남', '경북', '광주', '대구', '대전', '부산',
-                '서울', '세종', '울산', '인천', '전남', '전북', '제주', '충남', '충북',
-                '강①원', '강②원', '경①기', '경②기', '경①남', '경②남', '경①북', '경②북',
-                '광①주', '광②주', '대①구', '대②구', '대①전', '대②전', '부①산', '부②산',
-                '서①울', '서②울', '세①종', '세②종', '울①산', '울②산', '인①천', '인②천',
-                '전①남', '전②남', '전①북', '전②북', '제①주', '제②주', '충①남', '충②남',
-                '충①북', '충②북'
-            ]
+            # "2025-01-01" 형식 허용
+            if re.match(r'^\d{4}-\d{1,2}-\d{1,2}$', date_str):
+                return True
             
-            # 지역명이 포함된 경우 날짜가 아님
-            for region in region_patterns:
-                if region in date_str:
-                    return False
+            # "2025/1/1" 형식 허용
+            if re.match(r'^\d{4}/\d{1,2}/\d{1,2}$', date_str):
+                return True
             
-            # 기타 잘못된 값 체크
-            invalid_chars = ['가', '①', '②', '격']
-            if any(char in date_str for char in invalid_chars):
-                return False
-            
-            # 날짜 형식 검증 (YYYY-MM-DD 또는 YYYY/MM/DD)
-            date_pattern = r'^\d{4}[-/]\d{1,2}[-/]\d{1,2}$'
-            return bool(re.match(date_pattern, date_str))
+            return False
         
-        # datetime 객체인 경우
+        # datetime 객체는 유효
         if hasattr(date_value, 'strftime'):
             return True
         
@@ -268,16 +353,29 @@ class BaseDataProcessor(ABC):
         if hasattr(date_value, 'strftime'):
             return date_value.strftime('%Y-%m-%d')
         elif isinstance(date_value, str):
-            # 슬래시를 하이픈으로 변경
-            return date_value.replace('/', '-')
+            date_str = date_value.strip()
+            
+            # "2025. 1" 형식을 "2025-01-01"로 변환
+            if re.match(r'^\d{4}\.\s*\d{1,2}$', date_str):
+                year, month = date_str.replace('.', '').split()
+                return f"{year}-{int(month):02d}-01"
+            
+            # "2025/1" 또는 "2025-1" 형식 처리
+            if '/' in date_str or '-' in date_str:
+                date_str = date_str.replace('/', '-')
+                parts = date_str.split('-')
+                if len(parts) >= 2:
+                    year, month = parts[0], parts[1]
+                    day = parts[2] if len(parts) > 2 else '01'
+                    return f"{year}-{int(month):02d}-{int(day):02d}"
+            
+            return date_str
         else:
             return str(date_value)
     
     def get_comparison_json(self) -> str:
         """원본 데이터와 가공된 데이터를 비교하는 JSON 생성"""
         processed_df = self.to_dataframe()
-        
-        # datetime 객체를 문자열로 변환
         raw_data_converted = self._convert_datetime_to_string(self.raw_data_list)
         processed_data_converted = self._convert_datetime_to_string(
             processed_df.to_dict(orient='records'))
@@ -299,38 +397,103 @@ class BaseDataProcessor(ABC):
         else:
             return obj
 
+# --- 이하 KpiDataProcessor, MaterialDataProcessor, create_data_processor 함수는 변경할 필요가 없습니다. ---
 
 class KpiDataProcessor(BaseDataProcessor):
     """한국물가정보(KPI) 사이트 전용 데이터 처리기"""
+    
+    def _normalize_region_name(self, region_name: str) -> str:
+        """지역명을 '서울1', '부산2' 형태로 정규화"""
+        if not region_name:
+            return region_name
+            
+        # 패턴: 지역명 첫글자 + 숫자 + 지역명 나머지
+        pattern = r'^([가-힣])(\d+)([가-힣]+)$'
+        match = re.match(pattern, region_name)
+        
+        if match:
+            first_char, number, rest = match.groups()
+            return f"{first_char}{rest}{number}"  # 서1울 → 서울1
+        
+        return region_name  # 변환 불가능한 경우 원본 반환
+    
+    async def process_data(self, major_category: str, middle_category: str, sub_category: str) -> List[Dict[str, Any]]:
+        """배치 처리를 위한 데이터 가공 메서드"""
+        try:
+            filtered_data = []
+            for raw_data in self.raw_data_list:
+                if (raw_data.get('major_category_name') == major_category and
+                    raw_data.get('middle_category_name') == middle_category and
+                    raw_data.get('sub_category_name') == sub_category):
+                    filtered_data.append(raw_data)
+            
+            if not filtered_data:
+                return []
+            
+            processed_items = []
+            for raw_item in filtered_data:
+                transformed_items = self.transform_to_standard_format(raw_item)
+                processed_items.extend(transformed_items)
+            
+            return processed_items
+            
+        except Exception as e:
+            log(f"데이터 가공 중 오류 발생: {str(e)}", "ERROR")
+            return []
+    
+    async def save_to_supabase(self, processed_data: List[Dict[str, Any]], table_name: str = 'kpi_price_data', check_duplicates: bool = True) -> int:
+        """가공된 데이터를 Supabase에 저장"""
+        if not processed_data:
+            log("저장할 데이터가 없습니다.")
+            return 0
+        
+        try:
+            df = pd.DataFrame(processed_data)
+            log(f"📊 저장 시도: {len(df)}개 데이터 → '{table_name}' 테이블")
+            
+            # 부모 클래스의 save_to_supabase 메서드를 호출하여 중복 제거 및 저장 로직 실행
+            super().save_to_supabase(df, table_name, check_duplicates=check_duplicates)
+            
+            log(f"✅ 저장 완료: {len(df)}개 데이터")
+            return len(df)
+            
+        except Exception as e:
+            log(f"❌ Supabase 저장 중 오류 발생: {str(e)}", "ERROR")
+            return 0
     
     def transform_to_standard_format(self, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """KPI 사이트의 원본 데이터를 표준 형식으로 변환"""
         transformed_items = []
         
         for spec_data in raw_data.get('spec_data', []):
-            # spec_data가 직접 price 정보를 포함하는 경우
             has_direct_price = (
                 'spec_name' in spec_data and 'region' in spec_data and
                 'date' in spec_data and 'price' in spec_data)
             
             if has_direct_price:
+                price_value = spec_data.get('price')
+                if price_value is not None:
+                    try:
+                        price_value = float(str(price_value).replace(',', ''))
+                    except (ValueError, TypeError):
+                        price_value = None
+                
                 transformed_items.append({
                     'major_category': raw_data['major_category_name'],
                     'middle_category': raw_data['middle_category_name'],
                     'sub_category': raw_data['sub_category_name'],
                     'specification': spec_data['spec_name'],
-                    'unit': '원/톤',  # KPI 기본값
-                    'region': spec_data['region'],
+                    'unit': '원/톤',
+                    'region': self._normalize_region_name(spec_data['region']),
                     'date': spec_data['date'],
-                    'price': spec_data['price']
+                    'price': price_value
                 })
-            # 기존 구조 (prices 배열이 있는 경우)
             else:
                 for price_info in spec_data.get('prices', []):
                     price_value = None
                     if price_info.get('price'):
                         try:
-                            price_value = int(price_info['price'].replace(',', ''))
+                            price_value = float(str(price_info['price']).replace(',', ''))
                         except (ValueError, AttributeError):
                             price_value = None
                     
@@ -340,7 +503,7 @@ class KpiDataProcessor(BaseDataProcessor):
                         'sub_category': raw_data['sub_category_name'],
                         'specification': spec_data['specification_name'],
                         'unit': spec_data.get('unit', '원/톤'),
-                        'region': price_info['region'],
+                        'region': self._normalize_region_name(price_info['region']),
                         'date': price_info['date'],
                         'price': price_value
                     })
@@ -352,30 +515,14 @@ class MaterialDataProcessor(BaseDataProcessor):
     """다른 자재 사이트용 데이터 처리기 (예시)"""
     
     def transform_to_standard_format(self, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """다른 사이트의 원본 데이터를 표준 형식으로 변환
-        
-        이 메서드는 각 사이트의 데이터 구조에 맞게 구현해야 합니다.
-        예시로 간단한 구조를 보여줍니다.
-        """
         transformed_items = []
-        
-        # 예시: 다른 사이트의 데이터 구조
-        # {
-        #     'category': '철강',
-        #     'product_name': 'H형강',
-        #     'price_data': [
-        #         {'location': '서울', 'date': '2024-01-01', 'cost': 50000},
-        #         ...
-        #     ]
-        # }
-        
         category = raw_data.get('category', '')
         product_name = raw_data.get('product_name', '')
         
         for price_item in raw_data.get('price_data', []):
             transformed_items.append({
                 'major_category': category,
-                'middle_category': '',  # 사이트에 따라 조정
+                'middle_category': '',
                 'sub_category': product_name,
                 'specification': product_name,
                 'unit': '원/톤',
@@ -387,20 +534,11 @@ class MaterialDataProcessor(BaseDataProcessor):
         return transformed_items
 
 
-# 팩토리 함수
 def create_data_processor(site_type: str) -> BaseDataProcessor:
-    """사이트 타입에 따른 데이터 처리기 생성
-    
-    Args:
-        site_type: 'kpi', 'material', 등
-        
-    Returns:
-        해당 사이트용 데이터 처리기 인스턴스
-    """
+    """사이트 타입에 따른 데이터 처리기 생성"""
     processors = {
         'kpi': KpiDataProcessor,
         'material': MaterialDataProcessor,
-        # 추후 다른 사이트 추가 가능
     }
     
     processor_class = processors.get(site_type)

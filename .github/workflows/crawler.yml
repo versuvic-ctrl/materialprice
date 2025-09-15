@@ -1,43 +1,49 @@
-name: Crawl Material Prices
+name: Daily KPI Crawler by Category
 
 on:
-  # 1. 매일 UTC 17시 (한국 시간 새벽 2시)에 자동으로 실행
+  workflow_dispatch: # Actions 탭에서 수동으로 실행할 수 있는 버튼 추가
   schedule:
-    - cron: '0 17 * * *'
-  
-  # 2. GitHub 페이지에서 수동으로 실행할 수 있는 버튼 추가
-  workflow_dispatch:
+    # 매일 19:00 UTC (한국 시간 기준 다음날 새벽 4시)에 자동 실행
+    - cron: '0 19 * * *'
 
 jobs:
-  build-and-crawl:
+  crawl-by-category:
     runs-on: ubuntu-latest
-    steps:
-      # 1. 코드 가져오기
-      - name: Checkout repository
-        uses: actions/checkout@v3
 
-      # 2. 파이썬 설치
-      - name: Set up Python
+    strategy:
+      matrix:
+        category:
+          # 여기에 크롤링하고 싶은 7개의 대분류 이름을 정확하게 입력합니다.
+          - "공통자재"
+          - "토목자재"
+          - "건축자재"
+          - "급배수"
+          - "냉난방"
+          - "전기자재"
+          - "석유화학"
+      fail-fast: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.9
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.9'
 
-      # 3. 크롤링용 브라우저 설치
-      - name: Install Playwright Browsers
-        run: python -m playwright install --with-deps
+      - name: Install dependencies
+        run: pip install playwright pandas python-dotenv supabase psutil redis
 
-      # 4. 파이썬 라이브러리 설치
-      - name: Install Python dependencies
-        run: pip install -r crawler/requirements.txt
-      
-      # 5. GitHub Secrets를 이용해 임시 .env.local 파일 생성
-      - name: Create .env.local file
-        run: |
-          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> .env.local
-          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env.local
-          echo "KPI_USERNAME=${{ secrets.KPI_USERNAME }}" >> .env.local
-          echo "KPI_PASSWORD=${{ secrets.KPI_PASSWORD }}" >> .env.local
+      - name: Install Playwright and its dependencies
+        run: playwright install --with-deps
 
-      # 6. 크롤러 스크립트 실행
-      - name: Run Crawler
-        run: python crawler/site/kpi_crawler.py
+      - name: Run Crawler for ${{ matrix.category }}
+        env:
+          KPI_USERNAME: ${{ secrets.KPI_USERNAME }}
+          KPI_PASSWORD: ${{ secrets.KPI_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+        # --major="공통자재" --start-year=2020 --start-month=1 형식으로 인자 전달
+        run: python ./crawler/kpi_crawler.py --major="${{ matrix.category }}" --start-year=2020 --start-month=1
