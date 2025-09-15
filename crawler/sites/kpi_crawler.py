@@ -849,6 +849,9 @@ class KpiCrawler:
         log("종합물가정보 카테고리 페이지로 이동합니다.")
         await self.page.goto(f"{self.base_url}/www/price/category.asp")
 
+        # 팝업 닫기 (우선 처리)
+        await self._close_popups()
+
         # Right Quick 메뉴 숨기기
         try:
             close_button = self.page.locator("#right_quick .q_cl")
@@ -858,6 +861,42 @@ class KpiCrawler:
         except Exception as e:
             log(f"Right Quick 메뉴 숨기기 실패 "
                 f"(이미 숨겨져 있을 수 있음): {e}")
+
+    async def _close_popups(self):
+        """페이지의 모든 팝업을 닫는 메서드"""
+        try:
+            # 1. 일반적인 팝업 닫기 버튼들 시도
+            popup_close_selectors = [
+                ".pop-btn-close",  # 일반적인 팝업 닫기 버튼
+                ".btnClosepop",    # 특정 팝업 닫기 버튼
+                "#popupNotice .pop-btn-close",  # 공지사항 팝업 닫기
+                ".ui-popup .pop-btn-close",     # UI 팝업 닫기
+                "button[class*='close']",       # close가 포함된 버튼
+                "a[class*='close']"             # close가 포함된 링크
+            ]
+            
+            for selector in popup_close_selectors:
+                try:
+                    popup_close = self.page.locator(selector)
+                    if await popup_close.count() > 0:
+                        # 모든 매칭되는 요소에 대해 닫기 시도
+                        for i in range(await popup_close.count()):
+                            element = popup_close.nth(i)
+                            if await element.is_visible():
+                                await element.click(timeout=3000)
+                                log(f"팝업 닫기 성공: {selector}")
+                                await self.page.wait_for_timeout(500)  # 팝업이 닫힐 시간 대기
+                except Exception:
+                    continue  # 다음 셀렉터 시도
+            
+            # 2. ESC 키로 팝업 닫기 시도
+            await self.page.keyboard.press('Escape')
+            await self.page.wait_for_timeout(500)
+            
+            log("팝업 닫기 처리 완료")
+            
+        except Exception as e:
+            log(f"팝업 닫기 처리 중 오류: {e}")
 
     async def _crawl_categories(self):
         """대분류 -> 중분류 -> 소분류 순차적으로 크롤링"""
