@@ -1326,8 +1326,22 @@ class KpiCrawler:
 
             # '물가추이 보기' 탭으로 이동
             try:
-                await page.get_by_role('link', name='물가추이 보기').click()
-                await page.wait_for_selector("#ITEM_SPEC_CD", timeout=10000)
+                # 탭이 존재하는지 먼저 확인
+                await page.wait_for_selector('a:has-text("물가추이 보기")', timeout=15000)
+                
+                # 재시도 로직 추가
+                for retry in range(3):
+                    try:
+                        await page.get_by_role('link', name='물가추이 보기').click(timeout=30000)
+                        await page.wait_for_selector("#ITEM_SPEC_CD", timeout=30000)
+                        break
+                    except Exception as e:
+                        if retry == 2:
+                            raise e
+                        log(f"물가추이 보기 탭 클릭 재시도 {retry + 1}/3: {e}", "WARNING")
+                        await page.reload()
+                        await page.wait_for_load_state('networkidle', timeout=30000)
+                        
             except Exception as e:
                 log(f"물가추이 보기 탭 클릭 실패: {str(e)}", "ERROR")
                 return None
@@ -1852,16 +1866,20 @@ class KpiCrawler:
                     # '물가추이 보기' 탭으로 이동 (재시도 로직)
                     for retry in range(3):
                         try:
+                            # 탭이 존재하는지 먼저 확인
+                            await new_page.wait_for_selector('a:has-text("물가추이 보기")', timeout=15000)
+                            
                             link_name = '물가추이 보기'
                             link_locator = new_page.get_by_role(
                                 'link', name=link_name)
-                            await link_locator.click(timeout=15000)
+                            await link_locator.click(timeout=30000)
                             await new_page.wait_for_selector(
-                                "#ITEM_SPEC_CD", timeout=15000)
+                                "#ITEM_SPEC_CD", timeout=30000)
                             break
                         except Exception as e:
                             if retry == 2:
                                 raise e
+                            log(f"물가추이 보기 탭 클릭 재시도 {retry + 1}/3: {e}", "WARNING")
                             await new_page.reload()
                             await new_page.wait_for_load_state(
                                 'domcontentloaded', timeout=10000)
