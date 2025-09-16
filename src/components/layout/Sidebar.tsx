@@ -124,6 +124,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             
             {/* Mobile close button */}
             <button
+              title="사이드바 닫기"
               onClick={() => setIsOpen(false)}
               className="lg:hidden p-1 rounded-md hover:bg-gray-100"
             >

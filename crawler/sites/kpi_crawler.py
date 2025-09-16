@@ -10,7 +10,12 @@ from datetime import datetime
 from dotenv import load_dotenv
 import pandas as pd
 from playwright.async_api import async_playwright
-from .data_processor import create_data_processor, log
+
+# 절대 import를 위한 경로 설정
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
+
+from data_processor import create_data_processor, log
 from supabase import create_client, Client
 
 # --- 1. 초기 설정 및 환경변수 로드 ---
