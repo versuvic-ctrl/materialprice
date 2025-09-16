@@ -170,17 +170,41 @@ class BaseDataProcessor(ABC):
                         '부산', '서울', '세종', '울산', '인천', '전남', '전북', 
                         '제주', '충남', '충북', '수원', '성남', '춘천']
         
-        # 지역명이 유효한 지역을 포함하는지 확인 (숫자 포함 허용)
-        def is_valid_region(region_name):
+        # 지역명 처리 및 검증
+        def process_region_name(region_name):
             if not region_name or pd.isna(region_name):
-                return False
+                return '전국'  # 지역 정보가 없으면 '전국'으로 처리
+            
             region_str = str(region_name).strip()
-            return any(valid_region in region_str for valid_region in valid_regions)
+            
+            # 유효한 지역명이 포함되어 있는지 확인
+            if any(valid_region in region_str for valid_region in valid_regions):
+                return region_str
+            
+            # 공통지역이나 특정 패턴 확인 (예: 날짜와 가격만 있는 경우)
+            # 숫자나 특수문자만 있거나, 가격 패턴이 있는 경우 '전국'으로 처리
+            if (region_str.replace(',', '').replace('.', '').replace('-', '').isdigit() or
+                '원' in region_str or 
+                len(region_str) < 2 or
+                region_str in ['공통', '전체', '기타', '일반']):
+                return '전국'
+            
+            # 기타 경우도 '전국'으로 처리 (너무 엄격한 검증 방지)
+            return '전국'
         
-        df = df[df['region'].apply(is_valid_region)]
+        # 지역명 처리 적용
+        df['region'] = df['region'].apply(process_region_name)
         after_region_check = len(df)
+        
+        # 처리 결과 로깅
+        region_counts = df['region'].value_counts()
+        nationwide_count = region_counts.get('전국', 0)
+        if nationwide_count > 0:
+            log(f"    - '전국'으로 처리된 데이터: {nationwide_count}개")
+        
+        # 이제 모든 데이터가 유효한 지역명을 가지므로 제거되는 데이터는 없음
         if after_price_check != after_region_check:
-            log(f"    - 유효하지 않은 지역명 제거: {after_price_check - after_region_check}개")
+            log(f"    - 지역명 처리 완료: {after_price_check}개 → {after_region_check}개")
         
         # 4. 중복 데이터 제거 (같은 날짜, 지역, 규격, 가격)
         df = df.drop_duplicates(subset=['date', 'region', 'specification', 'price'])
@@ -403,19 +427,26 @@ class KpiDataProcessor(BaseDataProcessor):
     """한국물가정보(KPI) 사이트 전용 데이터 처리기"""
     
     def _normalize_region_name(self, region_name: str) -> str:
-        """지역명을 '서울1', '부산2' 형태로 정규화"""
-        if not region_name:
-            return region_name
+        """지역명을 정규화하고 빈 값이나 None을 처리"""
+        # None이나 빈 문자열 처리
+        if not region_name or region_name == 'None' or str(region_name).strip() == '':
+            return '전국'  # 기본값으로 '전국' 설정
             
-        # 패턴: 지역명 첫글자 + 숫자 + 지역명 나머지
+        region_str = str(region_name).strip()
+        
+        # '공통지역'을 '전국'으로 변환
+        if region_str == '공통지역':
+            return '전국'
+            
+        # 패턴: 지역명 첫글자 + 숫자 + 지역명 나머지 (예: 서1울 → 서울1)
         pattern = r'^([가-힣])(\d+)([가-힣]+)$'
-        match = re.match(pattern, region_name)
+        match = re.match(pattern, region_str)
         
         if match:
             first_char, number, rest = match.groups()
             return f"{first_char}{rest}{number}"  # 서1울 → 서울1
         
-        return region_name  # 변환 불가능한 경우 원본 반환
+        return region_str  # 변환 불가능한 경우 원본 반환
     
     async def process_data(self, major_category: str, middle_category: str, sub_category: str) -> List[Dict[str, Any]]:
         """배치 처리를 위한 데이터 가공 메서드"""
