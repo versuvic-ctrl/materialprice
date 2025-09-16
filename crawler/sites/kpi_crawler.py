@@ -838,22 +838,51 @@ class KpiCrawler:
         log("로그인 완료", "SUCCESS")
 
     async def _navigate_to_category(self):
-        """카테고리 페이지로 이동 및 초기 설정"""
+        """카테고리 페이지로 이동 및 초기 설정 (재시도 로직 포함)"""
         log("종합물가정보 카테고리 페이지로 이동합니다.")
-        await self.page.goto(f"{self.base_url}/www/price/category.asp")
+        
+        max_retries = 3
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                # 타임아웃을 60초로 증가
+                await self.page.goto(
+                    f"{self.base_url}/www/price/category.asp",
+                    timeout=60000,  # 60초
+                    wait_until="domcontentloaded"  # 더 빠른 로딩 완료 조건
+                )
+                
+                # 페이지 로딩 완료 대기
+                await self.page.wait_for_load_state('networkidle', timeout=30000)
+                
+                # 팝업 닫기 (우선 처리)
+                await self._close_popups()
 
-        # 팝업 닫기 (우선 처리)
-        await self._close_popups()
-
-        # Right Quick 메뉴 숨기기
-        try:
-            close_button = self.page.locator("#right_quick .q_cl")
-            if await close_button.is_visible():
-                await close_button.click()
-                log("Right Quick 메뉴를 숨겼습니다.")
-        except Exception as e:
-            log(f"Right Quick 메뉴 숨기기 실패 "
-                f"(이미 숨겨져 있을 수 있음): {e}")
+                # Right Quick 메뉴 숨기기
+                try:
+                    close_button = self.page.locator("#right_quick .q_cl")
+                    if await close_button.is_visible():
+                        await close_button.click()
+                        log("Right Quick 메뉴를 숨겼습니다.")
+                except Exception as e:
+                    log(f"Right Quick 메뉴 숨기기 실패 "
+                        f"(이미 숨겨져 있을 수 있음): {e}")
+                
+                log("카테고리 페이지 이동 완료", "SUCCESS")
+                return  # 성공 시 함수 종료
+                
+            except Exception as e:
+                retry_count += 1
+                log(f"카테고리 페이지 이동 실패 (시도 {retry_count}/{max_retries}): {e}", "WARNING")
+                
+                if retry_count < max_retries:
+                    wait_time = retry_count * 5  # 5초, 10초, 15초 대기
+                    log(f"{wait_time}초 후 재시도합니다...", "INFO")
+                    await asyncio.sleep(wait_time)
+                else:
+                    log("카테고리 페이지 이동 최대 재시도 횟수 초과", "ERROR")
+                    raise e
 
     async def _close_popups(self):
         """페이지의 모든 팝업을 닫는 메서드"""

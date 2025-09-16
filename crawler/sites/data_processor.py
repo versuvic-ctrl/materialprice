@@ -2,12 +2,13 @@ import os
 import json
 import re
 import pandas as pd
+import requests
 from datetime import datetime
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from supabase import create_client, Client
-import redis # Redis 라이브러리 추가
+from urllib.parse import urlparse
 
 # 환경변수 로드
 load_dotenv("../../.env.local")
@@ -20,19 +21,56 @@ SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Redis 클라이언트 초기화
-REDIS_URL = os.environ.get("REDIS_URL")
+# Redis REST API 클라이언트 초기화
 redis_client = None
-if REDIS_URL:
-    try:
-        # decode_responses=True: Redis에서 받은 데이터를 자동으로 UTF-8 문자열로 변환
-        redis_client = redis.from_url(REDIS_URL, decode_responses=True)
-        # Redis 서버에 연결 테스트
-        redis_client.ping()
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ Redis 클라이언트 초기화 성공")
-    except Exception as e:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✗ Redis 연결 실패: {e}")
-        redis_client = None
+redis_connection_failed = False
+redis_rest_url = None
+redis_rest_token = None
+
+try:
+    # REST API 환경변수 우선 확인
+    redis_rest_url = os.environ.get("UPSTASH_REDIS_REST_URL")
+    redis_rest_token = os.environ.get("UPSTASH_REDIS_REST_TOKEN")
+    
+    if redis_rest_url and redis_rest_token:
+        # HTTP 기반 Redis 연결 테스트
+        response = requests.get(
+            f"{redis_rest_url}/ping",
+            headers={"Authorization": f"Bearer {redis_rest_token}"},
+            timeout=10
+        )
+        if response.status_code == 200:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ Redis REST API 연결 성공")
+        else:
+            raise Exception(f"REST API 연결 실패: {response.status_code}")
+    else:
+        # 기존 Redis URL에서 REST API 정보 추출 시도
+        REDIS_URL = os.environ.get("REDIS_URL")
+        if REDIS_URL:
+            parsed = urlparse(REDIS_URL)
+            redis_rest_url = f"https://{parsed.hostname}"
+            redis_rest_token = parsed.password
+            
+            # 연결 테스트
+            response = requests.get(
+                f"{redis_rest_url}/ping",
+                headers={"Authorization": f"Bearer {redis_rest_token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ Redis REST API 연결 성공 (URL에서 추출)")
+            else:
+                raise Exception(f"REST API 연결 실패: {response.status_code}")
+        else:
+            raise Exception("Redis 환경변수가 설정되지 않았습니다.")
+            
+except Exception as e:
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] ✗ Redis 연결 실패: {e}")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] ℹ Redis 캐싱 비활성화 - Supabase 직접 조회로 진행")
+    redis_client = None
+    redis_connection_failed = True
+    redis_rest_url = None
+    redis_rest_token = None
 
 
 def log(message: str, level: str = "INFO"):
@@ -88,23 +126,44 @@ class BaseDataProcessor(ABC):
                            table_name: str = 'kpi_price_data') -> set:
         """Supabase 또는 Redis 캐시에서 기존 데이터의 (날짜, 지역, 가격, 규격) 조합을 확인"""
         
+        # global 변수 선언
+        global redis_connection_failed, redis_rest_url, redis_rest_token
+        
         # 1. 캐시 키(key) 생성: 각 품목별로 고유한 키를 만듦
         cache_key = f"existing_data:{table_name}:{major_category}:{middle_category}:{sub_category}:{specification}"
 
-        # 2. Redis 캐시 먼저 확인 (Cache HIT)
-        if redis_client:
+        # 2. Redis 캐시 먼저 확인 (Cache HIT) - 연결 상태 확인 포함
+        if not redis_connection_failed and redis_rest_url and redis_rest_token:
             try:
-                cached_data = redis_client.get(cache_key)
-                if cached_data is not None:
-                    log(f"        - [Cache HIT] Redis에서 기존 데이터 로드")
-                    # Redis는 문자열로 저장되므로, 원래의 set 형태로 변환
-                    loaded_list = json.loads(cached_data)
-                    return {tuple(item) for item in loaded_list}
+                # HTTP 기반 Redis GET 요청
+                response = requests.get(
+                    f"{redis_rest_url}/get/{cache_key}",
+                    headers={"Authorization": f"Bearer {redis_rest_token}"},
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get("result"):
+                        log(f"        - [Cache HIT] Redis에서 기존 데이터 로드")
+                        # Redis는 문자열로 저장되므로, 원래의 set 형태로 변환
+                        loaded_list = json.loads(result["result"])
+                        return {tuple(item) for item in loaded_list}
+                elif response.status_code == 404:
+                    # 캐시에 데이터가 없음 (정상)
+                    pass
+                else:
+                    raise Exception(f"Redis GET 실패: {response.status_code}")
             except Exception as e:
                 log(f"        - Redis 조회 중 오류: {e}", "ERROR")
+                redis_connection_failed = True
 
         # 3. 캐시가 없으면(Cache MISS) Supabase에서 데이터 조회 (기존 로직)
-        log(f"        - [Cache MISS] Supabase에서 기존 데이터 조회")
+        if redis_connection_failed:
+            log(f"        - [Redis 비활성화] Supabase에서 기존 데이터 조회")
+        else:
+            log(f"        - [Cache MISS] Supabase에서 기존 데이터 조회")
+        
         try:
             response = supabase.table(table_name).select(
                 'date, region, price, specification'
@@ -127,22 +186,59 @@ class BaseDataProcessor(ABC):
             else:
                 log("        - 기존 데이터 없음: 전체 추출 필요")
             
-            # 4. 조회한 결과를 Redis에 저장 (24시간 동안 유효)
-            if redis_client:
+            # 4. 조회한 결과를 Redis에 저장 (24시간 동안 유효) - Redis 연결 상태 확인
+            if not redis_connection_failed and redis_rest_url and redis_rest_token:
                 try:
                     # Python의 set은 JSON으로 바로 변환 불가하므로 list로 변경
                     data_to_cache = [list(item) for item in existing_data_set]
-                    # TTL(Time To Live)을 86400초 (24시간)로 설정하여 저장
-                    redis_client.set(cache_key, json.dumps(data_to_cache), ex=86400)
-                    log(f"        - 조회된 데이터를 Redis에 24시간 동안 캐싱 완료")
+                    # HTTP 기반 Redis SET 요청 (TTL 24시간)
+                    response = requests.post(
+                        f"{redis_rest_url}/set/{cache_key}",
+                        headers={"Authorization": f"Bearer {redis_rest_token}"},
+                        json={"value": json.dumps(data_to_cache), "ex": 86400},
+                        timeout=10
+                    )
+                    
+                    if response.status_code == 200:
+                        log(f"        - 조회된 데이터를 Redis에 24시간 동안 캐싱 완료")
+                    else:
+                        log(f"        - Redis 캐싱 실패: {response.status_code}", "WARNING")
                 except Exception as e:
-                    log(f"        - Redis 캐싱 중 오류: {e}", "ERROR")
+                    log(f"        - Redis 캐싱 중 오류 (무시하고 계속 진행): {e}", "WARNING")
             
             return existing_data_set
                 
         except Exception as e:
             log(f"        - Supabase 확인 중 오류: {str(e)}")
             return set()  # 오류 발생 시 빈 set 반환
+    
+    def save_to_cache(self, major_category: str, year: int, month: int, data: List[Dict]):
+        """
+        크롤링한 데이터를 Redis 캐시에 저장 (24시간 TTL)
+        """
+        global redis_connection_failed, redis_rest_url, redis_rest_token
+        
+        if redis_connection_failed or not redis_rest_url or not redis_rest_token:
+            return
+        
+        cache_key = f"kpi_data:{major_category}:{year}:{month:02d}"
+        
+        try:
+            # HTTP 기반 Redis SET 요청 (TTL 24시간)
+            response = requests.post(
+                f"{redis_rest_url}/set/{cache_key}",
+                headers={"Authorization": f"Bearer {redis_rest_token}"},
+                json={"value": json.dumps(data), "ex": 86400},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ 크롤링 데이터 Redis 캐싱 완료 ({len(data)}개 항목)")
+            else:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] ⚠ Redis 캐싱 실패: {response.status_code}")
+                
+        except Exception as e:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] ⚠ Redis 캐싱 중 오류: {e}")
     
     def filter_new_data_only(self, df: pd.DataFrame, table_name: str = 'kpi_price_data') -> pd.DataFrame:
         """기존 데이터와 비교하여 새로운 데이터만 필터링 (날짜-지역-가격-규격 조합 기준)"""
