@@ -1468,24 +1468,55 @@ class KpiCrawler:
                         value=current_month)
                     
                     await page.wait_for_load_state(
-                        'networkidle', timeout=3000)
+                        'networkidle', timeout=10000)
                     
-                    # 검색 버튼 클릭 (기간 설정 후 반드시 실행)
+                    # 검색 버튼 클릭 (기간 설정 후 반드시 실행) - 재시도 로직 추가
                     search_selector = 'form[name="sForm"] input[type="image"]'
                     search_button = page.locator(search_selector)
-                    await search_button.click(timeout=5000)
+                    
+                    # 재시도 로직 (최대 3회 시도)
+                    for attempt in range(3):
+                        try:
+                            await search_button.click(timeout=10000)
+                            break
+                        except Exception as e:
+                            if attempt == 2:  # 마지막 시도
+                                raise e
+                            log(f"        - 검색 버튼 클릭 실패 (시도 {attempt + 1}/3), 2초 후 재시도...")
+                            await asyncio.sleep(2)
+                    
                     log(f"        - 기간 설정 완료: 2020.01 ~ "
             f"{current_year}.{current_month}")
                 else:
-                    # 첫 번째 규격이 아닌 경우에도 검색 버튼 클릭
+                    # 첫 번째 규격이 아닌 경우에도 검색 버튼 클릭 - 재시도 로직 추가
                     search_selector = 'form[name="sForm"] input[type="image"]'
                     search_button = page.locator(search_selector)
-                    await search_button.click(timeout=5000)
+                    
+                    # 재시도 로직 (최대 3회 시도)
+                    for attempt in range(3):
+                        try:
+                            await search_button.click(timeout=10000)
+                            break
+                        except Exception as e:
+                            if attempt == 2:  # 마지막 시도
+                                raise e
+                            log(f"        - 검색 버튼 클릭 실패 (시도 {attempt + 1}/3), 2초 후 재시도...")
+                            await asyncio.sleep(2)
 
-                # 테이블 로딩 대기 (데이터가 로드될 때까지)
+                # 테이블 로딩 대기 (데이터가 로드될 때까지) - 재시도 로직 추가
                 table_selector = "#priceTrendDataArea tr"
-                await page.wait_for_selector(table_selector, timeout=8000)
-                await page.wait_for_load_state('networkidle', timeout=5000)
+                
+                # 재시도 로직 (최대 3회 시도)
+                for attempt in range(3):
+                    try:
+                        await page.wait_for_selector(table_selector, timeout=15000)
+                        await page.wait_for_load_state('networkidle', timeout=10000)
+                        break
+                    except Exception as e:
+                        if attempt == 2:  # 마지막 시도
+                            raise e
+                        log(f"        - 테이블 로딩 대기 실패 (시도 {attempt + 1}/3), 2초 후 재시도...")
+                        await asyncio.sleep(2)
 
                 # 사용 가능한 날짜 범위 확인
                 available_dates = await self._get_available_date_range(page)
@@ -2081,7 +2112,7 @@ class KpiCrawler:
                 spec_locator = page.locator('#ITEM_SPEC_CD')
                 await spec_locator.select_option(value=spec_value)
                 await page.wait_for_load_state(
-                    'networkidle', timeout=3000)
+                    'networkidle', timeout=10000)
 
                 # 기간 선택
                 year_locator = page.locator('#DATA_YEAR_F')
@@ -2090,14 +2121,24 @@ class KpiCrawler:
                 await month_locator.select_option(
                     value=self.start_month)
                 await page.wait_for_load_state(
-                    'networkidle', timeout=3000)
+                    'networkidle', timeout=10000)
 
                 # 검색 버튼 클릭 (재시도 로직 추가)
                 search_selector = 'form[name="sForm"] input[type="image"]'
                 search_button = page.locator(search_selector)
-                await search_button.click(timeout=10000)
-                await page.wait_for_load_state(
-                    'networkidle', timeout=15000)
+                
+                # 재시도 로직 (최대 3회 시도)
+                for search_attempt in range(3):
+                    try:
+                        await search_button.click(timeout=15000)
+                        await page.wait_for_load_state(
+                            'networkidle', timeout=20000)
+                        break
+                    except Exception as search_e:
+                        if search_attempt == 2:  # 마지막 시도
+                            raise search_e
+                        log(f"        - 검색 버튼 클릭 실패 (시도 {search_attempt + 1}/3), 2초 후 재시도...")
+                        await asyncio.sleep(2)
                 break
 
             except Exception as e:
@@ -2114,8 +2155,17 @@ class KpiCrawler:
 
         # 데이터 테이블 파싱
         try:
-            await page.wait_for_selector(
-            "#priceTrendDataArea tr", timeout=10000)
+            # 재시도 로직으로 테이블 대기 (최대 3회 시도)
+            for table_attempt in range(3):
+                try:
+                    await page.wait_for_selector(
+                        "#priceTrendDataArea tr", timeout=15000)
+                    break
+                except Exception as table_e:
+                    if table_attempt == 2:  # 마지막 시도
+                        raise table_e
+                    log(f"        - 테이블 로딩 실패 (시도 {table_attempt + 1}/3), 2초 후 재시도...")
+                    await asyncio.sleep(2)
 
             # 전체 테이블 HTML을 로그로 출력해서 구조 확인
             table_html = await page.locator("#priceTrendDataArea").inner_html()
