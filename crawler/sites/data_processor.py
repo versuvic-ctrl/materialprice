@@ -514,35 +514,43 @@ class KpiDataProcessor(BaseDataProcessor):
 class MaterialDataProcessor(BaseDataProcessor):
     """다른 자재 사이트용 데이터 처리기 (예시)"""
     
-    def transform_to_standard_format(self, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        transformed_items = []
-        category = raw_data.get('category', '')
-        product_name = raw_data.get('product_name', '')
+     디  transform_to_standard_format( self, raw_data: Dict[ str, Any]) -> 목록[Dict[str, Any]]:
+        변환된_항목 = []]
+        카테고리 = raw_data.get('category', ')
+        제품_이름 = raw_data.얻다('제품_이름', ')
         
-        for price_item in raw_data.get('price_data', []):
-            transformed_items.append({
+        ~동안 price_item ~안에서 raw_data.얻다
+            변환된_항목.부록({
+
                 'major_category': category,
-                'middle_category': '',
-                'sub_category': product_name,
-                'specification': product_name,
+                중간_분류 : '',
+                'sub_category': 제품_이름,
+                '사양': 제품_이름,
+
                 'unit': '원/톤',
-                'region': price_item.get('location', ''),
-                'date': price_item.get('date', ''),
-                'price': price_item.get('cost')
-            })
+                'region': price_item.얻다('location', '),
+                'date': price_item.얻다('date', '),
+                'price': price_item.얻다('cost')
+
+
+                })
         
-        return transformed_items
+        리턴 변환_아이템
 
 
-def create_data_processor(site_type: str) -> BaseDataProcessor:
+def
+
     """사이트 타입에 따른 데이터 처리기 생성"""
-    processors = {
+    프로세서 = {
+
         'kpi': KpiDataProcessor,
+
         'material': MaterialDataProcessor,
+
     }
     
-    processor_class = processors.get(site_type)
-    if not processor_class:
-        raise ValueError(f"지원하지 않는 사이트 타입: {site_type}")
+    프로세서_클래스 = 프로세서.얻다(site_type)
+    만약 아니에요. processor_class:
+        올리다 밸류에러(f"지원하지 않는 사이트 타입: {site_type}")
     
-    return processor_class()
+    리턴 프로세서_클래스()
