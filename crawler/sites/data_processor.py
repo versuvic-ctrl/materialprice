@@ -166,18 +166,27 @@ class BaseDataProcessor(ABC):
             log(f"    - 유효하지 않은 가격 제거: {after_null_check - after_price_check}개")
         
         # 3. 지역명 표준화 및 검증
-        valid_regions = ['강원', '경기', '경남', '경북', '광주', '대구', '대전', 
-                        '부산', '서울', '세종', '울산', '인천', '전남', '전북', 
-                        '제주', '충남', '충북', '수원', '성남', '춘천']
+        # 지역명 표준화 및 검증
+
+    def normalize_region(region_name: str) -> str:
+    return KpiDataProcessor()._normalize_region_name(region_name)
+
+     valid_regions = ['강원', '경기', '경남', '경북', '광주', '대구', '대전',
+                '부산', '서울', '세종', '울산', '인천', '전남', '전북',
+                '제주', '충남', '충북', '수원', '성남', '춘천']
+
+    def is_valid_region(region_name):
+    if not region_name or pd.isna(region_name):
+        return False
+        region_str = str(region_name).strip()
+        normalized = normalize_region(region_str)
+    return any(normalized.startswith(valid_region) for valid_region in valid_regions)
+
+         # 정규화된 지역명을 새로운 컬럼에 저장 후 검증
+         df['region'] = df['region'].apply(normalize_region)
+         df = df[df['region'].apply(is_valid_region)]
+
         
-        # 지역명이 유효한 지역을 포함하는지 확인 (숫자 포함 허용)
-        def is_valid_region(region_name):
-            if not region_name or pd.isna(region_name):
-                return False
-            region_str = str(region_name).strip()
-            return any(valid_region in region_str for valid_region in valid_regions)
-        
-        df = df[df['region'].apply(is_valid_region)]
         after_region_check = len(df)
         if after_price_check != after_region_check:
             log(f"    - 유효하지 않은 지역명 제거: {after_price_check - after_region_check}개")
