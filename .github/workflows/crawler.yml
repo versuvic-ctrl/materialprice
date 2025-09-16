@@ -1,9 +1,8 @@
 name: Daily KPI Crawler by Category
 
 on:
-  workflow_dispatch: # Actions 탭에서 수동으로 실행할 수 있는 버튼 추가
+  workflow_dispatch:
   schedule:
-    # 매일 19:00 UTC (한국 시간 기준 다음날 새벽 4시)에 자동 실행
     - cron: '0 19 * * *'
 
 jobs:
@@ -13,19 +12,20 @@ jobs:
     strategy:
       matrix:
         category:
-          # 여기에 크롤링하고 싶은 대분류 이름을 정확하게 입력합니다.
           - "공통자재"
           - "토목자재"
           - "건축자재"
           - "급배수"
           - "전기자재"
           - "석유화학"
+      # --- 이 부분을 추가/수정합니다 ---
+      max-parallel: 1 # 한 번에 하나의 카테고리만 처리하도록 설정
       fail-fast: false
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-         # ↓↓↓↓↓↓ 이 부분을 추가하세요 ↓↓↓↓↓↓
+
       - name: Check file structure
         run: |
           echo "--- Current Directory ---"
@@ -54,5 +54,4 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           REDIS_URL: ${{ secrets.REDIS_URL }}
-        # --major="공통자재" --start-year=2020 --start-month=1 형식으로 인자 전달
         run: python ./crawler/sites/kpi_crawler.py --major="${{ matrix.category }}" --start-year=2020 --start-month=1

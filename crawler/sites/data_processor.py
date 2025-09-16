@@ -448,6 +448,87 @@ class KpiDataProcessor(BaseDataProcessor):
         
         return region_str  # 변환 불가능한 경우 원본 반환
     
+    def _extract_material_name_from_specification(self, specification: str) -> str:
+        """SPECIFICATION에서 자재명을 추출하는 규칙"""
+        if not specification:
+            return specification
+        
+        spec_str = str(specification).strip()
+        
+        # 규칙 1: HDPE DC 고압관 관련
+        if 'HDPE' in spec_str and 'DC' in spec_str and '고압관' in spec_str:
+            return f"{spec_str} - DC고압관"
+        
+        # 규칙 2: PVC 관련
+        if 'PVC' in spec_str:
+            if '상수도관' in spec_str:
+                return f"{spec_str} - PVC상수도관"
+            elif '하수도관' in spec_str:
+                return f"{spec_str} - PVC하수도관"
+            elif '배수관' in spec_str:
+                return f"{spec_str} - PVC배수관"
+        
+        # 규칙 3: 철근 관련
+        if '철근' in spec_str:
+            if 'SD' in spec_str:
+                return f"{spec_str} - SD철근"
+            elif '이형' in spec_str:
+                return f"{spec_str} - 이형철근"
+        
+        # 규칙 4: 레미콘 관련
+        if '레미콘' in spec_str or '콘크리트' in spec_str:
+            if '고강도' in spec_str:
+                return f"{spec_str} - 고강도콘크리트"
+            elif '일반' in spec_str:
+                return f"{spec_str} - 일반콘크리트"
+        
+        # 규칙 5: 아스팔트 관련
+        if '아스팔트' in spec_str:
+            if '포장용' in spec_str:
+                return f"{spec_str} - 포장용아스팔트"
+            elif '방수용' in spec_str:
+                return f"{spec_str} - 방수용아스팔트"
+        
+        # 규칙 6: 골재 관련
+        if '골재' in spec_str:
+            if '쇄석' in spec_str:
+                return f"{spec_str} - 쇄석골재"
+            elif '모래' in spec_str:
+                return f"{spec_str} - 모래골재"
+        
+        # 규칙 7: 시멘트 관련
+        if '시멘트' in spec_str:
+            if '포틀랜드' in spec_str:
+                return f"{spec_str} - 포틀랜드시멘트"
+            elif '혼합' in spec_str:
+                return f"{spec_str} - 혼합시멘트"
+        
+        # 규칙 8: 형강 관련
+        if '형강' in spec_str:
+            if 'H형강' in spec_str or 'H-' in spec_str:
+                return f"{spec_str} - H형강"
+            elif 'I형강' in spec_str or 'I-' in spec_str:
+                return f"{spec_str} - I형강"
+        
+        # 규칙 9: 강관 관련
+        if '강관' in spec_str:
+            if '배관용' in spec_str:
+                return f"{spec_str} - 배관용강관"
+            elif '구조용' in spec_str:
+                return f"{spec_str} - 구조용강관"
+        
+        # 규칙 10: 전선 관련
+        if '전선' in spec_str or '케이블' in spec_str:
+            if 'CV' in spec_str:
+                return f"{spec_str} - CV케이블"
+            elif 'HIV' in spec_str:
+                return f"{spec_str} - HIV케이블"
+            elif '통신' in spec_str:
+                return f"{spec_str} - 통신케이블"
+        
+        # 기본값: 원본 specification 반환
+        return spec_str
+
     async def process_data(self, major_category: str, middle_category: str, sub_category: str) -> List[Dict[str, Any]]:
         """배치 처리를 위한 데이터 가공 메서드"""
         try:
@@ -509,11 +590,15 @@ class KpiDataProcessor(BaseDataProcessor):
                     except (ValueError, TypeError):
                         price_value = None
                 
+                # SPECIFICATION에서 자재명 추출 적용
+                original_spec = spec_data['spec_name']
+                enhanced_spec = self._extract_material_name_from_specification(original_spec)
+                
                 transformed_items.append({
                     'major_category': raw_data['major_category_name'],
                     'middle_category': raw_data['middle_category_name'],
                     'sub_category': raw_data['sub_category_name'],
-                    'specification': spec_data['spec_name'],
+                    'specification': enhanced_spec,
                     'unit': '원/톤',
                     'region': self._normalize_region_name(spec_data['region']),
                     'date': spec_data['date'],
@@ -528,11 +613,15 @@ class KpiDataProcessor(BaseDataProcessor):
                         except (ValueError, AttributeError):
                             price_value = None
                     
+                    # SPECIFICATION에서 자재명 추출 적용
+                    original_spec = spec_data['specification_name']
+                    enhanced_spec = self._extract_material_name_from_specification(original_spec)
+                    
                     transformed_items.append({
                         'major_category': raw_data['major_category_name'],
                         'middle_category': raw_data['middle_category_name'],
                         'sub_category': raw_data['sub_category_name'],
-                        'specification': spec_data['specification_name'],
+                        'specification': enhanced_spec,
                         'unit': spec_data.get('unit', '원/톤'),
                         'region': self._normalize_region_name(price_info['region']),
                         'date': price_info['date'],
