@@ -25,7 +25,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-         # ↓↓↓↓↓↓ 이 부분을 추가하세요 ↓↓↓↓↓↓
+
       - name: Check file structure
         run: |
           echo "--- Current Directory ---"
