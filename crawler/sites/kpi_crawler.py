@@ -953,8 +953,15 @@ class KpiCrawler:
             if await open_sub_button.count() > 0:
                 log("openSub() 버튼을 클릭하여 모든 분류를 펼칩니다.")
                 await open_sub_button.click()
-                # 분류가 펼쳐질 시간을 기다림
-                await self.page.wait_for_timeout(2000)
+                # 분류가 펼쳐질 시간을 기다림 (2초 -> 5초로 증가)
+                await self.page.wait_for_timeout(5000) # 더 넉넉한 대기 시간
+                # 또는, 특정 중분류 목록이 실제로 visible 해질 때까지 기다리기 (더 견고한 방법)
+                try:
+                    await self.page.wait_for_selector('.part-ttl > a', state='visible', timeout=15000)
+                    log("중분류 요소들이 화면에 완전히 로드되었습니다.")
+                except Exception as e:
+                    log(f"중분류 요소 가시성 대기 실패: {e}", "WARNING")
+                    # 실패해도 일단 진행하도록 함. 다음 로직에서 다시 요소를 찾을 것이므로.
 
                 # HTML 구조 확인을 위해 페이지 내용 출력
                 html_content = await self.page.content()
@@ -969,13 +976,16 @@ class KpiCrawler:
                         "part-ttl 없음")
             else:
                 # 대분류 '공통자재' 클릭하여 중분류 목록 펼치기
+                # 이 부분도 위에 openSub() 처럼 대기 시간을 늘려주는 것이 좋습니다.
                 category_link = 'a[href="category.asp?CATE_CD=101"]'
                 await self.page.click(category_link)
-                await self.page.wait_for_timeout(1000)
+                await self.page.wait_for_timeout(3000) # 1초 -> 3초로 증가
                 log("중분류 및 소분류 목록을 펼쳤습니다.")
 
             # 소분류 목록이 나타날 때까지 대기
-            await self.page.wait_for_selector(".part-list")
+            # 이 wait_for_selector는 사실상 .part-ttl 아래의 중분류를 대기하는 것이므로,
+            # .part-ttl이 visible 상태가 되는 것을 기다리는 것이 더 정확할 수 있습니다.
+            await self.page.wait_for_selector(".part-list", timeout=15000) # 타임아웃 증가
 
             # 중분류 정보를 미리 수집
             middle_selector = '.part-ttl > a'
