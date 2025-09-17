@@ -90,7 +90,12 @@ const calculateRangeDifferenceRatio = (range1: number, range2: number) => {
 };
 
 // 스마트 축 배치 알고리즘
-const calculateSmartAxisAssignment = (data: any[], materials: string[]) => {
+const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
+  leftAxisMaterials: string[];
+  rightAxisMaterials: string[];
+  leftAxisDomain: any[];
+  rightAxisDomain: any[];
+} => {
   if (!data || data.length === 0 || materials.length === 0) {
     return {
       leftAxisMaterials: [],

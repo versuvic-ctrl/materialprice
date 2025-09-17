@@ -156,7 +156,7 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
 
     return materials.map(material => {
       // 해당 자재의 모든 데이터 필터링
-      const materialData = rawData.filter(item => item.specification === material.id);
+      const materialData = rawData.filter((item: any) => item.specification === material.id);
       
       if (materialData.length === 0) {
         return {
@@ -169,7 +169,7 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
       }
 
       // 날짜순 정렬 (최신순)
-      const sortedData = materialData.sort((a, b) => new Date(b.time_bucket).getTime() - new Date(a.time_bucket).getTime());
+      const sortedData = materialData.sort((a: { time_bucket: string }, b: { time_bucket: string }) => new Date(b.time_bucket).getTime() - new Date(a.time_bucket).getTime());
       
       const rawPrice = parseFloat(sortedData[0]?.average_price || '0');
       // Supabase RPC 'get_price_data'가 'unit' 필드를 반환하지 않는 것으로 추정됨.
