@@ -60,13 +60,13 @@ const fetchPriceData = async (
 ) => {
   if (!materials || materials.length === 0) return [];
   const { data, error } = await supabase.rpc('get_price_data', {
-    p_specifications: materials,
     p_start_date: startDate,
     p_end_date: endDate,
     p_interval: interval,
     p_major_categories: null,
     p_middle_categories: null,
     p_sub_categories: null,
+    p_specifications: materials,
   });
   if (error) throw new Error(error.message);
   return data;

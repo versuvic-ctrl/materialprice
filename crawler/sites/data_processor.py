@@ -343,10 +343,16 @@ class BaseDataProcessor(ABC):
                 log(f"        - 중복 SKIP: {group_duplicate_count}개")
             log(f"        - 그룹 결과: 신규 {group_new_count}개, 중복 {group_duplicate_count}개")
         
+        processed_count = len(new_records) + skipped_count
         if new_records:
             log(f"📊 전체 {total_records}개 중 신규 {len(new_records)}개, 중복 {skipped_count}개")
         else:
-            log(f"📊 전체 {total_records}개 모두 중복 - 저장할 데이터 없음")
+            if processed_count == total_records:
+                log(f"📊 전체 {total_records}개 모두 중복 - 저장할 데이터 없음")
+            else:
+                # 실제로는 나머지 데이터가 신규 데이터일 가능성이 높음
+                unprocessed_count = total_records - processed_count
+                log(f"📊 전체 {total_records}개 중 중복 {skipped_count}개, 신규 {unprocessed_count}개 (중복 체크 미완료)")
         
         return pd.DataFrame(new_records)
     
@@ -660,10 +666,15 @@ class KpiDataProcessor(BaseDataProcessor):
             log(f"📊 저장 시도: {len(df)}개 데이터 → '{table_name}' 테이블")
             
             # 부모 클래스의 save_to_supabase 메서드를 호출하여 중복 제거 및 저장 로직 실행
-            super().save_to_supabase(df, table_name, check_duplicates=check_duplicates)
+            actual_saved_count = super().save_to_supabase(df, table_name, check_duplicates=check_duplicates)
             
-            log(f"✅ 저장 완료: {len(df)}개 데이터")
-            return len(df)
+            # 실제 저장된 개수를 기준으로 메시지 출력
+            if actual_saved_count > 0:
+                log(f"✅ 저장 완료: {actual_saved_count}개 데이터")
+            else:
+                log(f"ℹ️ 저장 완료: 신규 데이터 없음 (전체 {len(df)}개 모두 중복)")
+            
+            return actual_saved_count
             
         except Exception as e:
             log(f"❌ Supabase 저장 중 오류 발생: {str(e)}", "ERROR")
