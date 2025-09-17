@@ -25,7 +25,7 @@ const DASHBOARD_CHARTS_CONFIG = [
   {
     title: '비철금속(Non-ferrous metals)',
     materials: [
-      { id: 'AL6061-니켈 -  원소기호 Ni, 순도 99.9%', displayName: '니켈' },
+      { id: '니켈 -  원소기호 Ni, 순도 99.9%', displayName: '니켈' },
       { id: '알루미늄 -  원소기호 Al, 순도 99.8%', displayName: '알루미늄' },
       { id: '규소 -  원소기호 Si, 중국산, 순도 Si(98.5% 이상) Fe(0.5% 이하)', displayName: '규소' },
       { id: '주석 -  원소기호 Sn, 순도 99.85%', displayName: '주석' },

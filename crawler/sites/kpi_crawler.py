@@ -770,7 +770,25 @@ class KpiCrawler:
     },
     }
 
-    def __init__(self, target_major: str, start_year: str, start_month: str, max_concurrent=3):
+    def __init__(self, target_major: str = None, target_middle: str = None, 
+                 target_sub: str = None, crawl_mode: str = "all",
+                 start_year: str = None, start_month: str = None, max_concurrent=3):
+        """
+        KPI 크롤러 초기화
+        
+        Args:
+            target_major: 크롤링할 대분류명 (None이면 전체)
+            target_middle: 크롤링할 중분류명 (None이면 전체)
+            target_sub: 크롤링할 소분류명 (None이면 전체)
+            crawl_mode: 크롤링 모드
+                - "all": 전체 크롤링 (기본값)
+                - "major_only": 지정된 대분류만 크롤링
+                - "middle_only": 지정된 대분류의 특정 중분류만 크롤링
+                - "sub_only": 지정된 대분류의 특정 중분류의 특정 소분류만 크롤링
+            start_year: 시작 연도 (None이면 현재 연도)
+            start_month: 시작 월 (None이면 현재 월)
+            max_concurrent: 최대 동시 실행 수
+        """
         self.base_url = "https://www.kpi.or.kr"
         self.max_concurrent = max_concurrent
         self.semaphore = asyncio.Semaphore(max_concurrent)
@@ -778,8 +796,11 @@ class KpiCrawler:
         
         # 새로 추가된 속성들
         self.target_major_category = target_major
-        self.start_year = start_year
-        self.start_month = start_month
+        self.target_middle_category = target_middle
+        self.target_sub_category = target_sub
+        self.crawl_mode = crawl_mode
+        self.start_year = start_year or str(datetime.now().year)
+        self.start_month = start_month or str(datetime.now().month)
         
         self.processor = create_data_processor('kpi')
         
@@ -787,15 +808,31 @@ class KpiCrawler:
         self.batch_data = []
         self.batch_size = 5  # 소분류 5개마다 처리
         self.processed_count = 0
-        log(f"크롤러 초기화: 타겟='{self.target_major_category}', 시작날짜={self.start_year}-{self.start_month}")
+        
+        log(f"크롤러 초기화 - 크롤링 모드: {self.crawl_mode}")
+        log(f"  타겟 대분류: {self.target_major_category}")
+        log(f"  타겟 중분류: {self.target_middle_category}")
+        log(f"  타겟 소분류: {self.target_sub_category}")
+        log(f"  시작날짜: {self.start_year}-{self.start_month}")
 
     async def run(self):
         """크롤링 프로세스 실행"""
         browser = None
         try:
             async with async_playwright() as p:
-                # headless=False를 True로 변경하여 서버 환경에서 실행되도록 합니다.
-                browser = await p.chromium.launch(headless=True) # ◀◀◀ 이 부분을 수정하세요!
+                # GitHub Actions 환경에서 더 안정적인 브라우저 설정
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=[
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-gpu',
+                        '--disable-web-security',
+                        '--disable-features=VizDisplayCompositor',
+                        '--window-size=1920,1080'
+                    ]
+                )
                 self.context = await browser.new_context()
                 self.page = await self.context.new_page()
 
@@ -830,11 +867,19 @@ class KpiCrawler:
             raise ValueError(".env.local 파일에 KPI_USERNAME과 "
                              "KPI_PASSWORD를 설정해야 합니다.")
 
+        # GitHub Actions 환경에서 더 안정적인 로그인 처리
+        await self.page.wait_for_load_state('networkidle', timeout=45000)
+        await asyncio.sleep(2)  # 추가 안정화 대기
+        
         await self.page.locator("#user_id").fill(username)
+        await asyncio.sleep(1)
         await self.page.locator("#user_pw").fill(password)
+        await asyncio.sleep(1)
         await self.page.locator("#sendLogin").click()
 
-        await self.page.wait_for_load_state('networkidle')
+        # 로그인 완료 대기시간 증가
+        await self.page.wait_for_load_state('networkidle', timeout=45000)
+        await asyncio.sleep(3)  # 로그인 후 추가 대기
         log("로그인 완료", "SUCCESS")
 
     async def _navigate_to_category(self):
@@ -933,9 +978,14 @@ class KpiCrawler:
             major_links.append({'name': text, 'url': f"{self.base_url}{href}"})
 
         for major in major_links:
-            # <<< 여기에 코드 추가 (3/4) - 대분류 필터링 >>>
-            if major['name'] != self.target_major_category:
-                continue  # 타겟 대분류가 아니면 건너뛰기
+            # 크롤링 모드에 따른 대분류 필터링
+            if self.crawl_mode != "all" and self.target_major_category:
+                if major['name'] != self.target_major_category:
+                    continue  # 타겟 대분류가 아니면 건너뛰기
+            elif self.crawl_mode == "all" and self.target_major_category:
+                # 전체 모드이지만 특정 대분류가 지정된 경우
+                if major['name'] != self.target_major_category:
+                    continue
 
             log(f"대분류 '{major['name']}' 크롤링 시작...")
             await self.page.goto(major['url'])
@@ -1039,11 +1089,21 @@ class KpiCrawler:
             for middle_info in middle_categories_info:
                 middle_name = middle_info['name']
                 middle_href = middle_info['href']
-                # <<< 중분류 포함 로직 >>>
+                
+                # 크롤링 모드에 따른 중분류 필터링
+                if self.crawl_mode in ["middle_only", "sub_only"] and self.target_middle_category:
+                    if middle_name != self.target_middle_category:
+                        log(f"  [SKIP] 타겟 중분류가 아님: '{middle_name}' 건너뜁니다.")
+                        continue
+                elif self.crawl_mode == "major_only":
+                    # major_only 모드에서는 모든 중분류 처리
+                    pass
+                
+                # 기존 INCLUSION_LIST 로직 (하위 호환성 유지)
                 inclusions_for_major = self.INCLUSION_LIST.get(major['name'], {})
                 
-                # 대분류에 설정이 없으면 모든 중분류 제외
-                if not inclusions_for_major:
+                # 대분류에 설정이 없으면 모든 중분류 제외 (단, 새로운 모드에서는 무시)
+                if not inclusions_for_major and self.crawl_mode == "all":
                     log(f"  [SKIP] 포함 목록 없음: 중분류 '{middle_name}' 건너뜁니다.")
                     continue
                 
@@ -1145,29 +1205,43 @@ class KpiCrawler:
                                             middle_name,
                                             sub_categories_info):
         """소분류들을 병렬로 크롤링"""
-        # <<< 소분류 포함 로직 >>>
-        inclusions_for_major = self.INCLUSION_LIST.get(major_name, {})
         
-        # 대분류가 "__ALL__"로 설정된 경우 모든 중분류와 소분류 포함
-        if inclusions_for_major == "__ALL__":
-            log(f"    대분류 '{major_name}' 전체 포함 설정 - 중분류 '{middle_name}' 모든 소분류 포함")
-        else:
-            sub_inclusion_rule = inclusions_for_major.get(middle_name, [])
-            
-            # 중분류가 "__ALL__"이 아닌 경우, 특정 소분류만 포함
-            if sub_inclusion_rule != "__ALL__":
-                if isinstance(sub_inclusion_rule, list) and sub_inclusion_rule:
-                    filtered_subs = []
-                    for sub_info in sub_categories_info:
-                        if sub_info['name'] in sub_inclusion_rule:
-                            filtered_subs.append(sub_info)
-                        else:
-                            log(f"    [SKIP] 포함 목록에 없음: 소분류 '{sub_info['name']}' 건너뜁니다.")
-                    sub_categories_info = filtered_subs  # 필터링된 목록으로 교체
+        # 크롤링 모드에 따른 소분류 필터링
+        if self.crawl_mode == "sub_only" and self.target_sub_category:
+            filtered_subs = []
+            for sub_info in sub_categories_info:
+                if sub_info['name'] == self.target_sub_category:
+                    filtered_subs.append(sub_info)
                 else:
-                    # 빈 리스트이거나 잘못된 형식인 경우 모든 소분류 제외
-                    log(f"    [SKIP] 포함할 소분류 없음: 중분류 '{middle_name}' 모든 소분류 건너뜁니다.")
-                    return
+                    log(f"    [SKIP] 타겟 소분류가 아님: '{sub_info['name']}' 건너뜁니다.")
+            sub_categories_info = filtered_subs
+        elif self.crawl_mode in ["major_only", "middle_only"]:
+            # major_only, middle_only 모드에서는 모든 소분류 처리
+            pass
+        elif self.crawl_mode == "all":
+            # 기존 INCLUSION_LIST 로직 (하위 호환성 유지)
+            inclusions_for_major = self.INCLUSION_LIST.get(major_name, {})
+            
+            # 대분류가 "__ALL__"로 설정된 경우 모든 중분류와 소분류 포함
+            if inclusions_for_major == "__ALL__":
+                log(f"    대분류 '{major_name}' 전체 포함 설정 - 중분류 '{middle_name}' 모든 소분류 포함")
+            else:
+                sub_inclusion_rule = inclusions_for_major.get(middle_name, [])
+                
+                # 중분류가 "__ALL__"이 아닌 경우, 특정 소분류만 포함
+                if sub_inclusion_rule != "__ALL__":
+                    if isinstance(sub_inclusion_rule, list) and sub_inclusion_rule:
+                        filtered_subs = []
+                        for sub_info in sub_categories_info:
+                            if sub_info['name'] in sub_inclusion_rule:
+                                filtered_subs.append(sub_info)
+                            else:
+                                log(f"    [SKIP] 포함 목록에 없음: 소분류 '{sub_info['name']}' 건너뜁니다.")
+                        sub_categories_info = filtered_subs  # 필터링된 목록으로 교체
+                    else:
+                        # 빈 리스트이거나 잘못된 형식인 경우 모든 소분류 제외
+                        log(f"    [SKIP] 포함할 소분류 없음: 중분류 '{middle_name}' 모든 소분류 건너뜁니다.")
+                        return
 
         if not sub_categories_info:
             log(f"    중분류 '{middle_name}': "
@@ -1190,10 +1264,17 @@ class KpiCrawler:
 
         # 결과 처리 및 배치 데이터 수집
         success_count = 0
+        failed_count = 0
+        
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 sub_name = sub_categories_info[i]['name']
-                log(f"    소분류 '{sub_name}' 처리 실패: {str(result)}")
+                log(f"    ❌ 소분류 '{sub_name}' 처리 실패: {str(result)}", "ERROR")
+                failed_count += 1
+            elif result is None:
+                sub_name = sub_categories_info[i]['name']
+                log(f"    ⚠️ 소분류 '{sub_name}' 처리 결과 없음", "WARNING")
+                failed_count += 1
             else:
                 success_count += 1
                 # 성공한 소분류 데이터를 배치에 추가
@@ -1204,6 +1285,8 @@ class KpiCrawler:
                     'sub': sub_info['name'],
                     'result': result
                 })
+
+        log(f"    중분류 '{middle_name}' 완료: {success_count}/{sub_count}개 성공, {failed_count}개 실패")
                 
                 # 배치 크기에 도달하면 처리
                 if len(self.batch_data) >= self.batch_size:
@@ -1274,46 +1357,66 @@ class KpiCrawler:
             log(f"  - 중분류 '{middle_name}' > "
                 f"소분류 '{sub_name}' 데이터 수집 시작")
 
-            try:
-                # 새로운 페이지 컨텍스트 생성 (병렬 처리를 위해)
-                new_page = await self.context.new_page()
-                await new_page.goto(sub_url)
-                await new_page.wait_for_load_state('networkidle')
+            new_page = None
+            max_retries = 3
+            
+            for attempt in range(max_retries):
+                try:
+                    # 새로운 페이지 컨텍스트 생성 (병렬 처리를 위해)
+                    new_page = await self.context.new_page()
+                    
+                    # 페이지 로드 재시도 로직
+                    await new_page.goto(sub_url, timeout=60000)
+                    await new_page.wait_for_load_state('networkidle', timeout=45000)
+                    
+                    # 가격 데이터 수집
+                    result = await self._get_price_data_with_page(
+                        new_page, major_name, middle_name, sub_name, sub_url)
 
-                # 가격 데이터 수집
-                result = await self._get_price_data_with_page(
-                    new_page, major_name, middle_name, sub_name, sub_url)
+                    # 페이지 정리
+                    await new_page.close()
+                    new_page = None
 
-                # 페이지 정리
-                await new_page.close()
+                    # 수집된 데이터가 있으면 즉시 처리하고 저장
+                    has_data = (result and hasattr(result, 'raw_data_list')
+                                and result.raw_data_list)
+                    if has_data:
+                        log(f"  - 소분류 '{sub_name}' 데이터 처리 및 저장 시작")
 
-                # 수집된 데이터가 있으면 즉시 처리하고 저장
-                has_data = (result and hasattr(result, 'raw_data_list')
-                            and result.raw_data_list)
-                if has_data:
-                    log(f"  - 소분류 '{sub_name}' 데이터 처리 및 저장 시작")
+                        # DataFrame으로 변환
+                        df = result.to_dataframe()
 
-                    # DataFrame으로 변환
-                    df = result.to_dataframe()
-
-                    if not df.empty:
-                        # DataFrame을 딕셔너리 리스트로 변환하여 저장
-                        processed_data = df.to_dict(orient='records')
-                        # Supabase에 저장 (중복 체크 활성화)
-                        saved_count = await result.save_to_supabase(processed_data, 'kpi_price_data', check_duplicates=True)
-                        log(f"  ✅ '{sub_name}' 완료: "
-                            f"{len(df)}개 데이터 → Supabase 저장 {saved_count}개 성공")
+                        if not df.empty:
+                            # DataFrame을 딕셔너리 리스트로 변환하여 저장
+                            processed_data = df.to_dict(orient='records')
+                            # Supabase에 저장 (중복 체크 활성화)
+                            saved_count = await result.save_to_supabase(processed_data, 'kpi_price_data', check_duplicates=True)
+                            log(f"  ✅ '{sub_name}' 완료: "
+                                f"{len(df)}개 데이터 → Supabase 저장 {saved_count}개 성공")
+                        else:
+                            log(f"  ⚠️ '{sub_name}' 완료: 저장할 데이터 없음")
                     else:
-                        log(f"  ⚠️ '{sub_name}' 완료: 저장할 데이터 없음")
+                        log(f"  ⚠️ '{sub_name}' 완료: 처리할 데이터 없음")
 
-                return result
+                    return result
 
-            except Exception as e:
-                error_msg = (f"  소분류 '{sub_name}' 처리 중 오류 "
-                             f"[대분류: {major_name}, 중분류: {middle_name}]: "
-                             f"{str(e)}")
-                log(error_msg)
-                raise e
+                except Exception as e:
+                    if new_page:
+                        try:
+                            await new_page.close()
+                        except:
+                            pass
+                        new_page = None
+                    
+                    if attempt == max_retries - 1:
+                        error_msg = (f"  ❌ 소분류 '{sub_name}' 처리 실패 "
+                                     f"[대분류: {major_name}, 중분류: {middle_name}] "
+                                     f"(최대 재시도 {max_retries}회 초과): {str(e)}")
+                        log(error_msg, "ERROR")
+                        return None
+                    else:
+                        log(f"  ⚠️ 소분류 '{sub_name}' 처리 재시도 {attempt + 1}/{max_retries}: {str(e)}", "WARNING")
+                        await asyncio.sleep(5)  # 재시도 전 대기
 
     async def _get_price_data(self, major_name, middle_name,
                              sub_name, sub_url):
@@ -1390,25 +1493,67 @@ class KpiCrawler:
 
             # '물가추이 보기' 탭으로 이동
             try:
-                # 탭이 존재하는지 먼저 확인
-                await page.wait_for_selector('a:has-text("물가추이 보기")', timeout=15000)
+                # GitHub Actions 환경을 위한 더 긴 대기시간
+                await page.wait_for_load_state('networkidle', timeout=45000)
+                await asyncio.sleep(2)  # 추가 안정화 대기
                 
-                # 재시도 로직 추가
-                for retry in range(3):
+                # 탭이 존재하는지 먼저 확인 (더 긴 대기시간)
+                await page.wait_for_selector('a:has-text("물가추이 보기")', timeout=30000)
+                
+                # 재시도 로직 개선 (5회로 증가)
+                for retry in range(5):
                     try:
-                        await page.get_by_role('link', name='물가추이 보기').click(timeout=30000)
-                        await page.wait_for_selector("#ITEM_SPEC_CD", timeout=30000)
+                        # 더 안정적인 클릭 방법 시도
+                        tab_element = page.locator('a:has-text("물가추이 보기")')
+                        await tab_element.wait_for(state='visible', timeout=20000)
+                        await tab_element.click(timeout=45000)
+                        
+                        # 페이지 로드 완료 대기
+                        await page.wait_for_selector("#ITEM_SPEC_CD", timeout=45000)
+                        await page.wait_for_load_state('networkidle', timeout=30000)
                         break
                     except Exception as e:
-                        if retry == 2:
+                        if retry == 4:
                             raise e
-                        log(f"물가추이 보기 탭 클릭 재시도 {retry + 1}/3: {e}", "WARNING")
+                        log(f"물가추이 보기 탭 클릭 재시도 {retry + 1}/5: {e}", "WARNING")
+                        await asyncio.sleep(3)  # 재시도 간 대기시간 증가
                         await page.reload()
-                        await page.wait_for_load_state('networkidle', timeout=30000)
+                        await page.wait_for_load_state('networkidle', timeout=45000)
+                        await asyncio.sleep(2)
                         
             except Exception as e:
-                log(f"물가추이 보기 탭 클릭 실패: {str(e)}", "ERROR")
-                return None
+                log(f"물가추이 보기 탭 클릭 완전 실패: {str(e)}", "ERROR")
+                # 페이지 상태 확인 및 복구 시도
+                try:
+                    await page.reload()
+                    await page.wait_for_load_state('networkidle', timeout=30000)
+                    await asyncio.sleep(3)
+                    
+                    # 마지막 시도: 다른 방법으로 탭 찾기
+                    alternative_selectors = [
+                        'a[href*="price_trend"]',
+                        'a:has-text("물가추이")',
+                        'a:has-text("추이")',
+                        'a[onclick*="price_trend"]'
+                    ]
+                    
+                    for selector in alternative_selectors:
+                        try:
+                            element = await page.wait_for_selector(selector, timeout=10000)
+                            if element:
+                                await element.click(timeout=30000)
+                                await page.wait_for_selector("#ITEM_SPEC_CD", timeout=30000)
+                                log(f"대체 셀렉터로 탭 클릭 성공: {selector}", "INFO")
+                                break
+                        except:
+                            continue
+                    else:
+                        log(f"모든 대체 방법 실패 - 소분류 건너뜀: {sub_name}", "WARNING")
+                        return None
+                        
+                except Exception as recovery_error:
+                    log(f"페이지 복구 실패: {recovery_error}", "ERROR")
+                    return None
 
             # 규격 선택 옵션들 가져오기
             spec_options = await page.locator('#ITEM_SPEC_CD option').all()
@@ -2349,32 +2494,51 @@ class KpiCrawler:
 async def main():
     """메인 실행 로직: 명령행 인자 파싱 및 크롤러 실행"""
     # GitHub Actions 환경에 최적화된 인자 파싱 방식
-    # 예: --major="공통자재"
+    # 예: --major="공통자재" --middle="비철금속" --sub="알루미늄" --mode="sub_only"
     args = {arg.split('=')[0].strip('-'): arg.split('=')[1].strip('"\'') for arg in sys.argv[1:] if '=' in arg}
     
     target_major = args.get('major')
+    target_middle = args.get('middle')
+    target_sub = args.get('sub')
+    crawl_mode = args.get('mode', 'all')
     start_year = args.get('start-year', '2020')
     start_month = args.get('start-month', '01').zfill(2)
 
-    # --major 인자가 없으면 전체 대분류 크롤링
-    if not target_major:
-        log("--major 인자가 없습니다. 전체 대분류를 크롤링합니다.", "INFO")
+    log(f"크롤링 설정:")
+    log(f"  - 모드: {crawl_mode}")
+    log(f"  - 대분류: {target_major}")
+    log(f"  - 중분류: {target_middle}")
+    log(f"  - 소분류: {target_sub}")
+    log(f"  - 시작 시점: {start_year}-{start_month}")
+
+    # 크롤링 모드에 따른 실행
+    if crawl_mode == "all" and not target_major:
+        # 전체 대분류 크롤링 (기존 방식)
+        log("전체 대분류를 크롤링합니다.", "INFO")
         all_major_categories = list(KpiCrawler.INCLUSION_LIST.keys())
         log(f"크롤링할 대분류: {all_major_categories}", "INFO")
         
         for major in all_major_categories:
             log(f"=== {major} 크롤링 시작 ===", "SUMMARY")
-            crawler = KpiCrawler(target_major=major, start_year=start_year, start_month=start_month)
+            crawler = KpiCrawler(target_major=major, crawl_mode="all", 
+                               start_year=start_year, start_month=start_month)
             await crawler.run()
             log(f"🟢 {major} 크롤링 완료", "SUCCESS")
         
         log("🟢 전체 대분류 크롤링 완료", "SUCCESS")
-        return
-
-    log(f"'{target_major}' 대분류 크롤링 시작 (시작 날짜: {start_year}-{start_month})", "SUMMARY")
-    crawler = KpiCrawler(target_major=target_major, start_year=start_year, start_month=start_month)
-    await crawler.run()
-    log(f"🟢 '{target_major}' 대분류 크롤링 완료.", "SUCCESS")
+    else:
+        # 선택적 크롤링
+        log(f"=== {crawl_mode} 모드 크롤링 시작 ===", "SUMMARY")
+        crawler = KpiCrawler(
+            target_major=target_major,
+            target_middle=target_middle,
+            target_sub=target_sub,
+            crawl_mode=crawl_mode,
+            start_year=start_year,
+            start_month=start_month
+        )
+        await crawler.run()
+        log(f"🟢 {crawl_mode} 모드 크롤링 완료", "SUCCESS")
 
 
 if __name__ == "__main__":
