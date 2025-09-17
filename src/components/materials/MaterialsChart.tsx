@@ -434,10 +434,10 @@ const MaterialsChart: React.FC = () => {
   const unit = useMemo(() => {
     if (rawData && rawData.length > 0) {
       const originalUnit = rawData[0].unit || '';
-      // 차트 데이터가 kg로 변환되므로 항상 'kg' 반환
-      return 'kg';
+      // 차트 데이터가 kg로 변환되므로 항상 '원/kg' 반환
+      return '원/kg';
     }
-    return 'kg';
+    return '원/kg';
   }, [rawData]);
 
   // 범례 높이 계산 (동적 공간 확보)

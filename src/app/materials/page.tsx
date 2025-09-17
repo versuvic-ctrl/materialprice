@@ -42,11 +42,12 @@ import MaterialsChart from '@/components/materials/MaterialsChart'; // [교체] 
 
 // 정적 자재 물성 데이터 (자재 비교 테이블 및 계산기에서 사용)
 // price: 원/kg, density: g/cm³, tensile: MPa, yield: MPa, elastic: GPa, thermal: W/m·K
+// SUS304, SUS316 등은 원래 ton/원 단위였으므로 1000으로 나누어 kg/원으로 변환
 const MATERIAL_DATA = {
-  'SUS304': { price: 8500, density: 7.93, tensile: 520, yield: 205, elastic: 200, thermal: 16.2 },
-  'SUS316': { price: 9200, density: 8.0, tensile: 515, yield: 205, elastic: 200, thermal: 16.3 },
-  'AL6061': { price: 3200, density: 2.7, tensile: 310, yield: 276, elastic: 68.9, thermal: 167 },
-  'Carbon Steel': { price: 2800, density: 7.85, tensile: 400, yield: 250, elastic: 200, thermal: 50 }
+  'SUS304': { price: 8.5, density: 7.93, tensile: 520, yield: 205, elastic: 200, thermal: 16.2 },
+  'SUS316': { price: 9.2, density: 8.0, tensile: 515, yield: 205, elastic: 200, thermal: 16.3 },
+  'AL6061': { price: 3.2, density: 2.7, tensile: 310, yield: 276, elastic: 68.9, thermal: 167 },
+  'Carbon Steel': { price: 2.8, density: 7.85, tensile: 400, yield: 250, elastic: 200, thermal: 50 }
 };
 
 // Supabase 클라이언트는 lib/supabaseClient.ts에서 import

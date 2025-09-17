@@ -1631,8 +1631,8 @@ class KpiCrawler:
                             self._cache_unit(cate_cd, item_cd, unit_info)
                             log(f"      물가정보 보기 페이지에서 단위 정보 확인: {unit_info}")
                         else:
-                            log(f"      단위 정보를 찾을 수 없음 - 기본값 '원/톤' 사용")
-                            unit_info = '원/톤'
+                            log(f"      단위 정보를 찾을 수 없음 - 단위 없이 진행")
+                            unit_info = None
         
         for i, spec in enumerate(spec_list):
             try:
@@ -2306,8 +2306,40 @@ class KpiCrawler:
             page = await self.context.new_page()
             await page.goto(detail_url, wait_until='networkidle')
             
-            # 단위 정보가 있는 테이블 찾기
-            unit_elements = await page.query_selector_all('td:has-text("㎏"), td:has-text("kg"), td:has-text("톤"), td:has-text("원/톤"), td:has-text("원/kg")')
+            # 단위 정보가 있는 테이블에서 단위 컬럼 찾기 (더 정확한 셀렉터 사용)
+            unit_elements = []
+            
+            # 1. 단위 헤더가 있는 테이블에서 단위 컬럼 찾기
+            unit_header = await page.query_selector('th:has-text("단위")')
+            if unit_header:
+                # 단위 헤더의 인덱스 찾기
+                header_row = await unit_header.query_selector('xpath=..')
+                headers = await header_row.query_selector_all('th')
+                unit_column_index = -1
+                for i, header in enumerate(headers):
+                    header_text = await header.inner_text()
+                    if '단위' in header_text:
+                        unit_column_index = i
+                        break
+                
+                if unit_column_index >= 0:
+                    # 해당 컬럼의 데이터 셀들 찾기
+                    table = await unit_header.query_selector('xpath=ancestor::table[1]')
+                    if table:
+                        data_rows = await table.query_selector_all('tr:not(:first-child)')
+                        for row in data_rows:
+                            cells = await row.query_selector_all('td')
+                            if len(cells) > unit_column_index:
+                                unit_cell = cells[unit_column_index]
+                                unit_elements.append(unit_cell)
+            
+            # 2. 백업: 링크가 있는 단위 요소들 찾기 (a 태그 안의 u 태그)
+            if not unit_elements:
+                unit_elements = await page.query_selector_all('a[href*="openUnit"] u, a[href*="openUnit()"] u')
+            
+            # 3. 백업: 일반적인 단위 텍스트 찾기
+            if not unit_elements:
+                unit_elements = await page.query_selector_all('td:has-text("㎏"), td:has-text("kg"), td:has-text("톤"), td:has-text("원/톤"), td:has-text("원/kg")')
             
             unit = None
             for element in unit_elements:

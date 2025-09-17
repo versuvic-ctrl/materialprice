@@ -39,11 +39,13 @@ export const convertToKgUnit = (price: number, unit: string): ConvertedPriceData
 
   let convertedPrice = price;
 
-  // 'ton' 또는 '톤' 단위일 경우 kg 단위로 변환 (1톤 = 1000kg)
+  // 'ton' 또는 '톤' 단위일 경우 kg 단위로 변환 (1톤 = 1000kg이므로 1000으로 나눔)
+  // 예: 3,000,000원/톤 → 3,000원/kg
   if (normalizedUnit === 'ton' || normalizedUnit === '톤' || normalizedUnit.includes('톤')) {
     convertedPrice = price / 1000;
   } 
-  // 'kg' 단위는 변환 필요 없음
+  // 'kg' 단위는 변환 필요 없음 (이미 kg 단위)
+  // 예: 3,500원/kg → 3,500원/kg (그대로 유지)
   else if (normalizedUnit === 'kg' || normalizedUnit.includes('kg')) {
     convertedPrice = price;
   }
@@ -99,7 +101,8 @@ export const convertChartDataToKg = (
   if (!data || data.length === 0) return [];
   
   // 톤 단위를 kg 단위로 변환: 1톤 = 1000kg이므로 가격을 1000으로 나눔
-  // 예: 3,000,000원/톤 → 3,000원/kg
+  // 예: 26,755원/톤 → 26.755원/kg, 3,000,000원/톤 → 3,000원/kg
+  // kg 단위는 변환하지 않음: 3,500원/kg → 3,500원/kg (그대로 유지)
   const conversionFactor = unit === '원/톤' || unit.includes('톤') ? 1000 : 1;
   
   return data.map(item => {
@@ -108,6 +111,7 @@ export const convertChartDataToKg = (
     materialFields.forEach(field => {
       if (convertedItem[field] !== null && convertedItem[field] !== undefined) {
         // 톤 단위인 경우 1000으로 나누어 kg 단위로 변환
+        // kg 단위인 경우 변환하지 않음 (conversionFactor = 1)
         convertedItem[field] = convertedItem[field] / conversionFactor;
       }
     });
