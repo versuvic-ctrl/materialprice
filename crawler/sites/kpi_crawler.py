@@ -1601,6 +1601,39 @@ class KpiCrawler:
             self, page, spec_list, raw_item_data,
             major_name, middle_name, sub_name):
         """최적화된 순차 처리 - 페이지 리로드 없이 빠른 규격 변경"""
+        
+        # 단위 정보 추출 (첫 번째 규격에서만 실행)
+        unit_info = None
+        if spec_list:
+            first_spec = spec_list[0]
+            cate_cd = raw_item_data.get('cate_cd')
+            item_cd = raw_item_data.get('item_cd')
+            
+            if cate_cd and item_cd:
+                # 1. 캐시에서 단위 정보 확인
+                unit_info = self._get_unit_with_caching(cate_cd, item_cd)
+                if unit_info:
+                    log(f"      캐시된 단위 정보 사용: {unit_info}")
+                else:
+                    # 2. 물가추이 페이지에서 단위 정보 추출 시도
+                    log(f"      물가추이 페이지에서 단위 정보 추출 시도...")
+                    unit_info = await self._extract_unit_from_price_trend_page(page, first_spec['name'])
+                    
+                    if unit_info:
+                        log(f"      물가추이 페이지에서 단위 정보 추출 성공: {unit_info}")
+                        self._cache_unit(cate_cd, item_cd, unit_info)
+                    else:
+                        # 3. Fallback: 물가정보 보기 페이지에서 단위 정보 추출
+                        log(f"      Fallback: 물가정보 보기 페이지에서 단위 정보 추출 중... (CATE_CD: {cate_cd}, ITEM_CD: {item_cd})")
+                        unit_info = await self._get_unit_from_detail_page(cate_cd, item_cd)
+                        
+                        if unit_info:
+                            self._cache_unit(cate_cd, item_cd, unit_info)
+                            log(f"      물가정보 보기 페이지에서 단위 정보 확인: {unit_info}")
+                        else:
+                            log(f"      단위 정보를 찾을 수 없음 - 기본값 '원/톤' 사용")
+                            unit_info = '원/톤'
+        
         for i, spec in enumerate(spec_list):
             try:
                 spec_value = spec['value']
@@ -1712,7 +1745,7 @@ class KpiCrawler:
                 
                 # 누락된 날짜에 대해서만 가격 데이터 추출
                 await self._extract_price_data_fast(
-                    page, spec_name, raw_item_data, existing_dates)
+                    page, spec_name, raw_item_data, existing_dates, unit_info)
 
             except Exception as e:
                 # 규격 처리 중 오류
@@ -1720,9 +1753,17 @@ class KpiCrawler:
                 continue
 
     async def _extract_price_data_fast(self, page, spec_name,
-                                       raw_item_data, existing_dates=None):
+                                       raw_item_data, existing_dates=None, unit_info=None):
         """빠른 가격 데이터 추출 - 누락된 데이터만 추출"""
         try:
+            # 물가추이 페이지에서 단위 정보 추출 시도 (unit_info가 없는 경우)
+            if not unit_info:
+                unit_info = await self._extract_unit_from_price_trend_page(page, spec_name)
+                if unit_info:
+                    log(f"      - 물가추이 페이지에서 단위 정보 추출: {unit_info}")
+                else:
+                    log(f"      - 물가추이 페이지에서 단위 정보를 찾을 수 없음")
+            
             # 테이블 구조 감지 및 처리
             # 1. 지역 헤더가 있는 복합 테이블 (첫 번째 이미지 형태)
             # 2. 날짜와 가격만 있는 단순 테이블 (두 번째 이미지 형태)
@@ -1756,19 +1797,19 @@ class KpiCrawler:
             if is_simple_table:
                 # 단순 테이블 처리 (날짜 + 가격)
                 await self._extract_simple_table_data(
-                    all_table_rows, spec_name, raw_item_data, existing_dates
+                    all_table_rows, spec_name, raw_item_data, existing_dates, unit_info
                 )
             else:
                 # 복합 테이블 처리 (지역 헤더 + 날짜별 데이터)
                 await self._extract_complex_table_data(
-                    all_table_rows, spec_name, raw_item_data, existing_dates
+                    all_table_rows, spec_name, raw_item_data, existing_dates, unit_info
                 )
 
         except Exception as e:
             log(f"'{spec_name}' 오류: {str(e)}", "ERROR")
 
     async def _extract_simple_table_data(self, all_table_rows, spec_name, 
-                                       raw_item_data, existing_dates):
+                                       raw_item_data, existing_dates, unit_info=None):
         """단순 테이블 데이터 추출 (날짜 + 가격 형태)"""
         try:
             extracted_count = 0
@@ -1812,7 +1853,8 @@ class KpiCrawler:
                                 'spec_name': spec_name,
                                 'region': default_region,
                                 'date': formatted_date,
-                                'price': price_value
+                                'price': price_value,
+                                'unit': unit_info if unit_info else '원/톤'
                             }
                             spec_data = raw_item_data['spec_data']
                             spec_data.append(price_data)
@@ -1834,7 +1876,7 @@ class KpiCrawler:
             log(f"단순 테이블 처리 오류: {str(e)}", "ERROR")
 
     async def _extract_complex_table_data(self, all_table_rows, spec_name, 
-                                        raw_item_data, existing_dates):
+                                        raw_item_data, existing_dates, unit_info=None):
         """복합 테이블 데이터 추출 (지역 헤더 + 날짜별 데이터)"""
         try:
             # 지역 헤더 행 추출 (첫 번째 행)
@@ -1923,7 +1965,8 @@ class KpiCrawler:
                                     'spec_name': spec_name,
                                     'region': region_name,
                                     'date': formatted_date,
-                                    'price': price_value
+                                    'price': price_value,
+                                    'unit': unit_info if unit_info else '원/톤'
                                 }
                                 spec_data = raw_item_data['spec_data']
                                 spec_data.append(price_data)
@@ -2198,6 +2241,197 @@ class KpiCrawler:
             return True
         except ValueError:
             return False
+
+    async def _extract_unit_from_price_trend_page(self, page, spec_name):
+        """물가추이 페이지에서 단위 정보를 추출합니다."""
+        try:
+            # 1. 테이블 헤더에서 단위 정보 찾기
+            header_elements = await page.query_selector_all('th, td')
+            for element in header_elements:
+                text = await element.inner_text()
+                text = text.strip()
+                
+                # 단위가 포함된 텍스트 패턴 찾기
+                if any(unit in text for unit in ['원/톤', '원/kg', '원/㎏', '원/개', '원/m³', '원/㎡']):
+                    if '원/톤' in text:
+                        return '원/톤'
+                    elif '원/kg' in text or '원/㎏' in text:
+                        return '원/kg'
+                    elif '원/개' in text:
+                        return '원/개'
+                    elif '원/m³' in text:
+                        return '원/m³'
+                    elif '원/㎡' in text:
+                        return '원/㎡'
+            
+            # 2. 가격 데이터에서 단위 패턴 추론
+            price_cells = await page.query_selector_all('td')
+            for cell in price_cells:
+                text = await cell.inner_text()
+                text = text.strip().replace(',', '')
+                
+                # 숫자 패턴 확인하여 단위 추론
+                if text.isdigit() and len(text) >= 3:
+                    price_value = int(text)
+                    # 가격 범위에 따른 단위 추론
+                    if price_value >= 100000:  # 10만원 이상이면 톤 단위일 가능성
+                        return '원/톤'
+                    elif price_value >= 1000:  # 1천원 이상이면 kg 단위일 가능성
+                        return '원/kg'
+                    else:
+                        return '원/개'
+            
+            # 3. 규격명에서 단위 추론
+            if spec_name:
+                spec_lower = spec_name.lower()
+                if any(keyword in spec_lower for keyword in ['철근', '강재', '철강', '봉강', '형강']):
+                    return '원/톤'
+                elif any(keyword in spec_lower for keyword in ['시멘트', '모래', '자갈']):
+                    return '원/톤'
+                elif any(keyword in spec_lower for keyword in ['벽돌', '블록']):
+                    return '원/개'
+            
+            return None
+            
+        except Exception as e:
+            log(f"물가추이 페이지 단위 추출 오류: {str(e)}", "ERROR")
+            return None
+
+    async def _get_unit_from_detail_page(self, cate_cd, item_cd):
+        """물가정보 보기 페이지에서 단위 정보를 추출합니다."""
+        try:
+            detail_url = f"http://www.kpi.or.kr/www/selectPriceInfoDetailList.do?CATE_CD={cate_cd}&ITEM_CD={item_cd}"
+            
+            # 새 페이지 열기
+            page = await self.context.new_page()
+            await page.goto(detail_url, wait_until='networkidle')
+            
+            # 단위 정보가 있는 테이블 찾기
+            unit_elements = await page.query_selector_all('td:has-text("㎏"), td:has-text("kg"), td:has-text("톤"), td:has-text("원/톤"), td:has-text("원/kg")')
+            
+            unit = None
+            for element in unit_elements:
+                text = await element.inner_text()
+                text = text.strip()
+                
+                # 단위 텍스트 정규화
+                if text in ['㎏', 'kg']:
+                    unit = 'kg'
+                    break
+                elif text in ['톤', 'ton']:
+                    unit = '톤'
+                    break
+                elif '원/톤' in text:
+                    unit = '원/톤'
+                    break
+                elif '원/kg' in text or '원/㎏' in text:
+                    unit = '원/kg'
+                    break
+            
+            await page.close()
+            
+            if unit:
+                log(f"단위 정보 추출 성공: {cate_cd}-{item_cd} -> {unit}")
+                return unit
+            else:
+                log(f"단위 정보를 찾을 수 없음: {cate_cd}-{item_cd}")
+                return None
+                
+        except Exception as e:
+            log(f"단위 정보 추출 중 오류 발생: {cate_cd}-{item_cd}, {str(e)}", "ERROR")
+            if 'page' in locals():
+                await page.close()
+            return None
+
+    def _get_unit_with_caching(self, cate_cd, item_cd):
+        """캐싱을 사용하여 단위 정보를 가져옵니다."""
+        # 캐시 키 생성
+        cache_key = f"unit_{cate_cd}_{item_cd}"
+        
+        # 메모리 캐시에서 확인
+        if not hasattr(self, '_unit_cache'):
+            self._unit_cache = {}
+        
+        if cache_key in self._unit_cache:
+            return self._unit_cache[cache_key]
+        
+        # 파일 캐시에서 확인
+        unit = self._load_unit_from_file_cache(cate_cd, item_cd)
+        if unit:
+            # 메모리 캐시에도 저장
+            self._unit_cache[cache_key] = unit
+            return unit
+        
+        # 캐시에 없으면 None 반환 (비동기 함수에서 실제 추출)
+        return None
+    
+    def _cache_unit(self, cate_cd, item_cd, unit):
+        """단위 정보를 캐시에 저장합니다."""
+        if not hasattr(self, '_unit_cache'):
+            self._unit_cache = {}
+        
+        cache_key = f"unit_{cate_cd}_{item_cd}"
+        self._unit_cache[cache_key] = unit
+        log(f"단위 정보 캐시 저장: {cache_key} -> {unit}")
+        
+        # 파일 기반 캐시에도 저장
+        self._save_unit_to_file_cache(cate_cd, item_cd, unit)
+
+    def _save_unit_to_file_cache(self, cate_cd, item_cd, unit):
+        """단위 정보를 파일 캐시에 저장합니다."""
+        try:
+            import json
+            import os
+            
+            cache_dir = os.path.join(os.path.dirname(__file__), 'cache')
+            os.makedirs(cache_dir, exist_ok=True)
+            
+            cache_file = os.path.join(cache_dir, 'unit_cache.json')
+            
+            # 기존 캐시 로드
+            cache_data = {}
+            if os.path.exists(cache_file):
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    cache_data = json.load(f)
+            
+            # 새 데이터 추가
+            cache_key = f"{cate_cd}_{item_cd}"
+            cache_data[cache_key] = unit
+            
+            # 파일에 저장
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                json.dump(cache_data, f, ensure_ascii=False, indent=2)
+                
+            log(f"파일 캐시 저장: {cache_key} -> {unit}")
+            
+        except Exception as e:
+            log(f"파일 캐시 저장 오류: {str(e)}", "ERROR")
+
+    def _load_unit_from_file_cache(self, cate_cd, item_cd):
+        """파일 캐시에서 단위 정보를 로드합니다."""
+        try:
+            import json
+            import os
+            
+            cache_file = os.path.join(os.path.dirname(__file__), 'cache', 'unit_cache.json')
+            
+            if not os.path.exists(cache_file):
+                return None
+                
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                cache_data = json.load(f)
+            
+            cache_key = f"{cate_cd}_{item_cd}"
+            unit = cache_data.get(cache_key)
+            
+            if unit:
+                log(f"파일 캐시에서 단위 정보 로드: {cache_key} -> {unit}")
+                return unit
+                
+        except Exception as e:
+            log(f"파일 캐시 로드 오류: {str(e)}", "ERROR")
+            
+        return None
 
     async def _process_specs_parallel(self, spec_list, raw_item_data,
                                      major_name, middle_name, sub_name,

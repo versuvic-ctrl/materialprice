@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import useMaterialStore from '@/store/materialStore';
 import { createClient } from '@supabase/supabase-js';
+import { convertChartDataToKg, normalizeUnitDisplay } from '@/utils/unitConverter';
 
 // Supabase 클라이언트 초기화 (lib/supabaseClient.ts에서 가져와도 무방합니다)
 const supabase = createClient(
@@ -402,7 +403,15 @@ const MaterialsChart: React.FC = () => {
   
   const chartData = useMemo(() => {
     const transformed = transformDataForChart(rawData, visibleMaterials);
-    return Array.isArray(transformed) ? transformed : [];
+    const chartArray = Array.isArray(transformed) ? transformed : [];
+    
+    // 단위 변환 적용 - 원/톤을 원/kg로 변환
+    if (chartArray.length > 0 && rawData && rawData.length > 0) {
+      const originalUnit = rawData[0]?.unit || '원/톤';
+      return convertChartDataToKg(chartArray, visibleMaterials, originalUnit);
+    }
+    
+    return chartArray;
   }, [rawData, visibleMaterials]);
   
   // 스마트 Y축 배치 계산
@@ -421,12 +430,14 @@ const MaterialsChart: React.FC = () => {
     return { domain: [domainMin, domainMax], ticks };
   }, [chartData, axisAssignment.rightAxisMaterials]);
   
-  // 단위 정보 추출 (첫 번째 데이터에서)
+  // 단위 정보 추출 (첫 번째 데이터에서) - 변환된 단위로 표시
   const unit = useMemo(() => {
     if (rawData && rawData.length > 0) {
-      return rawData[0].unit || '';
+      const originalUnit = rawData[0].unit || '';
+      // 차트 데이터가 kg로 변환되므로 항상 'kg' 반환
+      return 'kg';
     }
-    return '';
+    return 'kg';
   }, [rawData]);
 
   // 범례 높이 계산 (동적 공간 확보)
@@ -454,9 +465,6 @@ const MaterialsChart: React.FC = () => {
               {visibleMaterials.length}개 표시
             </span>
           )}
-          {unit && (
-            <span className="text-sm font-normal text-gray-500">({unit})</span>
-          )}
         </CardTitle>
         <div className="flex justify-end items-center gap-3 pt-3">
           <Select value={interval} onValueChange={(value: any) => setInterval(value)}>
@@ -474,6 +482,13 @@ const MaterialsChart: React.FC = () => {
         </div>
       </CardHeader>
       <CardContent className="p-6 bg-white">
+        {/* 단위 표시 - 오른쪽 위 */}
+        {unit && (
+          <div className="absolute top-4 right-6 text-xs text-gray-500 bg-white/80 px-2 py-1 rounded border border-gray-200 z-10">
+            단위: {unit}
+          </div>
+        )}
+        
         <div 
           className="bg-white rounded-lg p-2 border-0 shadow-none relative"
           style={{ height: `${chartHeight}px` }}
@@ -511,7 +526,10 @@ const MaterialsChart: React.FC = () => {
                   <Tooltip 
                     contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontSize: '14px', fontWeight: 500 }}
                     labelStyle={{ color: '#374151', fontWeight: 600 }}
-                    formatter={(value: number, name: string) => [formatTooltipValue(value, unit), shortenMaterialName(name)]}
+                    formatter={(value: number, name: string) => {
+                      const formattedPrice = new Intl.NumberFormat('ko-KR').format(value);
+                      return [`${formattedPrice}원/kg`, shortenMaterialName(name)];
+                    }}
                     labelFormatter={(label) => `기간: ${label}`}
                   />
 

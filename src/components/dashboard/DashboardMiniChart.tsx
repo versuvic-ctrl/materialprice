@@ -37,6 +37,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import useMaterialStore from '@/store/materialStore';
+import PriceTable, { MaterialPriceData } from './PriceTable';
+import { convertToKgUnit, calculatePriceChange } from '@/utils/unitConverter';
 
 // Supabase 클라이언트 초기화 (환경변수에서 URL과 키 가져옴)
 const supabase = createClient(
@@ -99,9 +101,14 @@ const transformDataForChart = (
       acc[time_bucket] = { time_bucket };
     }
 
-    // 짧은 이름을 key로 사용하여 평균 가격 데이터를 저장
+    // 짧은 이름을 key로 사용하여 평균 가격 데이터를 저장 (단위 변환 적용)
     if (displayName) {
-      acc[time_bucket][displayName] = parseFloat(average_price);
+      const rawPrice = parseFloat(average_price);
+      // Supabase RPC 'get_price_data'가 'unit' 필드를 반환하지 않는 것으로 추정됨.
+      // 데이터베이스의 모든 단위가 '원/톤'이므로 'ton'으로 강제 변환합니다.
+      const originalUnit = 'ton';
+      const convertedPrice = convertToKgUnit(rawPrice, originalUnit);
+      acc[time_bucket][displayName] = convertedPrice.price;
     }
 
     return acc;
@@ -143,13 +150,72 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
   // DB에서 받아온 데이터를 차트용으로 가공
   const chartData = useMemo(() => transformDataForChart(rawData || [], materials), [rawData, materials]);
 
+  // 테이블용 데이터 생성 (최신 가격과 변동률 계산)
+  const tableData = useMemo((): MaterialPriceData[] => {
+    if (!rawData || rawData.length === 0) return [];
+
+    return materials.map(material => {
+      // 해당 자재의 모든 데이터 필터링
+      const materialData = rawData.filter(item => item.specification === material.id);
+      
+      if (materialData.length === 0) {
+        return {
+          name: material.displayName,
+          currentPrice: 0,
+          unit: 'kg',
+          monthlyChange: 0,
+          yearlyChange: 0,
+        };
+      }
+
+      // 날짜순 정렬 (최신순)
+      const sortedData = materialData.sort((a, b) => new Date(b.time_bucket).getTime() - new Date(a.time_bucket).getTime());
+      
+      const rawPrice = parseFloat(sortedData[0]?.average_price || '0');
+      // Supabase RPC 'get_price_data'가 'unit' 필드를 반환하지 않는 것으로 추정됨.
+      // 데이터베이스의 모든 단위가 '원/톤'이므로 'ton'으로 강제 변환합니다.
+      const originalUnit = 'ton';
+      
+      // 단위 변환 유틸리티 사용
+      const convertedCurrent = convertToKgUnit(rawPrice, originalUnit);
+      const currentPrice = convertedCurrent.price;
+      const displayUnit = convertedCurrent.unit;
+      
+      // 전월비 계산 (1개월 전 데이터와 비교)
+      let monthlyChange = 0;
+      if (sortedData.length >= 2) {
+        const previousRawPrice = parseFloat(sortedData[1]?.average_price || '0');
+        monthlyChange = calculatePriceChange(rawPrice, previousRawPrice, originalUnit);
+      }
+
+      // 전년비 계산 (12개월 전 데이터와 비교, 또는 가장 오래된 데이터와 비교)
+      let yearlyChange = 0;
+      const yearAgoIndex = Math.min(12, sortedData.length - 1);
+      if (yearAgoIndex > 0) {
+        const yearAgoRawPrice = parseFloat(sortedData[yearAgoIndex]?.average_price || '0');
+        yearlyChange = calculatePriceChange(rawPrice, yearAgoRawPrice, originalUnit);
+      }
+
+      return {
+        name: material.displayName,
+        currentPrice,
+        unit: displayUnit,
+        monthlyChange,
+        yearlyChange,
+      };
+    });
+  }, [rawData, materials]);
+
   return (
     <Card>
       <CardHeader className="pb-1">
-        <CardTitle className="text-md font-semibold">{title}</CardTitle>
+        <CardTitle className="text-md font-semibold flex justify-between items-center">
+          <span>{title}</span>
+          <span className="text-sm font-normal text-gray-500">(원/kg)</span>
+        </CardTitle>
       </CardHeader>
       <CardContent className="p-2">
-        <div className="h-64 w-full">
+        <div className="h-64 w-full relative">
           {isLoading ? (
             <Skeleton className="h-full w-full" />
           ) : isError ? (
@@ -166,13 +232,18 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
                 <CartesianGrid strokeDasharray="2 2" strokeOpacity={0.5} vertical={true} />
                 <XAxis dataKey="time_bucket" tick={{ fontSize: 10 }} />
                 <YAxis
-                  tick={{ fontSize: 10 }}
-                  tickFormatter={(value) => (value >= 1000 ? `${(value / 1000).toFixed(0)}k` : String(value))}
-                  domain={['auto', 'auto']}
+                  width={80}
+                  tick={{ fontSize: 11, fill: '#6b7280' }}
+                  tickFormatter={(value) => `${value.toLocaleString('ko-KR')}원`}
+                  axisLine={false}
+                  tickLine={false}
                 />
                 <Tooltip
                   wrapperClassName="text-xs"
-                  formatter={(value: number) => `${value.toLocaleString('ko-KR')}원`}
+                  formatter={(value: number, name: string) => {
+                    // 이미 변환된 kg 단위 가격을 그대로 표시
+                    return [`${value.toLocaleString('ko-KR')}원/kg`, name];
+                  }}
                 />
                 <Legend iconSize={10} wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
                 {materials.map((material, index) => (
@@ -183,7 +254,8 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
                     name={material.displayName} // 범례(Legend)에 표시될 이름
                     stroke={COLORS[index % COLORS.length]}
                     strokeWidth={2}
-                    dot={false}
+                    dot={{ r: 1.5, strokeWidth: 1, fill: COLORS[index % COLORS.length] }} // 노드 크기를 더 작게 조정
+                    activeDot={{ r: 3, strokeWidth: 1 }} // 호버 시 노드 크기 증가
                     connectNulls // 데이터가 중간에 비어있어도 라인을 연결
                   />
                 ))}
@@ -191,6 +263,9 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
             </ResponsiveContainer>
           )}
         </div>
+        
+        {/* 가격 정보 테이블 */}
+        <PriceTable data={tableData} isLoading={isLoading} />
       </CardContent>
     </Card>
   );

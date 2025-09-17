@@ -17,7 +17,7 @@ const DASHBOARD_CHARTS_CONFIG = [
     materials: [
       { id: '스테인리스열연강판 STS304 -  (HR) 3~6', displayName: 'SUS304' },
       { id: '스테인리스열연강판 STS316L -  (HR) 3~6', displayName: 'SUS316L' },
-      { id: '후판 -  6.0 ≤T ≤7.0, 2,438 ×6,096㎜', displayName: '후판판' },
+      { id: '후판 -  6.0 ≤T ≤7.0, 2,438 ×6,096㎜', displayName: '후판' },
       { id: '고장력철근(하이바)(SD 400) -  D10㎜, 0.560', displayName: '고장력철근' },
       { id: 'H형강 -  (소형)H100×B50×t₁5×t₂7㎜ 단중9.3㎏/m', displayName: 'H형강' },
     ]
@@ -30,9 +30,7 @@ const DASHBOARD_CHARTS_CONFIG = [
       { id: '규소 -  원소기호 Si, 중국산, 순도 Si(98.5% 이상) Fe(0.5% 이하)', displayName: '규소' },
       { id: '주석 -  원소기호 Sn, 순도 99.85%', displayName: '주석' },
       { id: '전기동 -  원소기호 Cu, 순도 99.99%', displayName: '전기동' },
-      { id: '안티몬 -  원소기호 Sb, 순도 99.90%', displayName: '안티몬' },
       { id: '연괴 -  원소기호 Pb, 순도 99.97% 이상', displayName: '연' },
-      { id: '인동 -  원소기호 Cu-P, 순도 P(15%)', displayName: '인동' },
     ]
   },
    {
