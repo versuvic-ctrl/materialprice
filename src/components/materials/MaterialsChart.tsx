@@ -517,7 +517,7 @@ const MaterialsChart: React.FC = () => {
 
                   {visibleMaterials.map((material, index) => {
                     // 스마트 배치에 따라 yAxisId 결정
-                    const yAxisId = axisAssignment.leftAxisMaterials.includes(material) ? 'left' as const : 'right' as const;
+                    const yAxisId = axisAssignment.leftAxisMaterials.includes(material) ? 'left' : 'right';
                     
                     return (
                       <Line
