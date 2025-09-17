@@ -1287,10 +1287,10 @@ class KpiCrawler:
                 })
 
         log(f"    중분류 '{middle_name}' 완료: {success_count}/{sub_count}개 성공, {failed_count}개 실패")
-                
-                # 배치 크기에 도달하면 처리
-                if len(self.batch_data) >= self.batch_size:
-                    await self._process_batch()
+        
+        # 배치 크기에 도달하면 처리
+        if len(self.batch_data) >= self.batch_size:
+            await self._process_batch()
 
         total_count = len(sub_categories_info)
         log(f"    중분류 '{middle_name}' 완료: "
