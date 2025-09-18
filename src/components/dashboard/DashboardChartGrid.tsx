@@ -19,7 +19,7 @@ const DASHBOARD_CHARTS_CONFIG = [
       { id: '스테인리스열연강판 STS316L -  (HR) 3~6', displayName: 'SUS316L' },
       { id: '후판 -  6.0 ≤T ≤7.0, 2,438 ×6,096㎜', displayName: '후판' },
       { id: '고장력철근(하이바)(SD 400) -  D10㎜, 0.560 - SD철근', displayName: '고장력철근' },
-      { id: 'H형강 -  (소형)H100×B50×t₁5×t₂7㎜ 단중9.3㎏/m', displayName: 'H형강' },
+      { id: 'H형강 -  (소형)H100×B50×t₁5×t₂7㎜ 단중9.3㎏/m - H형강', displayName: 'H형강' },
     ]
   },
   {
