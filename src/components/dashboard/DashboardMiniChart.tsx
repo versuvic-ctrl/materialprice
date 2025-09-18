@@ -61,6 +61,18 @@ const fetchPriceData = async (
   interval: 'weekly' | 'monthly' | 'yearly'
 ) => {
   if (!materials || materials.length === 0) return [];
+  
+  // 실제 단위 정보도 함께 가져오기 위해 별도 쿼리 추가
+  const { data: unitData, error: unitError } = await supabase
+    .from('kpi_price_data')
+    .select('specification, unit')
+    .in('specification', materials)
+    .limit(materials.length);
+  
+  if (unitError) {
+    console.warn('단위 정보 조회 실패:', unitError.message);
+  }
+  
   const { data, error } = await supabase.rpc('get_price_data', {
     p_start_date: startDate,
     p_end_date: endDate,
@@ -70,8 +82,16 @@ const fetchPriceData = async (
     p_sub_categories: null,
     p_specifications: materials,
   });
+  
   if (error) throw new Error(error.message);
-  return data;
+  
+  // 단위 정보를 데이터에 추가
+  const unitMap = new Map(unitData?.map(item => [item.specification, item.unit]) || []);
+  
+  return data?.map((item: any) => ({
+    ...item,
+    unit: unitMap.get(item.specification) || '원/톤' // 기본값으로 원/톤 사용
+  })) || [];
 };
 
 /**
@@ -91,7 +111,7 @@ const transformDataForChart = (
   const displayNameMap = new Map(materialsMap.map(m => [m.id, m.displayName]));
 
   const groupedData = data.reduce((acc, item) => {
-    const { time_bucket, specification, average_price } = item;
+    const { time_bucket, specification, average_price, unit } = item;
 
     // 현재 데이터의 긴 이름(specification)을 짧은 이름(displayName)으로 변환
     const displayName = displayNameMap.get(specification);
@@ -104,10 +124,9 @@ const transformDataForChart = (
     // 짧은 이름을 key로 사용하여 평균 가격 데이터를 저장 (단위 변환 적용)
     if (displayName) {
       const rawPrice = parseFloat(average_price);
-      // Supabase RPC 'get_price_data'가 'unit' 필드를 반환하지 않는 것으로 추정됨.
-      // 데이터베이스의 모든 단위가 '원/톤'이므로 'ton'으로 강제 변환합니다.
-      const originalUnit = 'ton';
-      const convertedPrice = convertToKgUnit(rawPrice, originalUnit);
+      // 실제 단위 정보를 사용하여 변환
+      const actualUnit = unit || '원/톤';
+      const convertedPrice = convertToKgUnit(rawPrice, actualUnit);
       acc[time_bucket][displayName] = convertedPrice.price;
     }
 
@@ -172,12 +191,11 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
       const sortedData = materialData.sort((a: { time_bucket: string }, b: { time_bucket: string }) => new Date(b.time_bucket).getTime() - new Date(a.time_bucket).getTime());
       
       const rawPrice = parseFloat(sortedData[0]?.average_price || '0');
-      // Supabase RPC 'get_price_data'가 'unit' 필드를 반환하지 않는 것으로 추정됨.
-      // 데이터베이스의 모든 단위가 '원/톤'이므로 'ton'으로 강제 변환합니다.
-      const originalUnit = 'ton';
+      // 실제 단위 정보 사용
+      const actualUnit = sortedData[0]?.unit || '원/톤';
       
       // 단위 변환 유틸리티 사용
-      const convertedCurrent = convertToKgUnit(rawPrice, originalUnit);
+      const convertedCurrent = convertToKgUnit(rawPrice, actualUnit);
       const currentPrice = convertedCurrent.price;
       const displayUnit = convertedCurrent.unit;
       
@@ -185,7 +203,7 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
       let monthlyChange = 0;
       if (sortedData.length >= 2) {
         const previousRawPrice = parseFloat(sortedData[1]?.average_price || '0');
-        monthlyChange = calculatePriceChange(rawPrice, previousRawPrice, originalUnit);
+        monthlyChange = calculatePriceChange(rawPrice, previousRawPrice, actualUnit);
       }
 
       // 전년비 계산 (12개월 전 데이터와 비교, 또는 가장 오래된 데이터와 비교)
@@ -193,7 +211,7 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
       const yearAgoIndex = Math.min(12, sortedData.length - 1);
       if (yearAgoIndex > 0) {
         const yearAgoRawPrice = parseFloat(sortedData[yearAgoIndex]?.average_price || '0');
-        yearlyChange = calculatePriceChange(rawPrice, yearAgoRawPrice, originalUnit);
+        yearlyChange = calculatePriceChange(rawPrice, yearAgoRawPrice, actualUnit);
       }
 
       return {

@@ -899,7 +899,7 @@ class KpiCrawler:
                 )
                 
                 # 페이지 로딩 완료 대기
-                await self.page.wait_for_load_state('networkidle', timeout=30000)
+                await self.page.wait_for_load_state('networkidle', timeout=60000)
                 
                 # 팝업 닫기 (우선 처리)
                 await self._close_popups()
@@ -1489,7 +1489,7 @@ class KpiCrawler:
                 return None
                 
             # 페이지는 이미 로드된 상태로 전달됨
-            await page.wait_for_load_state('networkidle', timeout=30000)
+            await page.wait_for_load_state('networkidle', timeout=60000)
 
             # '물가추이 보기' 탭으로 이동
             try:
@@ -1568,7 +1568,7 @@ class KpiCrawler:
                     await asyncio.sleep(5)  # 더 긴 안정화 대기
                     
                     # 페이지 로드 완료 검증
-                    await page.wait_for_load_state('domcontentloaded', timeout=30000)
+                    await page.wait_for_load_state('domcontentloaded', timeout=60000)
                     
                     # 마지막 시도: 다양한 대체 셀렉터로 탭 찾기
                     alternative_selectors = [
@@ -1599,7 +1599,7 @@ class KpiCrawler:
                                 
                                 # 클릭 후 페이지 상태 확인
                                 await page.wait_for_selector("#ITEM_SPEC_CD", timeout=45000)
-                                await page.wait_for_load_state('networkidle', timeout=30000)
+                                await page.wait_for_load_state('networkidle', timeout=60000)
                                 
                                 log(f"대체 셀렉터로 탭 클릭 성공: {selector}", "INFO")
                                 tab_clicked = True
@@ -1677,21 +1677,21 @@ class KpiCrawler:
                 if unit_info:
                     log(f"      캐시된 단위 정보 사용: {unit_info}")
                 else:
-                    # 2. 물가추이 페이지에서 단위 정보 추출 시도
-                    log(f"      물가추이 페이지에서 단위 정보 추출 시도...")
-                    unit_info = await self._extract_unit_from_price_trend_page(page, first_spec['name'])
+                    # 2. 물가정보 보기 페이지에서 단위 정보 추출 시도 (우선순위)
+                    log(f"      물가정보 보기 페이지에서 단위 정보 추출 시도... (CATE_CD: {cate_cd}, ITEM_CD: {item_cd})")
+                    unit_info = await self._get_unit_from_detail_page(cate_cd, item_cd)
                     
                     if unit_info:
-                        log(f"      물가추이 페이지에서 단위 정보 추출 성공: {unit_info}")
+                        log(f"      물가정보 보기 페이지에서 단위 정보 추출 성공: {unit_info}")
                         self._cache_unit(cate_cd, item_cd, unit_info)
                     else:
-                        # 3. Fallback: 물가정보 보기 페이지에서 단위 정보 추출
-                        log(f"      Fallback: 물가정보 보기 페이지에서 단위 정보 추출 중... (CATE_CD: {cate_cd}, ITEM_CD: {item_cd})")
-                        unit_info = await self._get_unit_from_detail_page(cate_cd, item_cd)
+                        # 3. Fallback: 물가추이 페이지에서 단위 정보 추출
+                        log(f"      Fallback: 물가추이 페이지에서 단위 정보 추출 중...")
+                        unit_info = await self._extract_unit_from_price_trend_page(page, first_spec['name'])
                         
                         if unit_info:
                             self._cache_unit(cate_cd, item_cd, unit_info)
-                            log(f"      물가정보 보기 페이지에서 단위 정보 확인: {unit_info}")
+                            log(f"      물가추이 페이지에서 단위 정보 확인: {unit_info}")
                         else:
                             log(f"      단위 정보를 찾을 수 없음 - 단위 없이 진행")
                             unit_info = None
@@ -1818,13 +1818,23 @@ class KpiCrawler:
                                        raw_item_data, existing_dates=None, unit_info=None):
         """빠른 가격 데이터 추출 - 누락된 데이터만 추출"""
         try:
-            # 물가추이 페이지에서 단위 정보 추출 시도 (unit_info가 없는 경우)
+            # 단위 정보가 없는 경우 추출 시도 (물가정보 보기 페이지 우선)
             if not unit_info:
-                unit_info = await self._extract_unit_from_price_trend_page(page, spec_name)
-                if unit_info:
-                    log(f"      - 물가추이 페이지에서 단위 정보 추출: {unit_info}")
-                else:
-                    log(f"      - 물가추이 페이지에서 단위 정보를 찾을 수 없음")
+                cate_cd = raw_item_data.get('cate_cd')
+                item_cd = raw_item_data.get('item_cd')
+                
+                if cate_cd and item_cd:
+                    # 1. 물가정보 보기 페이지에서 단위 정보 추출 시도 (우선순위)
+                    unit_info = await self._get_unit_from_detail_page(cate_cd, item_cd)
+                    if unit_info:
+                        log(f"      - 물가정보 보기 페이지에서 단위 정보 추출: {unit_info}")
+                    else:
+                        # 2. Fallback: 물가추이 페이지에서 단위 정보 추출
+                        unit_info = await self._extract_unit_from_price_trend_page(page, spec_name)
+                        if unit_info:
+                            log(f"      - 물가추이 페이지에서 단위 정보 추출: {unit_info}")
+                        else:
+                            log(f"      - 단위 정보를 찾을 수 없음")
             
             # 테이블 구조 감지 및 처리
             # 1. 지역 헤더가 있는 복합 테이블 (첫 번째 이미지 형태)
@@ -2326,27 +2336,33 @@ class KpiCrawler:
                     elif '원/㎡' in text:
                         return '원/㎡'
             
-            # 2. 가격 데이터에서 단위 패턴 추론
-            price_cells = await page.query_selector_all('td')
-            for cell in price_cells:
-                text = await cell.inner_text()
-                text = text.strip().replace(',', '')
+            # 2. 물가정보 보기 탭의 단위 컬럼에서 단위 정보 찾기
+            unit_elements = await page.query_selector_all('td:has-text("㎏"), td:has-text("kg"), td:has-text("톤"), td:has-text("M/T"), td:has-text("MT"), td:has-text("개"), td:has-text("m³"), td:has-text("㎡")')
+            for element in unit_elements:
+                text = await element.inner_text()
+                text = text.strip()
                 
-                # 숫자 패턴 확인하여 단위 추론
-                if text.isdigit() and len(text) >= 3:
-                    price_value = int(text)
-                    # 가격 범위에 따른 단위 추론
-                    if price_value >= 100000:  # 10만원 이상이면 톤 단위일 가능성
-                        return '원/톤'
-                    elif price_value >= 1000:  # 1천원 이상이면 kg 단위일 가능성
-                        return '원/kg'
-                    else:
-                        return '원/개'
+                # 단위 텍스트 정규화
+                if text in ['㎏', 'kg']:
+                    return '원/kg'  # kg 단위는 원/kg로 변환
+                elif text in ['톤', 'ton']:
+                    return '원/톤'  # 톤 단위는 원/톤으로 변환
+                elif text in ['M/T', 'MT']:
+                    return '원/톤'  # M/T 단위는 원/톤으로 변환
+                elif text == '개':
+                    return '원/개'
+                elif text == 'm³':
+                    return '원/m³'
+                elif text == '㎡':
+                    return '원/㎡'
             
-            # 3. 규격명에서 단위 추론
+            # 3. 규격명에서 단위 추론 (비철금속 특별 처리)
             if spec_name:
                 spec_lower = spec_name.lower()
-                if any(keyword in spec_lower for keyword in ['철근', '강재', '철강', '봉강', '형강']):
+                # 비철금속(니켈, 구리, 알루미늄 등)은 kg 단위
+                if any(keyword in spec_lower for keyword in ['니켈', '구리', '알루미늄', '아연', '주석', '납']):
+                    return '원/kg'
+                elif any(keyword in spec_lower for keyword in ['철근', '강재', '철강', '봉강', '형강']):
                     return '원/톤'
                 elif any(keyword in spec_lower for keyword in ['시멘트', '모래', '자갈']):
                     return '원/톤'
@@ -2362,65 +2378,190 @@ class KpiCrawler:
     async def _get_unit_from_detail_page(self, cate_cd, item_cd):
         """물가정보 보기 페이지에서 단위 정보를 추출합니다."""
         try:
-            detail_url = f"http://www.kpi.or.kr/www/selectPriceInfoDetailList.do?CATE_CD={cate_cd}&ITEM_CD={item_cd}"
+            detail_url = f"https://www.kpi.or.kr/www/price/detail.asp?CATE_CD={cate_cd}"
             
             # 새 페이지 열기
             page = await self.context.new_page()
-            await page.goto(detail_url, wait_until='networkidle')
+            await page.goto(detail_url, wait_until='networkidle', timeout=30000)
+            await page.wait_for_selector('body', timeout=10000)
             
-            # 단위 정보가 있는 테이블에서 단위 컬럼 찾기 (더 정확한 셀렉터 사용)
-            unit_elements = []
+            # 단위 정보 추출 시도
+            unit = None
             
-            # 1. 단위 헤더가 있는 테이블에서 단위 컬럼 찾기
-            unit_header = await page.query_selector('th:has-text("단위")')
-            if unit_header:
-                # 단위 헤더의 인덱스 찾기
-                header_row = await unit_header.query_selector('xpath=..')
-                headers = await header_row.query_selector_all('th')
-                unit_column_index = -1
-                for i, header in enumerate(headers):
-                    header_text = await header.inner_text()
-                    if '단위' in header_text:
-                        unit_column_index = i
-                        break
-                
-                if unit_column_index >= 0:
-                    # 해당 컬럼의 데이터 셀들 찾기
-                    table = await unit_header.query_selector('xpath=ancestor::table[1]')
-                    if table:
-                        data_rows = await table.query_selector_all('tr:not(:first-child)')
-                        for row in data_rows:
+            # 1. 테이블에서 단위 컬럼 찾기 (가장 정확한 방법)
+            try:
+                # 단위 헤더가 있는 테이블 찾기
+                unit_header = await page.query_selector('th:has-text("단위")')
+                if unit_header:
+                    # 단위 헤더의 인덱스 찾기
+                    headers = await page.query_selector_all('th')
+                    unit_column_index = -1
+                    for i, header in enumerate(headers):
+                        header_text = await header.inner_text()
+                        if '단위' in header_text.strip():
+                            unit_column_index = i
+                            break
+                    
+                    if unit_column_index >= 0:
+                        # 해당 컬럼의 첫 번째 데이터 셀에서 단위 추출
+                        rows = await page.query_selector_all('tr')
+                        for row in rows[1:]:  # 헤더 제외
                             cells = await row.query_selector_all('td')
                             if len(cells) > unit_column_index:
                                 unit_cell = cells[unit_column_index]
-                                unit_elements.append(unit_cell)
-            
-            # 2. 백업: 링크가 있는 단위 요소들 찾기 (a 태그 안의 u 태그)
-            if not unit_elements:
-                unit_elements = await page.query_selector_all('a[href*="openUnit"] u, a[href*="openUnit()"] u')
-            
-            # 3. 백업: 일반적인 단위 텍스트 찾기
-            if not unit_elements:
-                unit_elements = await page.query_selector_all('td:has-text("㎏"), td:has-text("kg"), td:has-text("톤"), td:has-text("원/톤"), td:has-text("원/kg")')
-            
-            unit = None
-            for element in unit_elements:
-                text = await element.inner_text()
-                text = text.strip()
+                                # 링크 안의 텍스트 추출
+                                unit_link = await unit_cell.query_selector('a u')
+                                if unit_link:
+                                    unit_text = await unit_link.inner_text()
+                                    unit_text = unit_text.strip()
+                                    
+                                    # 단위 텍스트를 원/단위 형태로 변환
+                                    if unit_text == '㎏':
+                                        unit = '원/kg'
+                                        break
+                                    elif unit_text == 'kg':
+                                        unit = '원/kg'
+                                        break
+                                    elif unit_text == '톤':
+                                        unit = '원/톤'
+                                        break
+                                    elif unit_text == 'ton':
+                                        unit = '원/톤'
+                                        break
+                                    elif unit_text == 'M/T':
+                                        unit = '원/톤'
+                                        break
+                                    elif unit_text == 'MT':
+                                        unit = '원/톤'
+                                        break
+                                    elif unit_text == '개':
+                                        unit = '원/개'
+                                        break
+                                    elif unit_text == 'm³':
+                                        unit = '원/m³'
+                                        break
+                                    elif unit_text == '㎡':
+                                        unit = '원/㎡'
+                                        break
+                                else:
+                                    # 링크가 없는 경우 셀의 텍스트 직접 확인
+                                    cell_text = await unit_cell.inner_text()
+                                    cell_text = cell_text.strip()
+                                    
+                                    if cell_text == '㎏':
+                                        unit = '원/kg'
+                                        break
+                                    elif cell_text == 'kg':
+                                        unit = '원/kg'
+                                        break
+                                    elif cell_text == '톤':
+                                        unit = '원/톤'
+                                        break
+                                    elif cell_text == 'M/T':
+                                        unit = '원/톤'
+                                        break
+                                    elif cell_text == 'MT':
+                                        unit = '원/톤'
+                                        break
+                                    elif cell_text == '개':
+                                        unit = '원/개'
+                                        break
+                                    elif cell_text == 'm³':
+                                        unit = '원/m³'
+                                        break
+                                    elif cell_text == '㎡':
+                                        unit = '원/㎡'
+                                        break
                 
-                # 단위 텍스트 정규화
-                if text in ['㎏', 'kg']:
-                    unit = 'kg'
-                    break
-                elif text in ['톤', 'ton']:
-                    unit = '톤'
-                    break
-                elif '원/톤' in text:
-                    unit = '원/톤'
-                    break
-                elif '원/kg' in text or '원/㎏' in text:
-                    unit = '원/kg'
-                    break
+                # 위 방법이 실패하면 모든 셀에서 단위 정보 찾기
+                if not unit:
+                    unit_cells = await page.query_selector_all('td')
+                    for cell in unit_cells:
+                        # 링크 안의 단위 텍스트 확인
+                        unit_link = await cell.query_selector('a u')
+                        if unit_link:
+                            text = await unit_link.inner_text()
+                            text = text.strip()
+                            
+                            if text == '㎏':
+                                unit = '원/kg'
+                                break
+                            elif text == 'kg':
+                                unit = '원/kg'
+                                break
+                            elif text == '톤':
+                                unit = '원/톤'
+                                break
+                            elif text == 'M/T':
+                                unit = '원/톤'
+                                break
+                            elif text == 'MT':
+                                unit = '원/톤'
+                                break
+                            elif text == '개':
+                                unit = '원/개'
+                                break
+                            elif text == 'm³':
+                                unit = '원/m³'
+                                break
+                            elif text == '㎡':
+                                unit = '원/㎡'
+                                break
+                        else:
+                            # 일반 텍스트로도 확인
+                            text = await cell.inner_text()
+                            text = text.strip()
+                            
+                            if text == '㎏':
+                                unit = '원/kg'
+                                break
+                            elif text == 'kg':
+                                unit = '원/kg'
+                                break
+                            elif text == '톤':
+                                unit = '원/톤'
+                                break
+                            elif text == 'M/T':
+                                unit = '원/톤'
+                                break
+                            elif text == 'MT':
+                                unit = '원/톤'
+                                break
+                            elif text == '개':
+                                unit = '원/개'
+                                break
+                            elif text == 'm³':
+                                unit = '원/m³'
+                                break
+                            elif text == '㎡':
+                                unit = '원/㎡'
+                                break
+                            
+            except Exception as e:
+                log(f"테이블에서 단위 추출 실패: {str(e)}", "WARNING")
+            
+            # 2. 헤더에서 단위 정보 찾기
+            if not unit:
+                try:
+                    headers = await page.query_selector_all('th, td')
+                    for header in headers:
+                        text = await header.inner_text()
+                        text = text.strip()
+                        
+                        if '단위' in text and ('㎏' in text or 'kg' in text):
+                            unit = '원/kg'
+                            break
+                        elif '단위' in text and '톤' in text:
+                            unit = '원/톤'
+                            break
+                        elif '원/톤' in text:
+                            unit = '원/톤'
+                            break
+                        elif '원/kg' in text or '원/㎏' in text:
+                            unit = '원/kg'
+                            break
+                except Exception as e:
+                    log(f"헤더에서 단위 추출 실패: {str(e)}", "WARNING")
             
             await page.close()
             
@@ -2869,10 +3010,150 @@ async def main():
         log(f"🟢 {crawl_mode} 모드 크롤링 완료", "SUCCESS")
 
 
-if __name__ == "__main__":
-    running_crawlers = check_running_crawler()
-    if running_crawlers:
-        log(f"이미 실행 중인 크롤러 {len(running_crawlers)}개 발견. 기존 크롤러 완료 후 재실행하세요.", "ERROR")
-        sys.exit(1)
+async def test_unit_extraction():
+    """단위 추출 로직 테스트"""
+    log("=== 단위 추출 로직 테스트 시작 ===", "SUMMARY")
     
-    asyncio.run(main())
+    # 테스트할 비철금속 소분류 목록
+    test_categories = [
+        ("공통자재", "비철금속", "동제품(1)"),
+        ("공통자재", "비철금속", "동제품(2)"),
+        ("공통자재", "비철금속", "알루미늄제품(1)"),
+        ("공통자재", "비철금속", "알루미늄제품(2)"),
+        ("공통자재", "비철금속", "비철지금(非鐵地金)"),
+        ("공통자재", "비철금속", "연(납)제품(鉛製品)")
+    ]
+    
+    crawler = KpiCrawler(target_major="공통자재", crawl_mode="test")
+    
+    browser = None
+    try:
+        # 브라우저 시작 (run 메서드와 동일한 방식)
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--disable-web-security',
+                    '--disable-features=VizDisplayCompositor',
+                    '--window-size=1920,1080'
+                ]
+            )
+            crawler.context = await browser.new_context()
+            crawler.page = await crawler.context.new_page()
+            
+            await crawler._login()
+            
+            for major, middle, sub in test_categories:
+                log(f"\n--- {sub} 단위 추출 테스트 ---", "INFO")
+                
+                try:
+                    # 소분류 정보 생성 (실제 크롤링에서 사용하는 형태와 동일)
+                    sub_info = {'name': sub, 'href': f'price/price_list.asp?major={major}&middle={middle}&sub={sub}'}
+                    sub_url = f"{crawler.base_url}/www/price/{sub_info['href']}"
+                    
+                    # 페이지로 이동
+                    await crawler.page.goto(sub_url, timeout=60000)
+                    await crawler.page.wait_for_load_state('networkidle', timeout=45000)
+                    
+                    # 물가추이 페이지에서 단위 추출 (올바른 매개변수 개수)
+                    unit_from_trend = await crawler._extract_unit_from_price_trend_page(
+                        crawler.page, sub
+                    )
+                    log(f"  물가추이 페이지 단위: {unit_from_trend}")
+                    
+                    # 물가정보 보기 탭 클릭 (더 안정적인 선택자 사용)
+                    try:
+                        # 여러 가능한 선택자로 시도
+                        tab_selectors = [
+                            'a[href="#tab2"]',
+                            'a[onclick*="tab2"]',
+                            'a:has-text("물가정보 보기")',
+                            'a:has-text("물가정보")',
+                            'li:nth-child(2) a',
+                            '.tab-menu li:nth-child(2) a'
+                        ]
+                        
+                        tab_clicked = False
+                        for selector in tab_selectors:
+                            try:
+                                tab_element = await crawler.page.query_selector(selector)
+                                if tab_element:
+                                    await tab_element.click()
+                                    await crawler.page.wait_for_timeout(2000)
+                                    tab_clicked = True
+                                    log(f"  탭 클릭 성공: {selector}")
+                                    break
+                            except Exception as tab_error:
+                                log(f"  탭 선택자 {selector} 실패: {str(tab_error)}", "WARNING")
+                                continue
+                        
+                        if not tab_clicked:
+                            log("  ⚠️ 물가정보 보기 탭을 찾을 수 없음. 현재 페이지에서 단위 추출 시도", "WARNING")
+                            
+                    except Exception as tab_error:
+                        log(f"  ⚠️ 탭 클릭 실패: {str(tab_error)}", "WARNING")
+                    
+                    # 물가정보 보기 페이지에서 단위 추출 (올바른 매개변수 개수)
+                    unit_from_detail = await crawler._get_unit_from_detail_page(
+                        crawler.page, sub
+                    )
+                    log(f"  물가정보 보기 페이지 단위: {unit_from_detail}")
+                    
+                    # 캐시에서 단위 확인 (redis_client 초기화 확인)
+                    cached_unit = None
+                    try:
+                        if hasattr(crawler, 'redis_client') and crawler.redis_client:
+                            cache_key = f"unit_{major}_{middle}_{sub}"
+                            cached_unit = await crawler.redis_client.get(cache_key)
+                        else:
+                            log("  Redis 클라이언트가 초기화되지 않음", "WARNING")
+                    except Exception as cache_error:
+                        log(f"  캐시 확인 실패: {str(cache_error)}", "WARNING")
+                    
+                    log(f"  캐시된 단위: {cached_unit}")
+                    
+                    # 결과 비교
+                    if unit_from_trend and unit_from_detail:
+                        if unit_from_trend == unit_from_detail:
+                            log(f"  ✅ 단위 일치: {unit_from_trend}")
+                        else:
+                            log(f"  ⚠️ 단위 불일치 - 추이: {unit_from_trend}, 상세: {unit_from_detail}")
+                    else:
+                        log(f"  ❌ 단위 추출 실패 - 추이: {unit_from_trend}, 상세: {unit_from_detail}")
+                        
+                except Exception as e:
+                    import traceback
+                    log(f"  ❌ 테스트 중 오류 발생: {str(e)}", "ERROR")
+                    log(f"  상세 오류: {traceback.format_exc()}", "ERROR")
+            
+            log("\n=== 단위 추출 테스트 완료 ===", "SUMMARY")
+            await browser.close()
+        
+    except Exception as e:
+        log(f"❌ 테스트 중 오류 발생: {e}", "ERROR")
+        import traceback
+        log(f"상세 오류: {traceback.format_exc()}", "ERROR")
+        if browser:
+            try:
+                await browser.close()
+            except:
+                pass
+
+
+if __name__ == "__main__":
+    # 명령행 인수 확인
+    if len(sys.argv) > 1 and sys.argv[1] == "test":
+        # 단위 추출 테스트 실행
+        asyncio.run(test_unit_extraction())
+    else:
+        # 일반 크롤링 실행
+        running_crawlers = check_running_crawler()
+        if running_crawlers:
+            log(f"이미 실행 중인 크롤러 {len(running_crawlers)}개 발견. 기존 크롤러 완료 후 재실행하세요.", "ERROR")
+            sys.exit(1)
+        
+        asyncio.run(main())
