@@ -1494,65 +1494,127 @@ class KpiCrawler:
             # '물가추이 보기' 탭으로 이동
             try:
                 # GitHub Actions 환경을 위한 더 긴 대기시간
-                await page.wait_for_load_state('networkidle', timeout=45000)
-                await asyncio.sleep(2)  # 추가 안정화 대기
+                await page.wait_for_load_state('networkidle', timeout=60000)
+                await asyncio.sleep(3)  # 추가 안정화 대기
                 
-                # 탭이 존재하는지 먼저 확인 (더 긴 대기시간)
-                await page.wait_for_selector('a:has-text("물가추이 보기")', timeout=30000)
+                # 다양한 셀렉터로 탭 찾기 시도
+                selectors = [
+                    'a:has-text("물가추이 보기")',
+                    'a[href*="price_trend"]',
+                    'a:contains("물가추이")',
+                    '.tab-menu a:has-text("물가추이")',
+                    'ul.tab-list a:has-text("물가추이")'
+                ]
                 
-                # 재시도 로직 개선 (5회로 증가)
-                for retry in range(5):
+                tab_found = False
+                for selector in selectors:
                     try:
-                        # 더 안정적인 클릭 방법 시도
-                        tab_element = page.locator('a:has-text("물가추이 보기")')
-                        await tab_element.wait_for(state='visible', timeout=20000)
-                        await tab_element.click(timeout=45000)
+                        await page.wait_for_selector(selector, timeout=60000)
+                        tab_found = True
+                        break
+                    except:
+                        continue
+                
+                if not tab_found:
+                    raise Exception("물가추이 보기 탭을 찾을 수 없습니다")
+                
+                # 재시도 로직 개선 (7회로 증가)
+                for retry in range(7):
+                    try:
+                        # 다양한 셀렉터로 클릭 시도
+                        clicked = False
+                        for selector in selectors:
+                            try:
+                                tab_element = page.locator(selector)
+                                if await tab_element.count() > 0:
+                                    await tab_element.wait_for(state='visible', timeout=30000)
+                                    await tab_element.click(timeout=60000)
+                                    clicked = True
+                                    break
+                            except:
+                                continue
                         
-                        # 페이지 로드 완료 대기
-                        await page.wait_for_selector("#ITEM_SPEC_CD", timeout=45000)
-                        await page.wait_for_load_state('networkidle', timeout=30000)
+                        if not clicked:
+                            raise Exception("탭 클릭 실패")
+                        
+                        # 페이지 로드 완료 대기 (더 긴 타임아웃)
+                        await page.wait_for_selector("#ITEM_SPEC_CD", timeout=60000)
+                        await page.wait_for_load_state('networkidle', timeout=45000)
                         break
                     except Exception as e:
-                        if retry == 4:
+                        if retry == 6:
                             raise e
-                        log(f"물가추이 보기 탭 클릭 재시도 {retry + 1}/5: {e}", "WARNING")
-                        await asyncio.sleep(3)  # 재시도 간 대기시간 증가
+                        log(f"물가추이 보기 탭 클릭 재시도 {retry + 1}/7: {e}", "WARNING")
+                        await asyncio.sleep(5)  # 재시도 간 대기시간 증가
                         await page.reload()
-                        await page.wait_for_load_state('networkidle', timeout=45000)
-                        await asyncio.sleep(2)
+                        await page.wait_for_load_state('networkidle', timeout=60000)
+                        await asyncio.sleep(3)
                         
             except Exception as e:
                 log(f"물가추이 보기 탭 클릭 완전 실패: {str(e)}", "ERROR")
                 # 페이지 상태 확인 및 복구 시도
                 try:
-                    await page.reload()
-                    await page.wait_for_load_state('networkidle', timeout=30000)
-                    await asyncio.sleep(3)
+                    # 페이지 상태 검증 강화
+                    current_url = page.url
+                    log(f"현재 페이지 URL: {current_url}", "INFO")
                     
-                    # 마지막 시도: 다른 방법으로 탭 찾기
+                    # 페이지가 올바른 상태인지 확인
+                    page_title = await page.title()
+                    log(f"현재 페이지 제목: {page_title}", "INFO")
+                    
+                    # 페이지 리로드 및 상태 복구
+                    await page.reload()
+                    await page.wait_for_load_state('networkidle', timeout=60000)
+                    await asyncio.sleep(5)  # 더 긴 안정화 대기
+                    
+                    # 페이지 로드 완료 검증
+                    await page.wait_for_load_state('domcontentloaded', timeout=30000)
+                    
+                    # 마지막 시도: 다양한 대체 셀렉터로 탭 찾기
                     alternative_selectors = [
                         'a[href*="price_trend"]',
                         'a:has-text("물가추이")',
                         'a:has-text("추이")',
-                        'a[onclick*="price_trend"]'
+                        'a[onclick*="price_trend"]',
+                        'li:has-text("물가추이") a',
+                        '.nav-tabs a:has-text("물가추이")',
+                        'ul li a:has-text("물가추이")',
+                        'a[title*="물가추이"]'
                     ]
                     
+                    tab_clicked = False
                     for selector in alternative_selectors:
                         try:
-                            element = await page.wait_for_selector(selector, timeout=10000)
-                            if element:
+                            # 요소 존재 확인
+                            element_count = await page.locator(selector).count()
+                            if element_count > 0:
+                                log(f"대체 셀렉터 발견: {selector} (개수: {element_count})", "INFO")
+                                
+                                # 요소가 보이는지 확인
+                                element = page.locator(selector).first
+                                await element.wait_for(state='visible', timeout=15000)
+                                
+                                # 클릭 시도
                                 await element.click(timeout=30000)
-                                await page.wait_for_selector("#ITEM_SPEC_CD", timeout=30000)
+                                
+                                # 클릭 후 페이지 상태 확인
+                                await page.wait_for_selector("#ITEM_SPEC_CD", timeout=45000)
+                                await page.wait_for_load_state('networkidle', timeout=30000)
+                                
                                 log(f"대체 셀렉터로 탭 클릭 성공: {selector}", "INFO")
+                                tab_clicked = True
                                 break
-                        except:
+                        except Exception as selector_error:
+                            log(f"대체 셀렉터 {selector} 실패: {selector_error}", "DEBUG")
                             continue
-                    else:
+                    
+                    if not tab_clicked:
                         log(f"모든 대체 방법 실패 - 소분류 건너뜀: {sub_name}", "WARNING")
                         return None
                         
                 except Exception as recovery_error:
-                    log(f"페이지 복구 실패: {recovery_error}", "ERROR")
+                    log(f"페이지 복구 시도 실패: {recovery_error}", "ERROR")
+                    log(f"모든 대체 방법 실패 - 소분류 건너뜀: {sub_name}", "WARNING")
                     return None
 
             # 규격 선택 옵션들 가져오기
