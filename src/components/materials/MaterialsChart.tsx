@@ -274,7 +274,7 @@ const calculateYAxisDomain = (data: any[], materials: string[]) => {
   return [domainMin, domainMax];
 };
 
-// [수정] 데이터 페칭 함수 - Supabase RPC 호출은 동일하나, 이제 완벽한 데이터를 반환합니다.
+// [수정] 자재 가격 데이터 조회 함수 - Redis 캐시 우선 사용
 const fetchPriceData = async (
   materials: string[],
   startDate: string,
@@ -282,6 +282,21 @@ const fetchPriceData = async (
   interval: 'weekly' | 'monthly' | 'yearly'
 ) => {
   if (materials.length === 0) return [];
+
+  // Redis 캐시에서 먼저 조회
+  const { getMaterialDataFromCache, setMaterialDataToCache } = await import('../../lib/redis-cache');
+  
+  const cachedData = await getMaterialDataFromCache(
+    materials, startDate, endDate, interval
+  );
+  
+  if (cachedData) {
+    console.log('캐시에서 자재 데이터 조회 성공');
+    return cachedData;
+  }
+  
+  // 캐시에 없으면 Supabase에서 조회
+  console.log('캐시 MISS - Supabase에서 자재 데이터 조회');
 
   const { data, error } = await supabase.rpc('get_price_data', {
     p_start_date: startDate,
@@ -302,6 +317,11 @@ const fetchPriceData = async (
       fullError: JSON.stringify(error, null, 2)
     });
     throw new Error(`Supabase RPC Error: ${error.message || error.details || 'Unknown error'}`);
+  }
+
+  // 조회 결과를 캐시에 저장
+  if (data && data.length > 0) {
+    await setMaterialDataToCache(materials, startDate, endDate, interval, data);
   }
 
   return data;

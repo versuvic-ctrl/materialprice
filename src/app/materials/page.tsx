@@ -78,22 +78,35 @@ const useCategories = (level: 'major' | 'middle' | 'sub' | 'specification', filt
         return [];
       }
       
-      // Supabase RPC 함수 호출로 카테고리 목록 조회
-      const { data, error } = await supabase.rpc('get_distinct_categories', {
-        p_level: level,
-        p_filters: filters
-      });
+      // Redis 캐시에서 먼저 조회
+      const { cachedSupabaseQuery, generateCacheKey } = await import('../../lib/redis-cache');
+      
+      const cacheKey = generateCacheKey('get_distinct_categories', {
+        level,
+        filters: JSON.stringify(filters)
+      }, '*');
+      
+      return await cachedSupabaseQuery(
+        async () => {
+          // Supabase RPC 함수 호출로 카테고리 목록 조회
+          const { data, error } = await supabase.rpc('get_distinct_categories', {
+            p_level: level,
+            p_filters: filters
+          });
 
-      if (error) {
-        console.error(`Error fetching ${level} categories:`, error);
-        throw new Error(error.message);
-      }
-      
-      console.log(`${level} categories result:`, data);
-      const categories = data?.map((item: { name: string }) => item.name) || [];
-      
-      // 한글 자음 순서로 정렬하여 반환
-      return sortKorean(categories);
+          if (error) {
+            console.error(`Error fetching ${level} categories:`, error);
+            throw new Error(error.message);
+          }
+          
+          console.log(`${level} categories result:`, data);
+          const categories = data?.map((item: { name: string }) => item.name) || [];
+          
+          // 한글 자음 순서로 정렬하여 반환
+          return sortKorean(categories);
+        },
+        cacheKey
+      );
     },
     // enabled 옵션: 상위 필터값이 모두 존재할 때만 쿼리를 실행
     enabled: level === 'major' ? true : Object.values(filters).every(v => v),

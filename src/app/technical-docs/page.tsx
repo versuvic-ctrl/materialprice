@@ -18,11 +18,82 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 interface Article { id: string; created_at: string; title: string; category: string; content: string; tags: string[]; }
 
-// --- 데이터 페칭 및 뮤테이션 훅 (변경 없음) ---
-const useArticles = () => useQuery<Article[]>({ queryKey: ['articles'], queryFn: async () => { const { data, error } = await supabase.from('technical_articles').select('*').order('category').order('title'); if (error) throw new Error(error.message); return data; }, });
-const useCreateArticle = () => { const queryClient = useQueryClient(); return useMutation({ mutationFn: async (newArticle: Omit<Article, 'id' | 'created_at'>) => { const { error } = await supabase.from('technical_articles').insert(newArticle); if (error) throw new Error(error.message); }, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['articles'] }); }, }); };
-const useUpdateArticle = () => { const queryClient = useQueryClient(); return useMutation({ mutationFn: async (updatedArticle: Partial<Article> & { id: string }) => { const { error } = await supabase.from('technical_articles').update(updatedArticle).eq('id', updatedArticle.id); if (error) throw new Error(error.message); }, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['articles'] }); }, }); };
-const useDeleteArticle = () => { const queryClient = useQueryClient(); return useMutation({ mutationFn: async (id: string) => { const { error } = await supabase.from('technical_articles').delete().eq('id', id); if (error) throw new Error(error.message); }, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['articles'] }); }, }); };
+// --- 데이터 페칭 및 뮤테이션 훅 (Redis 캐시 적용) ---
+const useArticles = () => useQuery<Article[]>({ 
+  queryKey: ['articles'], 
+  queryFn: async () => { 
+    const { cachedSupabaseQuery, generateCacheKey } = await import('../../lib/redis-cache');
+    
+    const cacheKey = generateCacheKey('technical_articles', {}, '*');
+    
+    return await cachedSupabaseQuery(
+      async () => {
+        const { data, error } = await supabase
+          .from('technical_articles')
+          .select('*')
+          .order('category')
+          .order('title'); 
+        if (error) throw new Error(error.message); 
+        return data;
+      },
+      cacheKey
+    );
+  }, 
+});
+
+const useCreateArticle = () => { 
+  const queryClient = useQueryClient(); 
+  return useMutation({ 
+    mutationFn: async (newArticle: Omit<Article, 'id' | 'created_at'>) => { 
+      const { error } = await supabase.from('technical_articles').insert(newArticle); 
+      if (error) throw new Error(error.message); 
+    }, 
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ['articles'] }); 
+      // Redis 캐시도 무효화
+      import('../../lib/redis-cache').then(({ invalidateCachePattern }) => {
+        invalidateCachePattern('technical_articles:*');
+      });
+    }, 
+  }); 
+};
+
+const useUpdateArticle = () => { 
+  const queryClient = useQueryClient(); 
+  return useMutation({ 
+    mutationFn: async (updatedArticle: Partial<Article> & { id: string }) => { 
+      const { error } = await supabase
+        .from('technical_articles')
+        .update(updatedArticle)
+        .eq('id', updatedArticle.id); 
+      if (error) throw new Error(error.message); 
+    }, 
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ['articles'] }); 
+      // Redis 캐시도 무효화
+      import('../../lib/redis-cache').then(({ invalidateCachePattern }) => {
+        invalidateCachePattern('technical_articles:*');
+      });
+    }, 
+  }); 
+};
+
+const useDeleteArticle = () => { 
+  const queryClient = useQueryClient(); 
+  return useMutation({ 
+    mutationFn: async (id: string) => { 
+      const { error } = await supabase.from('technical_articles').delete().eq('id', id); 
+      if (error) throw new Error(error.message); 
+    }, 
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ['articles'] }); 
+      // Redis 캐시도 무효화
+      import('../../lib/redis-cache').then(({ invalidateCachePattern }) => {
+        invalidateCachePattern('technical_articles:*');
+      });
+    }, 
+  }); 
+};
 
 // --- 메인 컴포넌트 ---
 export default function TechnicalDocsPage() {

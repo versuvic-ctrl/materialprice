@@ -39,20 +39,23 @@ export const convertToKgUnit = (price: number, unit: string): ConvertedPriceData
 
   let convertedPrice = price;
 
-  // 'ton' 또는 '톤' 단위일 경우 kg 단위로 변환 (1톤 = 1000kg이므로 1000으로 나눔)
+  // '원/kg' 단위는 이미 kg당 가격이므로 변환하지 않고 그대로 사용
+  if (normalizedUnit.includes('원/kg') || normalizedUnit.includes('/kg')) {
+    convertedPrice = price; // 그대로 유지
+  }
+  // '원/톤' 단위만 kg 단위로 변환 (1톤 = 1000kg이므로 1000으로 나눔)
   // 예: 3,000,000원/톤 → 3,000원/kg
-  if (normalizedUnit === 'ton' || normalizedUnit === '톤' || normalizedUnit.includes('톤')) {
+  else if (normalizedUnit.includes('원/톤') || normalizedUnit.includes('/톤')) {
     convertedPrice = price / 1000;
-  } 
-  // 'kg' 단위는 변환 필요 없음 (이미 kg 단위)
-  // 예: 3,500원/kg → 3,500원/kg (그대로 유지)
-  else if (normalizedUnit === 'kg' || normalizedUnit.includes('kg')) {
+  }
+  // 기타 경우는 변환하지 않음
+  else {
     convertedPrice = price;
   }
 
   return {
     price: convertedPrice,
-    unit: 'kg', // 변환 후 단위는 항상 'kg'
+    unit: '원/kg', // 변환 후 단위는 항상 '원/kg'
     originalPrice,
     originalUnit,
   };

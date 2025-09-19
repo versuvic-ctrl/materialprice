@@ -60,9 +60,8 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
 
   // 가격을 한국 원화 형식으로 포맷팅 (kg 단위로 변환)
   const formatPrice = (price: number) => {
-    // average_price의 단위가 '원/톤'이라고 가정하고 변환합니다.
-    const convertedPrice = convertToKgUnit(price, 'ton');
-    return `₩${Math.round(convertedPrice.price).toLocaleString('ko-KR')}`;
+    // 평균 가격은 이미 혼합된 단위(원/kg, 원/톤)의 평균이므로 변환하지 않고 그대로 표시
+    return `₩${Math.round(price).toLocaleString('ko-KR')}`;
   };
 
   // 변화율을 퍼센트 형식으로 포맷팅 (현재 미사용)
