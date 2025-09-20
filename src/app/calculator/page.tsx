@@ -25,7 +25,7 @@
 import { useState } from 'react';
 import { Calculator, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { calculateTankVolume, calculateNPSH, calculateAffinity, CalculationResult } from '@/lib/api';
+import { calculateTankVolumeExport, calculateNPSHExport, calculateAffinityExport, CalculationResult } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import Layout from '@/components/layout/Layout';
 
@@ -93,7 +93,7 @@ export default function CalculatorPage() {
       
       // Tank 부피/무게 계산
       if (selectedCalculator === 'tank') {
-        calculationResult = await calculateTankVolume({
+        calculationResult = await calculateTankVolumeExport({
           diameter: parseFloat(tankInputs.diameter),
           height: parseFloat(tankInputs.height),
           topHeadType: tankInputs.topHeadType,
@@ -103,7 +103,7 @@ export default function CalculatorPage() {
       } 
       // NPSH 계산
       else if (selectedCalculator === 'npsh') {
-        calculationResult = await calculateNPSH({
+        calculationResult = await calculateNPSHExport({
           atmospheric_pressure: parseFloat(npshInputs.atmosphericPressure),
           vapor_pressure: parseFloat(npshInputs.vaporPressure),
           static_head: parseFloat(npshInputs.staticHead),
@@ -112,7 +112,7 @@ export default function CalculatorPage() {
       } 
       // 펌프 상사법칙 계산
       else if (selectedCalculator === 'affinity') {
-        calculationResult = await calculateAffinity({
+        calculationResult = await calculateAffinityExport({
           q1: parseFloat(affinityInputs.q1),
           h1: parseFloat(affinityInputs.h1),
           p1: parseFloat(affinityInputs.p1),
@@ -682,30 +682,146 @@ export default function CalculatorPage() {
                     계산 결과
                   </h3>
                   {result ? (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {Object.entries(result).map(([key, value]) => (
-                        <div key={key} className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                          <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                            {key === 'volume' && '부피'}
-                            {key === 'weight' && '무게'}
-                            {key === 'npsh' && 'NPSH'}
-                            {key === 'q2' && '새 유량'}
-                            {key === 'h2' && '새 양정'}
-                            {key === 'p2' && '새 동력'}
+                    <div className="space-y-6">
+                      {/* 주요 결과 표시 */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {result.volume && (
+                          <div className="bg-blue-50 dark:bg-blue-900 dark:bg-opacity-20 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
+                            <div className="text-sm text-blue-600 dark:text-blue-400 mb-1 font-medium">
+                              부피
+                            </div>
+                            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                              {result.volume.toFixed(2)} m³
+                            </div>
+                            <div className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+                              = {(result.volume * 1000).toFixed(1)} L
+                            </div>
                           </div>
-                          <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {typeof value === 'number' ? value.toFixed(2) : 
-                             typeof value === 'object' ? JSON.stringify(value) : 
-                             String(value)}
-                            {key === 'volume' && ' m³'}
-                            {key === 'weight' && ' kg'}
-                            {key === 'npsh' && ' m'}
-                            {(key === 'flow' || key === 'q2') && ' m³/h'}
-                            {(key === 'head' || key === 'h2') && ' m'}
-                            {(key === 'power' || key === 'p2') && ' kW'}
+                        )}
+                        
+                        {result.weight && (
+                          <div className="bg-green-50 dark:bg-green-900 dark:bg-opacity-20 p-4 rounded-lg border border-green-200 dark:border-green-700">
+                            <div className="text-sm text-green-600 dark:text-green-400 mb-1 font-medium">
+                              무게
+                            </div>
+                            <div className="text-2xl font-bold text-green-900 dark:text-green-100">
+                              {result.weight.toFixed(2)} kg
+                            </div>
+                          </div>
+                        )}
+                        
+                        {result.npsh && (
+                          <div className="bg-purple-50 dark:bg-purple-900 dark:bg-opacity-20 p-4 rounded-lg border border-purple-200 dark:border-purple-700">
+                            <div className="text-sm text-purple-600 dark:text-purple-400 mb-1 font-medium">
+                              NPSH
+                            </div>
+                            <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+                              {result.npsh.toFixed(2)} m
+                            </div>
+                          </div>
+                        )}
+                        
+                        {result.results && (
+                          <>
+                            <div className="bg-orange-50 dark:bg-orange-900 dark:bg-opacity-20 p-4 rounded-lg border border-orange-200 dark:border-orange-700">
+                              <div className="text-sm text-orange-600 dark:text-orange-400 mb-1 font-medium">
+                                새 유량
+                              </div>
+                              <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
+                                {result.results.flow_rate.toFixed(2)} m³/h
+                              </div>
+                            </div>
+                            
+                            <div className="bg-red-50 dark:bg-red-900 dark:bg-opacity-20 p-4 rounded-lg border border-red-200 dark:border-red-700">
+                              <div className="text-sm text-red-600 dark:text-red-400 mb-1 font-medium">
+                                새 양정
+                              </div>
+                              <div className="text-2xl font-bold text-red-900 dark:text-red-100">
+                                {result.results.head.toFixed(2)} m
+                              </div>
+                            </div>
+                            
+                            <div className="bg-indigo-50 dark:bg-indigo-900 dark:bg-opacity-20 p-4 rounded-lg border border-indigo-200 dark:border-indigo-700">
+                              <div className="text-sm text-indigo-600 dark:text-indigo-400 mb-1 font-medium">
+                                새 동력
+                              </div>
+                              <div className="text-2xl font-bold text-indigo-900 dark:text-indigo-100">
+                                {result.results.power.toFixed(2)} kW
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      
+                      {/* 계산 공식 표시 */}
+                      {result.formula && (
+                        <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            계산 공식
+                          </h4>
+                          <div className="text-sm text-gray-600 dark:text-gray-400 font-mono bg-white dark:bg-gray-800 p-3 rounded border">
+                            {result.formula}
                           </div>
                         </div>
-                      ))}
+                      )}
+                      
+                      {/* 상사법칙 공식들 표시 */}
+                      {result.formulas && (
+                        <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                            펌프 상사법칙 공식
+                          </h4>
+                          <div className="space-y-2">
+                            <div className="text-sm text-gray-600 dark:text-gray-400 font-mono bg-white dark:bg-gray-800 p-2 rounded border">
+                              <span className="text-orange-600 dark:text-orange-400 font-medium">유량:</span> {result.formulas.flow_rate}
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400 font-mono bg-white dark:bg-gray-800 p-2 rounded border">
+                              <span className="text-red-600 dark:text-red-400 font-medium">양정:</span> {result.formulas.head}
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400 font-mono bg-white dark:bg-gray-800 p-2 rounded border">
+                              <span className="text-indigo-600 dark:text-indigo-400 font-medium">동력:</span> {result.formulas.power}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* 입력값 요약 */}
+                      {result.inputs && (
+                        <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                            입력값 요약
+                          </h4>
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {Object.entries(result.inputs).map(([key, value]) => (
+                              <div key={key} className="bg-white dark:bg-gray-800 p-2 rounded border">
+                                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                                  {key === 'diameter' && '직경'}
+                                  {key === 'height' && '높이'}
+                                  {key === 'material' && '재질'}
+                                  {key === 'topHeadType' && '상부헤드'}
+                                  {key === 'bottomHeadType' && '하부헤드'}
+                                  {key === 'density' && '밀도'}
+                                  {key === 'atmospheric_pressure' && '대기압'}
+                                  {key === 'vapor_pressure' && '증기압'}
+                                  {key === 'static_head' && '정압'}
+                                  {key === 'friction_loss' && '마찰손실'}
+                                  {key === 'q1' && '기존유량'}
+                                  {key === 'h1' && '기존양정'}
+                                  {key === 'p1' && '기존동력'}
+                                  {key === 'n1' && '기존회전수'}
+                                  {key === 'n2' && '새회전수'}
+                                  {!['diameter', 'height', 'material', 'topHeadType', 'bottomHeadType', 'density', 'atmospheric_pressure', 'vapor_pressure', 'static_head', 'friction_loss', 'q1', 'h1', 'p1', 'n1', 'n2'].includes(key) && key}
+                                </div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-white break-words">
+                                  {typeof value === 'string' && value.length > 15 ? 
+                                    `${value.substring(0, 15)}...` : 
+                                    String(value)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="text-center py-8">

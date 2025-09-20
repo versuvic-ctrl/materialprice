@@ -86,7 +86,7 @@ const useCategories = (level: 'major' | 'middle' | 'sub' | 'specification', filt
 
       if (error) {
         console.error(`Error fetching ${level} categories:`, error);
-        throw new Error(error.message);
+        throw new Error(error?.message || error?.toString() || '알 수 없는 오류');
       }
       
       console.log(`${level} categories result:`, data);

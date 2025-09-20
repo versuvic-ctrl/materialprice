@@ -31,9 +31,9 @@ interface PriceTableProps {
   isLoading?: boolean;
 }
 
-// 가격 포맷팅 함수 - 단위 변환 적용
+// 가격 포맷팅 함수 - 원본 가격 사용
 const formatPrice = (price: number): string => {
-  // 이미 kg 단위로 변환된 가격을 사용
+  // 원본 가격을 그대로 사용
   return `${Math.round(price).toLocaleString('ko-KR')}원`;
 };
 
@@ -102,7 +102,7 @@ const PriceTable: React.FC<PriceTableProps> = ({ data, isLoading = false }) => {
                 
                 {/* 단위 */}
                 <div className="text-xs text-gray-900 text-center">
-                  kg
+                  {item.unit}
                 </div>
                 
                 {/* 전월비 */}

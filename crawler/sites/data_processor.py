@@ -701,12 +701,15 @@ class KpiDataProcessor(BaseDataProcessor):
                 original_spec = spec_data['spec_name']
                 enhanced_spec = self._extract_material_name_from_specification(original_spec)
                 
+                # 크롤링된 실제 단위 정보 사용 (하드코딩된 '원/톤' 대신)
+                actual_unit = raw_data.get('unit', '원/톤')
+                
                 transformed_items.append({
                     'major_category': raw_data['major_category_name'],
                     'middle_category': raw_data['middle_category_name'],
                     'sub_category': raw_data['sub_category_name'],
                     'specification': enhanced_spec,
-                    'unit': '원/톤',
+                    'unit': actual_unit,
                     'region': self._normalize_region_name(spec_data['region']),
                     'date': spec_data['date'],
                     'price': price_value
@@ -724,12 +727,15 @@ class KpiDataProcessor(BaseDataProcessor):
                     original_spec = spec_data['specification_name']
                     enhanced_spec = self._extract_material_name_from_specification(original_spec)
                     
+                    # 크롤링된 실제 단위 정보 사용 (spec_data의 unit이 없으면 raw_data의 unit 사용)
+                    actual_unit = spec_data.get('unit') or raw_data.get('unit', '원/톤')
+                    
                     transformed_items.append({
                         'major_category': raw_data['major_category_name'],
                         'middle_category': raw_data['middle_category_name'],
                         'sub_category': raw_data['sub_category_name'],
                         'specification': enhanced_spec,
-                        'unit': spec_data.get('unit', '원/톤'),
+                        'unit': actual_unit,
                         'region': self._normalize_region_name(price_info['region']),
                         'date': price_info['date'],
                         'price': price_value

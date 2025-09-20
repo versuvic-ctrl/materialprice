@@ -1,30 +1,30 @@
+import { createClient } from '@supabase/supabase-js';
+
 /**
- * api.ts - FastAPI 백엔드 통신 클라이언트
+ * api.ts - API 클라이언트 및 Supabase 연동
  * 
- * 기능:
- * - FastAPI 백엔드 서버와의 HTTP 통신
- * - 자재 가격 데이터 조회 및 비교
- * - 엔지니어링 계산 (탱크 부피, NPSH, 친화법칙)
- * - Supabase 데이터 프록시 접근
+ * 🎯 기능:
+ * - Supabase 클라이언트 설정
+ * - 로컬 엔지니어링 계산 (백엔드 불필요)
+ * - 데이터 CRUD 작업
+ * - 인증 및 권한 관리
  * 
- * 연관 파일:
- * - app/calculator/page.tsx (계산 기능 사용)
- * - components/CalculatorPreview.tsx (계산 미리보기)
- * - lib/supabase.ts (데이터 소스 보완)
+ * 📝 연관 파일:
+ * - src/app/materials/page.tsx (재료 데이터 조회)
+ * - src/app/calculator/page.tsx (계산기 로컬 호출)
+ * - src/components/charts/ (차트 데이터 API)
+ * - src/utils/calculations.ts (엔지니어링 계산 함수)
  * 
- * 중요도: ⭐⭐ 중요 - 계산 기능과 API 통신 담당
- * 
- * 백엔드 의존성:
- * - FastAPI 서버 (localhost:8000)
- * - Python 계산 엔진
- * - 자재 가격 크롤링 시스템
+ * 🔧 의존성:
+ * - Supabase 데이터베이스 (재료 데이터)
+ * - 로컬 JavaScript 계산 함수
  */
 
-/** 
- * 백엔드 API 기본 URL
- * 환경변수 NEXT_PUBLIC_API_URL 또는 기본값 localhost:8000 사용
- */
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Supabase 설정
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ==================== 타입 정의 ====================
 export interface MaterialPrice {
@@ -61,6 +61,7 @@ export interface MaterialHistory {
 export interface CalculationResult {
   value?: number;
   volume?: number;
+  weight?: number;
   npsh?: number;
   results?: {
     flow_rate: number;
@@ -105,140 +106,169 @@ export interface AffinityCalculationInput {
   p1: number;
 }
 
-class ApiClient {
-  private baseUrl: string;
+// ==================== 엔지니어링 계산 함수 (서버 API 호출) ====================
 
-  constructor(baseUrl: string = API_BASE_URL) {
-    this.baseUrl = baseUrl;
-  }
-
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
-    
-    const config: RequestInit = {
+/**
+ * 탱크 부피 및 무게 계산 (서버 API 호출)
+ * @param input 탱크 계산 입력 데이터
+ * @returns 계산 결과 (부피, 무게, 공식 등)
+ */
+export async function calculateTankVolumeAPI(input: TankCalculationInput): Promise<CalculationResult> {
+  try {
+    const response = await fetch('/api/calculations/tank', {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers,
       },
-      ...options,
-    };
-
-    try {
-      const response = await fetch(url, config);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error(`API request failed: ${url}`, error);
-      throw error;
-    }
-  }
-
-  // 자재 가격 관련 API
-  async getCurrentPrices(): Promise<Record<string, MaterialPrice>> {
-    return this.request<Record<string, MaterialPrice>>('/materials/current');
-  }
-
-  async getMaterialHistory(
-    material: string, 
-    period: string = '30d',
-    startDate?: string,
-    endDate?: string
-  ): Promise<{
-    material: string;
-    period: string;
-    data: MaterialHistory[];
-  }> {
-    let url = `/materials/history/${material}?period=${period}`;
-    if (startDate) {
-      url += `&start_date=${startDate}`;
-    }
-    if (endDate) {
-      url += `&end_date=${endDate}`;
-    }
-    return this.request(url);
-  }
-
-  async compareMaterials(materials: string[]): Promise<Record<string, MaterialHistory[]>> {
-    const materialsParam = materials.join(',');
-    return this.request(`/materials/compare?materials=${materialsParam}`);
-  }
-
-  // 계산기 관련 API
-  async calculateTankVolume(input: TankCalculationInput): Promise<CalculationResult> {
-    return this.request<CalculationResult>('/calculate/tank-volume', {
-      method: 'POST',
       body: JSON.stringify(input),
     });
-  }
 
-  async calculateNPSH(input: NPSHCalculationInput): Promise<CalculationResult> {
-    return this.request<CalculationResult>('/calculate/npsh', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
-  }
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || '서버 오류가 발생했습니다.');
+    }
 
-  async calculateAffinity(input: AffinityCalculationInput): Promise<CalculationResult> {
-    return this.request<CalculationResult>('/calculate/affinity', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
-  }
-
-  // Supabase 자재 데이터 가져오기
-  async getSupabaseMaterials(): Promise<SupabaseMaterial[]> {
-    return this.request<SupabaseMaterial[]>('/materials/supabase');
-  }
-
-  // 헬스 체크
-  async healthCheck(): Promise<{ status: string; timestamp: string }> {
-    return this.request('/health');
+    return await response.json();
+  } catch (error) {
+    console.error('Tank volume calculation error:', error);
+    throw new Error(`탱크 부피 계산 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
   }
 }
 
-// ==================== 인스턴스 및 편의 함수 ====================
+/**
+ * NPSH (Net Positive Suction Head) 계산 (서버 API 호출)
+ * @param input NPSH 계산 입력 데이터
+ * @returns 계산 결과 (NPSH 값, 공식 등)
+ */
+export async function calculateNPSHAPI(input: NPSHCalculationInput): Promise<CalculationResult> {
+  try {
+    const response = await fetch('/api/calculations/npsh', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || '서버 오류가 발생했습니다.');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('NPSH calculation error:', error);
+    throw new Error(`NPSH 계산 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+  }
+}
 
 /**
- * API 클라이언트 싱글톤 인스턴스
- * 전역에서 하나의 인스턴스만 사용하여 연결 관리 최적화
+ * 펌프 상사법칙 계산 (서버 API 호출)
+ * @param input 상사법칙 계산 입력 데이터
+ * @returns 계산 결과 (유량, 양정, 동력 등)
  */
-const apiClient = new ApiClient();
+export async function calculateAffinityAPI(input: AffinityCalculationInput): Promise<CalculationResult> {
+  try {
+    const response = await fetch('/api/calculations/affinity', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    });
 
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || '서버 오류가 발생했습니다.');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Affinity calculation error:', error);
+    throw new Error(`상사법칙 계산 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+  }
+}
+
+// ==================== Supabase 데이터 관련 함수 ====================
+
+/**
+ * Supabase에서 자재 데이터 조회
+ */
+export async function getSupabaseMaterials(): Promise<SupabaseMaterial[]> {
+  try {
+    const { data, error } = await supabase
+      .from('materials')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Supabase materials fetch error:', error);
+    throw new Error(`자재 데이터 조회 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+  }
+}
+
+/**
+ * 자재 가격 이력 조회 (모의 데이터)
+ */
+export async function getMaterialHistory(
+  material: string,
+  period: string = '30d'
+): Promise<MaterialHistory[]> {
+  // 실제 구현에서는 Supabase나 외부 API에서 데이터를 가져옴
+  // 현재는 모의 데이터 반환
+  const mockData: MaterialHistory[] = [
+    { date: '2024-01-01', price: 100, material },
+    { date: '2024-01-15', price: 105, material },
+    { date: '2024-01-30', price: 98, material },
+  ];
+  
+  return mockData;
+}
+
+// ==================== API 클라이언트 인스턴스 ====================
+
+/**
+ * API 클라이언트 인스턴스 (로컬 계산 함수 사용)
+ * 백엔드 서버 없이 프론트엔드에서 직접 계산 처리
+ */
+const apiClient = {
+  // 계산기 관련 메서드 (로컬 함수 호출)
+  calculateTankVolume: calculateTankVolumeAPI,
+  calculateNPSH: calculateNPSHAPI,
+  calculateAffinity: calculateAffinityAPI,
+  
+  // Supabase 데이터 관련 메서드
+  getSupabaseMaterials,
+  getMaterialHistory,
+};
+
+// 기본 내보내기 (하위 호환성)
 export default apiClient;
 
 // ==================== 편의 함수 Export ====================
-// 클래스 메서드를 직접 호출할 수 있는 함수들
-// 사용 예: import { getCurrentPrices } from '@/lib/api'
-
-/** 현재 자재 가격 조회 */
-export const getCurrentPrices = () => apiClient.getCurrentPrices();
-
-/** 자재 가격 이력 조회 */
-export const getMaterialHistory = (material: string, period?: string, startDate?: string, endDate?: string) => 
-  apiClient.getMaterialHistory(material, period, startDate, endDate);
-
-/** 자재 가격 비교 */
-export const compareMaterials = (materials: string[]) => 
-  apiClient.compareMaterials(materials);
+// 직접 호출할 수 있는 함수들
+// 사용 예: import { calculateTankVolume } from '@/lib/api'
 
 /** 탱크 부피 계산 */
-export const calculateTankVolume = (input: TankCalculationInput) => 
+export const calculateTankVolumeExport = (input: TankCalculationInput) => 
   apiClient.calculateTankVolume(input);
 
 /** NPSH 계산 */
-export const calculateNPSH = (input: NPSHCalculationInput) => 
+export const calculateNPSHExport = (input: NPSHCalculationInput) => 
   apiClient.calculateNPSH(input);
 
-/** 친화법칙 계산 */
-export const calculateAffinity = (input: AffinityCalculationInput) => 
+/** 상사법칙 계산 */
+export const calculateAffinityExport = (input: AffinityCalculationInput) => 
   apiClient.calculateAffinity(input);
 
 /** Supabase 자재 데이터 조회 */
-export const getSupabaseMaterials = () => apiClient.getSupabaseMaterials();
+export const getSupabaseMaterialsExport = () => apiClient.getSupabaseMaterials();
 
-/** 백엔드 헬스 체크 */
-export const healthCheck = () => apiClient.healthCheck();
+/** 자재 가격 이력 조회 */
+export const getMaterialHistoryExport = (material: string, period?: string) => 
+  apiClient.getMaterialHistory(material, period || '30d');

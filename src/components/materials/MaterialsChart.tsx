@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import useMaterialStore from '@/store/materialStore';
 import { createClient } from '@supabase/supabase-js';
-import { convertChartDataToKg, normalizeUnitDisplay } from '@/utils/unitConverter';
+
 
 // Supabase 클라이언트 초기화 (lib/supabaseClient.ts에서 가져와도 무방합니다)
 const supabase = createClient(
@@ -45,9 +45,9 @@ const formatNumber = (value: number): string => {
   return new Intl.NumberFormat('ko-KR').format(value);
 };
 
-// 단위 정보를 포함한 툴팁 포맷팅 함수
+// 단위 정보를 포함한 툴팁 포맷팅 함수 - 소수점 없이 반올림
 const formatTooltipValue = (value: number, unit?: string): string => {
-  return `${new Intl.NumberFormat('ko-KR').format(value)}${unit ? ` ${unit}` : ''}`;
+  return `${new Intl.NumberFormat('ko-KR').format(Math.round(value))}${unit ? ` ${unit}` : ''}`;
 };
 
 // 자재별 가격 범위 분석 함수
@@ -307,17 +307,21 @@ const fetchPriceData = async (
   return data;
 };
 
-// [수정] 차트 데이터 변환 함수 - 배열 타입 보장
+// [수정] 차트 데이터 변환 함수 - 배열 타입 보장 및 ton→kg 변환
 const transformDataForChart = (data: any[], visibleMaterials: string[]) => {
   if (!data || !Array.isArray(data) || data.length === 0) return [];
 
   const groupedData = data.reduce((acc, item) => {
-    const { time_bucket, specification, average_price } = item;
+    const { time_bucket, specification, average_price, unit } = item;
     
     if (!acc[time_bucket]) {
       acc[time_bucket] = { time_bucket };
     }
-    acc[time_bucket][specification] = parseFloat(average_price);
+    
+    // ton 단위인 경우 kg으로 변환 (가격을 1/1000로 변환)
+    const rawPrice = parseFloat(average_price);
+    const convertedPrice = unit === 'ton' ? rawPrice / 1000 : rawPrice;
+    acc[time_bucket][specification] = convertedPrice;
     return acc;
   }, {});
   
@@ -345,18 +349,17 @@ const COLORS = [
   '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16',
 ];
 
-// Y축 가격 포맷팅 함수
-const formatYAxisPrice = (value: number): string => {
-  // 모든 가격을 원 단위로 표시
-  return `${value.toLocaleString('ko-KR', { 
-    minimumFractionDigits: 0, 
-    maximumFractionDigits: 0 
-  })}원`;
-};
+// Y축 가격 포맷팅 함수 - 소수점 없이 반올림하여 실제 숫자로 표시
+  const formatYAxisPrice = (value: number) => {
+    return Math.round(value).toLocaleString('ko-KR', { 
+      minimumFractionDigits: 0, 
+      maximumFractionDigits: 0 
+    });
+  };
 
-// [수정] 커스텀 범례 컴포넌트 - 실제 축 배치에 따른 범례 배치
+// [수정] 커스텀 범례 컴포넌트 - 실제 축 배치에 따른 범례 배치 및 단위 표시
 const CustomizedLegend = (props: any) => {
-  const { payload, visibleMaterials, axisAssignment } = props;
+  const { payload, visibleMaterials, axisAssignment, unitMap } = props;
 
   if (!payload || !visibleMaterials || visibleMaterials.length === 0 || !axisAssignment) return null;
 
@@ -371,20 +374,30 @@ const CustomizedLegend = (props: any) => {
   return (
     <div className="flex justify-between items-start px-2 text-xs pointer-events-none">
       <div className="flex flex-col items-start bg-white/70 p-1 rounded">
-        {leftPayload.map((entry: any, index: number) => (
-          <div key={`item-${index}`} className="flex items-center space-x-1 mb-1">
-            <div style={{ width: 8, height: 8, backgroundColor: entry.color }} />
-            <span className="text-xs">{shortenMaterialName(entry.value as string)} (주축)</span>
-          </div>
-        ))}
+        {leftPayload.map((entry: any, index: number) => {
+          const materialUnit = unitMap?.get(entry.dataKey) || 'kg';
+          return (
+            <div key={`item-${index}`} className="flex items-center space-x-1 mb-1">
+              <div style={{ width: 8, height: 8, backgroundColor: entry.color }} />
+              <span className="text-xs">
+                {shortenMaterialName(entry.value as string)} (원/{materialUnit}) (주축)
+              </span>
+            </div>
+          );
+        })}
       </div>
       <div className="flex flex-col items-end bg-white/70 p-1 rounded">
-        {rightPayload.map((entry: any, index: number) => (
-          <div key={`item-${index}`} className="flex items-center space-x-1 mb-1">
-            <span className="text-xs">(보조축) {shortenMaterialName(entry.value as string)}</span>
-            <div style={{ width: 8, height: 8, backgroundColor: entry.color }} />
-          </div>
-        ))}
+        {rightPayload.map((entry: any, index: number) => {
+          const materialUnit = unitMap?.get(entry.dataKey) || 'kg';
+          return (
+            <div key={`item-${index}`} className="flex items-center space-x-1 mb-1">
+              <span className="text-xs">
+                (보조축) {shortenMaterialName(entry.value as string)} (원/{materialUnit})
+              </span>
+              <div style={{ width: 8, height: 8, backgroundColor: entry.color }} />
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -410,12 +423,7 @@ const MaterialsChart: React.FC = () => {
     const transformed = transformDataForChart(rawData, visibleMaterials);
     const chartArray = Array.isArray(transformed) ? transformed : [];
     
-    // 단위 변환 적용 - 원/톤을 원/kg로 변환
-    if (chartArray.length > 0 && rawData && rawData.length > 0) {
-      const originalUnit = rawData[0]?.unit || '원/톤';
-      return convertChartDataToKg(chartArray, visibleMaterials, originalUnit);
-    }
-    
+    // 원본 데이터를 그대로 사용 (단위 변환 제거)
     return chartArray;
   }, [rawData, visibleMaterials]);
   
@@ -435,14 +443,23 @@ const MaterialsChart: React.FC = () => {
     return { domain: [domainMin, domainMax], ticks };
   }, [chartData, axisAssignment.rightAxisMaterials]);
   
-  // 단위 정보 추출 (첫 번째 데이터에서) - 변환된 단위로 표시
-  const unit = useMemo(() => {
-    if (rawData && rawData.length > 0) {
-      const originalUnit = rawData[0].unit || '';
-      // 차트 데이터가 kg로 변환되므로 항상 '원/kg' 반환
-      return '원/kg';
-    }
-    return '원/kg';
+  // 단위 정보 추출 및 변환 처리
+  const unitInfo = useMemo(() => {
+    if (!rawData || rawData.length === 0) return { displayUnit: 'ton', unitMap: new Map() };
+    
+    // 각 자재별 단위 정보를 맵으로 저장
+    const unitMap = new Map();
+    rawData.forEach(item => {
+      const originalUnit = item.unit || 'ton';
+      const displayUnit = originalUnit === 'ton' ? 'kg' : originalUnit;
+      unitMap.set(item.specification, displayUnit);
+    });
+    
+    // 대표 단위 (첫 번째 데이터의 단위)
+    const firstUnit = rawData[0].unit || 'ton';
+    const displayUnit = firstUnit === 'ton' ? 'kg' : firstUnit;
+    
+    return { displayUnit, unitMap };
   }, [rawData]);
 
   // 범례 높이 계산 (동적 공간 확보)
@@ -488,9 +505,9 @@ const MaterialsChart: React.FC = () => {
       </CardHeader>
       <CardContent className="p-6 bg-white">
         {/* 단위 표시 - 오른쪽 위 */}
-        {unit && (
+        {unitInfo.displayUnit && (
           <div className="absolute top-4 right-6 text-xs text-gray-500 bg-white/80 px-2 py-1 rounded border border-gray-200 z-10">
-            단위: {unit}
+            단위: 원/{unitInfo.displayUnit}
           </div>
         )}
         
@@ -501,7 +518,7 @@ const MaterialsChart: React.FC = () => {
           {isLoading ? (
             <div className="space-y-4"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /><Skeleton className="h-64 w-full" /></div>
           ) : isError ? (
-            <div className="text-red-500 text-center py-8 bg-red-50 rounded-lg border border-red-200"><div className="text-red-600 font-medium">데이터 로딩 실패: {error.message}</div></div>
+            <div className="text-red-500 text-center py-8 bg-red-50 rounded-lg border border-red-200"><div className="text-red-600 font-medium">데이터 로딩 실패: {error?.message || error?.toString() || '알 수 없는 오류'}</div></div>
           ) : !chartData || chartData.length === 0 ? (
             <div className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg border border-gray-200"><div className="text-gray-600 font-medium">표시할 데이터가 없거나, 조회할 자재를 선택해주세요.</div></div>
           ) : (
@@ -533,7 +550,8 @@ const MaterialsChart: React.FC = () => {
                     labelStyle={{ color: '#374151', fontWeight: 600 }}
                     formatter={(value: number, name: string) => {
                       const formattedPrice = new Intl.NumberFormat('ko-KR').format(value);
-                      return [`${formattedPrice}원/kg`, shortenMaterialName(name)];
+                      const materialUnit = unitInfo.unitMap.get(name) || 'kg';
+                      return [`${formattedPrice}원/${materialUnit}`, shortenMaterialName(name)];
                     }}
                     labelFormatter={(label) => `기간: ${label}`}
                   />
@@ -578,6 +596,7 @@ const MaterialsChart: React.FC = () => {
                      })) : []} 
                      visibleMaterials={visibleMaterials}
                      axisAssignment={axisAssignment}
+                     unitMap={unitInfo.unitMap}
                    />
                  </div>
                )}

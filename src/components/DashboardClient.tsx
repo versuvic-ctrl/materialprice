@@ -20,7 +20,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { convertToKgUnit } from '@/utils/unitConverter';
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 
 // 대시보드 통계 데이터 타입 정의
@@ -58,11 +57,10 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
     );
   }
 
-  // 가격을 한국 원화 형식으로 포맷팅 (kg 단위로 변환)
+  // 가격을 한국 원화 형식으로 포맷팅 (단위 변환 없이 그대로 사용)
   const formatPrice = (price: number) => {
-    // average_price의 단위가 '원/톤'이라고 가정하고 변환합니다.
-    const convertedPrice = convertToKgUnit(price, 'ton');
-    return `₩${Math.round(convertedPrice.price).toLocaleString('ko-KR')}`;
+    // 평균 가격은 이미 적절한 단위로 계산되어 있으므로 변환하지 않음
+    return `₩${Math.round(price).toLocaleString('ko-KR')}`;
   };
 
   // 변화율을 퍼센트 형식으로 포맷팅 (현재 미사용)
@@ -118,7 +116,7 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
             {formatPrice(dashboardData.average_price)}
           </div>
           <p className="text-xs text-gray-600">
-            원/kg
+            전체 자재 평균
           </p>
         </CardContent>
       </Card>

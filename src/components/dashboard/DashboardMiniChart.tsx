@@ -38,7 +38,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import useMaterialStore from '@/store/materialStore';
 import PriceTable, { MaterialPriceData } from './PriceTable';
-import { convertToKgUnit, calculatePriceChange } from '@/utils/unitConverter';
+// convertToKgUnit 및 calculatePriceChange import 제거
 
 // Supabase 클라이언트 초기화 (환경변수에서 URL과 키 가져옴)
 const supabase = createClient(
@@ -70,7 +70,7 @@ const fetchPriceData = async (
     .limit(materials.length);
   
   if (unitError) {
-    console.warn('단위 정보 조회 실패:', unitError.message);
+    console.warn('단위 정보 조회 실패:', unitError?.message || unitError?.toString() || '알 수 없는 오류');
   }
   
   const { data, error } = await supabase.rpc('get_price_data', {
@@ -83,14 +83,14 @@ const fetchPriceData = async (
     p_specifications: materials,
   });
   
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(error?.message || error?.toString() || '알 수 없는 오류');
   
   // 단위 정보를 데이터에 추가
   const unitMap = new Map(unitData?.map(item => [item.specification, item.unit]) || []);
   
   return data?.map((item: any) => ({
     ...item,
-    unit: unitMap.get(item.specification) || '원/톤' // 기본값으로 원/톤 사용
+    unit: unitMap.get(item.specification) || item.unit || '' // 실제 단위 정보 사용, 기본값 제거
   })) || [];
 };
 
@@ -121,13 +121,12 @@ const transformDataForChart = (
       acc[time_bucket] = { time_bucket };
     }
 
-    // 짧은 이름을 key로 사용하여 평균 가격 데이터를 저장 (단위 변환 적용)
+    // 짧은 이름을 key로 사용하여 평균 가격 데이터를 저장
     if (displayName) {
       const rawPrice = parseFloat(average_price);
-      // 실제 단위 정보를 사용하여 변환
-      const actualUnit = unit || '원/톤';
-      const convertedPrice = convertToKgUnit(rawPrice, actualUnit);
-      acc[time_bucket][displayName] = convertedPrice.price;
+      // ton 단위인 경우 kg으로 변환 (가격을 1/1000로 변환)
+      const convertedPrice = unit === 'ton' ? rawPrice / 1000 : rawPrice;
+      acc[time_bucket][displayName] = convertedPrice;
     }
 
     return acc;
@@ -169,19 +168,18 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
   // DB에서 받아온 데이터를 차트용으로 가공
   const chartData = useMemo(() => transformDataForChart(rawData || [], materials), [rawData, materials]);
 
-  // 테이블용 데이터 생성 (최신 가격과 변동률 계산)
-  const tableData = useMemo((): MaterialPriceData[] => {
+  // 테이블용 데이터 변환 (단위 변환 로직 제거)
+  const tableData: MaterialPriceData[] = useMemo(() => {
     if (!rawData || rawData.length === 0) return [];
 
-    return materials.map(material => {
-      // 해당 자재의 모든 데이터 필터링
+    return materials.map((material) => {
       const materialData = rawData.filter((item: any) => item.specification === material.id);
       
       if (materialData.length === 0) {
         return {
           name: material.displayName,
           currentPrice: 0,
-          unit: 'kg',
+          unit: '', // 기본 단위 하드코딩 제거
           monthlyChange: 0,
           yearlyChange: 0,
         };
@@ -192,31 +190,47 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
       
       const rawPrice = parseFloat(sortedData[0]?.average_price || '0');
       // 실제 단위 정보 사용
-      const actualUnit = sortedData[0]?.unit || '원/톤';
+      const actualUnit = sortedData[0]?.unit || '';
       
-      // 단위 변환 유틸리티 사용
-      const convertedCurrent = convertToKgUnit(rawPrice, actualUnit);
-      const currentPrice = convertedCurrent.price;
-      const displayUnit = convertedCurrent.unit;
+      // ton 단위인 경우 kg으로 변환 (가격을 1/1000로 변환)
+      let currentPrice = rawPrice;
+      let displayUnit = actualUnit;
       
-      // 전월비 계산 (1개월 전 데이터와 비교)
+      if (actualUnit === 'ton') {
+        currentPrice = rawPrice / 1000; // ton을 kg으로 변환 시 가격을 1/1000로 변환
+        displayUnit = 'kg';
+      }
+      
+      // 전월비 계산 (변환된 가격으로 계산)
       let monthlyChange = 0;
       if (sortedData.length >= 2) {
         const previousRawPrice = parseFloat(sortedData[1]?.average_price || '0');
-        monthlyChange = calculatePriceChange(rawPrice, previousRawPrice, actualUnit);
+        // ton 단위인 경우 이전 가격도 변환
+        const previousPrice = actualUnit === 'ton' ? previousRawPrice / 1000 : previousRawPrice;
+        
+        if (previousPrice !== 0) {
+          monthlyChange = ((currentPrice - previousPrice) / previousPrice) * 100;
+          monthlyChange = Math.round(monthlyChange * 100) / 100;
+        }
       }
 
-      // 전년비 계산 (12개월 전 데이터와 비교, 또는 가장 오래된 데이터와 비교)
+      // 전년비 계산 (변환된 가격으로 계산)
       let yearlyChange = 0;
       const yearAgoIndex = Math.min(12, sortedData.length - 1);
       if (yearAgoIndex > 0) {
         const yearAgoRawPrice = parseFloat(sortedData[yearAgoIndex]?.average_price || '0');
-        yearlyChange = calculatePriceChange(rawPrice, yearAgoRawPrice, actualUnit);
+        // ton 단위인 경우 전년 가격도 변환
+        const yearAgoPrice = actualUnit === 'ton' ? yearAgoRawPrice / 1000 : yearAgoRawPrice;
+        
+        if (yearAgoPrice !== 0) {
+          yearlyChange = ((currentPrice - yearAgoPrice) / yearAgoPrice) * 100;
+          yearlyChange = Math.round(yearlyChange * 100) / 100;
+        }
       }
 
       return {
         name: material.displayName,
-        currentPrice,
+        currentPrice: Math.round(currentPrice), // 소수점 없이 반올림
         unit: displayUnit,
         monthlyChange,
         yearlyChange,
@@ -229,7 +243,10 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
       <CardHeader className="pb-1">
         <CardTitle className="text-md font-semibold flex justify-between items-center">
           <span>{title}</span>
-          <span className="text-sm font-normal text-gray-500">(원/kg)</span>
+          <span className="text-sm font-normal text-gray-500">
+            {/* 실제 단위 표시 */}
+            {tableData.length > 0 && tableData[0].unit ? `(원/${tableData[0].unit})` : '(원)'}
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-2">
@@ -238,7 +255,7 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
             <Skeleton className="h-full w-full" />
           ) : isError ? (
             <div className="flex h-full items-center justify-center text-center text-sm text-red-500">
-              데이터 로딩 실패<br/>({error.message})
+              데이터 로딩 실패<br/>({error?.message || error?.toString() || '알 수 없는 오류'})
             </div>
           ) : !chartData || chartData.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-gray-500">
@@ -252,15 +269,16 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
                 <YAxis
                   width={80}
                   tick={{ fontSize: 11, fill: '#6b7280' }}
-                  tickFormatter={(value) => `${value.toLocaleString('ko-KR')}원`}
+                  tickFormatter={(value) => `${Math.round(value).toLocaleString('ko-KR')}원`}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip
                   wrapperClassName="text-xs"
                   formatter={(value: number, name: string) => {
-                    // 이미 변환된 kg 단위 가격을 그대로 표시
-                    return [`${value.toLocaleString('ko-KR')}원/kg`, name];
+                    // 실제 데이터의 단위를 사용하고 소수점 없이 반올림
+                    const unit = tableData.length > 0 && tableData[0].unit ? tableData[0].unit : '';
+                    return [`${Math.round(value).toLocaleString('ko-KR')}원${unit ? `/${unit}` : ''}`, name];
                   }}
                 />
                 <Legend iconSize={10} wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
