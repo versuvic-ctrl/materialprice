@@ -63,7 +63,7 @@ const fetchPriceData = async (
   if (!materials || materials.length === 0) return [];
   
   // Redis 캐시에서 먼저 조회
-  const { getMaterialDataFromCache, setMaterialDataToCache } = await import('../lib/redis-cache');
+  const { getMaterialDataFromCache, setMaterialDataToCache } = await import('../../lib/redis-cache');
   
   const cachedData = await getMaterialDataFromCache(
     materials, startDate, endDate, interval
