@@ -73,7 +73,7 @@ export interface MaterialHistoryDB {
 // ==================== 데이터 조회 함수 ====================
 
 /**
- * 현재 자재 가격 조회
+ * 현재 자재 가격 조회 (Redis 캐시 우선)
  * material_prices 테이블에서 최신 가격 정보를 가져옴
  * 
  * @returns MaterialPriceDB[] | null - 자재 가격 배열 또는 에러 시 null
@@ -84,21 +84,30 @@ export interface MaterialHistoryDB {
  * - 가격 알림 시스템
  */
 export async function getCurrentPricesFromDB() {
-  const { data, error } = await supabase
-    .from('material_prices')
-    .select('*')
-    .order('last_updated', { ascending: false })  // 최신 업데이트 순
+  const { cachedSupabaseQuery, generateCacheKey } = await import('./redis-cache');
   
-  if (error) {
-    console.error('Error fetching current prices:', error)
-    return null
-  }
+  const cacheKey = generateCacheKey('material_prices', {}, '*');
   
-  return data
+  return await cachedSupabaseQuery(
+    async () => {
+      const { data, error } = await supabase
+        .from('material_prices')
+        .select('*')
+        .order('last_updated', { ascending: false });  // 최신 업데이트 순
+      
+      if (error) {
+        console.error('Error fetching current prices:', error);
+        return null;
+      }
+      
+      return data;
+    },
+    cacheKey
+  );
 }
 
 /**
- * 자재 가격 이력 조회
+ * 자재 가격 이력 조회 (Redis 캐시 우선)
  * 특정 자재의 기간별 가격 변동 데이터를 조회
  * 
  * @param materialName - 조회할 자재명
@@ -111,24 +120,37 @@ export async function getCurrentPricesFromDB() {
  * - 과거 가격 비교
  */
 export async function getMaterialHistoryFromDB(materialName: string, period: string = '7d') {
+  const { cachedSupabaseQuery, generateCacheKey } = await import('./redis-cache');
+  
   // 기간에 따른 시작일 계산
   const daysAgo = period === '30d' ? 30 : period === '7d' ? 7 : 1
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - daysAgo)
   
-  const { data, error } = await supabase
-    .from('materialprice_kpi')
-    .select('*')
-    .eq('material_name', materialName)                              // 특정 자재 필터
-    .gte('date', startDate.toISOString().split('T')[0])            // 시작일 이후 데이터
-    .order('date', { ascending: true })                            // 날짜 오름차순
+  const cacheKey = generateCacheKey('materialprice_kpi', {
+    material_name: materialName,
+    period,
+    start_date: startDate.toISOString().split('T')[0]
+  }, '*');
   
-  if (error) {
-    console.error('Error fetching material history:', error)
-    return null
-  }
-  
-  return data
+  return await cachedSupabaseQuery(
+    async () => {
+      const { data, error } = await supabase
+        .from('materialprice_kpi')
+        .select('*')
+        .eq('material_name', materialName)                              // 특정 자재 필터
+        .gte('date', startDate.toISOString().split('T')[0])            // 시작일 이후 데이터
+        .order('date', { ascending: true })                            // 날짜 오름차순
+      
+      if (error) {
+        console.error('Error fetching material history:', error)
+        return null
+      }
+      
+      return data
+    },
+    cacheKey
+  );
 }
 
 // ==================== 데이터 삽입 함수 ====================

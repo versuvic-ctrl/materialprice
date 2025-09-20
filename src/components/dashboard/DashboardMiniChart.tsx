@@ -47,7 +47,7 @@ const supabase = createClient(
 );
 
 /**
- * 자재 가격 데이터를 Supabase에서 가져오는 함수
+ * 자재 가격 데이터를 Redis 캐시 우선으로 가져오는 함수
  * @param materials - 조회할 자재 specification 배열
  * @param startDate - 조회 시작 날짜
  * @param endDate - 조회 종료 날짜
@@ -61,6 +61,21 @@ const fetchPriceData = async (
   interval: 'weekly' | 'monthly' | 'yearly'
 ) => {
   if (!materials || materials.length === 0) return [];
+  
+  // Redis 캐시에서 먼저 조회
+  const { getMaterialDataFromCache, setMaterialDataToCache } = await import('../lib/redis-cache');
+  
+  const cachedData = await getMaterialDataFromCache(
+    materials, startDate, endDate, interval
+  );
+  
+  if (cachedData) {
+    console.log('캐시에서 자재 데이터 조회 성공');
+    return cachedData;
+  }
+  
+  // 캐시에 없으면 Supabase에서 조회
+  console.log('캐시 MISS - Supabase에서 자재 데이터 조회');
   
   // 실제 단위 정보도 함께 가져오기 위해 별도 쿼리 추가
   const { data: unitData, error: unitError } = await supabase
@@ -88,10 +103,15 @@ const fetchPriceData = async (
   // 단위 정보를 데이터에 추가
   const unitMap = new Map(unitData?.map(item => [item.specification, item.unit]) || []);
   
-  return data?.map((item: any) => ({
+  const processedData = data?.map((item: any) => ({
     ...item,
     unit: unitMap.get(item.specification) || item.unit || '' // 실제 단위 정보 사용, 기본값 제거
   })) || [];
+  
+  // 조회 결과를 Redis 캐시에 저장 (24시간 TTL)
+  await setMaterialDataToCache(materials, startDate, endDate, interval, processedData);
+  
+  return processedData;
 };
 
 /**
