@@ -469,7 +469,7 @@ const MaterialsChart: React.FC = () => {
     
     // 각 자재별 단위 정보를 맵으로 저장
     const unitMap = new Map();
-    rawData.forEach(item => {
+    rawData.forEach((item: any) => {
       const originalUnit = item.unit || 'ton';
       const displayUnit = originalUnit === 'ton' ? 'kg' : originalUnit;
       unitMap.set(item.specification, displayUnit);
