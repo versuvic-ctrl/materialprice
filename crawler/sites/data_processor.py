@@ -774,7 +774,17 @@ class BaseDataProcessor(ABC):
 
 class KpiDataProcessor(BaseDataProcessor):
     """한국물가정보(KPI) 사이트 전용 데이터 처리기"""
-    
+
+    SUB_CATEGORY_SPECIAL_HANDLING = {
+        "FRP DUCT 성형관 및 이음관",
+        "파이프슈", # 필요시 추가
+    }
+
+    GENERIC_PRICE_HEADERS = [
+        '가격', '가①격', '가②격', '가③격', '가④격', 
+        '가⑤격', '가⑥격', '가⑦격', '가⑧격', '가⑨격', '가⑩격', '가격1', '가격2', '가격3', '가격4'
+    ]
+
     def _normalize_region_name(self, region_name: str) -> str:
         """지역명을 정규화하고 빈 값이나 None을 처리"""
         # None이나 빈 문자열 처리
@@ -785,6 +795,10 @@ class KpiDataProcessor(BaseDataProcessor):
         
         # '공통지역'을 '전국'으로 변환
         if region_str == '공통지역':
+            return '전국'
+            
+        # GENERIC_PRICE_HEADERS에 포함된 값일 경우 '전국'으로 변환
+        if region_str in self.GENERIC_PRICE_HEADERS:
             return '전국'
             
         # 패턴: 지역명 첫글자 + 숫자 + 지역명 나머지 (예: 서1울 → 서울1)
@@ -801,82 +815,7 @@ class KpiDataProcessor(BaseDataProcessor):
         """SPECIFICATION에서 자재명을 추출하는 규칙"""
         if not specification:
             return specification
-        
-        spec_str = str(specification).strip()
-        
-        # 규칙 1: HDPE DC 고압관 관련
-        if 'HDPE' in spec_str and 'DC' in spec_str and '고압관' in spec_str:
-            return f"{spec_str} - DC고압관"
-        
-        # 규칙 2: PVC 관련
-        if 'PVC' in spec_str:
-            if '상수도관' in spec_str:
-                return f"{spec_str} - PVC상수도관"
-            elif '하수도관' in spec_str:
-                return f"{spec_str} - PVC하수도관"
-            elif '배수관' in spec_str:
-                return f"{spec_str} - PVC배수관"
-        
-        # 규칙 3: 철근 관련
-        if '철근' in spec_str:
-            if 'SD' in spec_str:
-                return f"{spec_str} - SD철근"
-            elif '이형' in spec_str:
-                return f"{spec_str} - 이형철근"
-        
-        # 규칙 4: 레미콘 관련
-        if '레미콘' in spec_str or '콘크리트' in spec_str:
-            if '고강도' in spec_str:
-                return f"{spec_str} - 고강도콘크리트"
-            elif '일반' in spec_str:
-                return f"{spec_str} - 일반콘크리트"
-        
-        # 규칙 5: 아스팔트 관련
-        if '아스팔트' in spec_str:
-            if '포장용' in spec_str:
-                return f"{spec_str} - 포장용아스팔트"
-            elif '방수용' in spec_str:
-                return f"{spec_str} - 방수용아스팔트"
-        
-        # 규칙 6: 골재 관련
-        if '골재' in spec_str:
-            if '쇄석' in spec_str:
-                return f"{spec_str} - 쇄석골재"
-            elif '모래' in spec_str:
-                return f"{spec_str} - 모래골재"
-        
-        # 규칙 7: 시멘트 관련
-        if '시멘트' in spec_str:
-            if '포틀랜드' in spec_str:
-                return f"{spec_str} - 포틀랜드시멘트"
-            elif '혼합' in spec_str:
-                return f"{spec_str} - 혼합시멘트"
-        
-        # 규칙 8: 형강 관련
-        if '형강' in spec_str:
-            if 'H형강' in spec_str or 'H-' in spec_str:
-                return f"{spec_str} - H형강"
-            elif 'I형강' in spec_str or 'I-' in spec_str:
-                return f"{spec_str} - I형강"
-        
-        # 규칙 9: 강관 관련
-        if '강관' in spec_str:
-            if '배관용' in spec_str:
-                return f"{spec_str} - 배관용강관"
-            elif '구조용' in spec_str:
-                return f"{spec_str} - 구조용강관"
-        
-        # 규칙 10: 전선 관련
-        if '전선' in spec_str or '케이블' in spec_str:
-            if 'CV' in spec_str:
-                return f"{spec_str} - CV케이블"
-            elif 'HIV' in spec_str:
-                return f"{spec_str} - HIV케이블"
-            elif '통신' in spec_str:
-                return f"{spec_str} - 통신케이블"
-        
-        # 기본값: 원본 specification 반환
-        return spec_str
+        return specification
 
     async def process_data(self, major_category: str, middle_category: str, sub_category: str) -> List[Dict[str, Any]]:
         """배치 처리를 위한 데이터 가공 메서드"""
@@ -944,22 +883,82 @@ class KpiDataProcessor(BaseDataProcessor):
                         price_value = None
                 
                 # SPECIFICATION에서 자재명 추출 적용
-                original_spec = spec_data['spec_name']
+                original_spec = raw_data['specification']
                 enhanced_spec = self._extract_material_name_from_specification(original_spec)
                 
                 # 크롤링된 실제 단위 정보 사용 (하드코딩된 '원/톤' 대신)
-                actual_unit = raw_data.get('unit', '원/톤')
+                actual_unit = raw_data.get('unit')
                 
+                # region과 item_type 처리 로직
+                current_region_header = spec_data['region']
+                if current_region_header in self.GENERIC_PRICE_HEADERS:
+                    final_region = '전국'
+                    final_item_type = None
+                    final_specification = enhanced_spec
+                else:
+                    current_sub_category = raw_data['sub_category_name']
+                    current_item_type = spec_data.get('item_type', None)
+                    if current_sub_category in self.SUB_CATEGORY_SPECIAL_HANDLING:
+                        final_item_type = current_region_header
+                        final_region = '전국'
+                    else:
+                        final_item_type = current_item_type
+                        final_region = self._normalize_region_name(current_region_header)
+                    final_specification = f"{enhanced_spec} - {final_item_type}" if final_item_type != '기타' else enhanced_spec
+
                 transformed_items.append({
                     'major_category': raw_data['major_category_name'],
                     'middle_category': raw_data['middle_category_name'],
                     'sub_category': raw_data['sub_category_name'],
-                    'specification': enhanced_spec,
+                    'specification': final_specification,
                     'unit': actual_unit,
-                    'region': self._normalize_region_name(spec_data['region']),
+                    'region': final_region,
                     'date': spec_data['date'],
-                    'price': price_value
+                    'price': price_value,
+                    'item_type': final_item_type
                 })
+            elif spec_data.get('sub_category'):
+                for price_info in spec_data['sub_category']:
+                    price_value = None
+                    if price_info.get('price'):
+                        try:
+                            price_value = float(str(price_info['price']).replace(',', ''))
+                        except (ValueError, AttributeError):
+                            price_value = None
+
+                    original_spec = raw_data['specification']
+                    enhanced_spec = original_spec
+
+                    actual_unit = raw_data.get('unit')
+
+                    # region과 item_type 처리 로직
+                    current_sub_category = raw_data['sub_category_name']
+                    current_region_header = price_info.get('region', '전국')
+                    
+                    if current_region_header in self.GENERIC_PRICE_HEADERS:
+                        final_region = '전국'
+                        final_item_type = None
+                        final_specification = enhanced_spec
+                    elif current_sub_category in self.SUB_CATEGORY_SPECIAL_HANDLING:
+                        final_item_type = current_region_header
+                        final_region = '전국'
+                        final_specification = f"{enhanced_spec} - {final_item_type}" if final_item_type != '기타' else enhanced_spec
+                    else:
+                        final_item_type = price_info.get('item_type', None)
+                        final_region = self._normalize_region_name(current_region_header)
+                        final_specification = f"{enhanced_spec} - {final_item_type}" if final_item_type != '기타' else enhanced_spec
+
+                    transformed_items.append({
+                        'major_category': raw_data['major_category_name'],
+                        'middle_category': raw_data['middle_category_name'],
+                        'sub_category': raw_data['sub_category_name'],
+                        'specification': final_specification,
+                        'unit': actual_unit,
+                        'region': final_region,
+                        'date': price_info['date'],
+                        'price': price_value,
+                        'item_type': final_item_type
+                    })
             else:
                 for price_info in spec_data.get('prices', []):
                     price_value = None
@@ -969,22 +968,27 @@ class KpiDataProcessor(BaseDataProcessor):
                         except (ValueError, AttributeError):
                             price_value = None
                     
-                    # SPECIFICATION에서 자재명 추출 적용
-                    original_spec = spec_data['specification_name']
-                    enhanced_spec = self._extract_material_name_from_specification(original_spec)
-                    
-                    # 크롤링된 실제 단위 정보 사용 (spec_data의 unit이 없으면 raw_data의 unit 사용)
-                    actual_unit = spec_data.get('unit') or raw_data.get('unit', '원/톤')
-                    
+                    # region과 item_type 처리 로직
+                    current_region_header = price_info['region']
+                    if current_region_header in self.GENERIC_PRICE_HEADERS:
+                        final_region = '전국'
+                        final_item_type = None
+                        final_specification = enhanced_spec
+                    else:
+                        final_region = self._normalize_region_name(current_region_header)
+                        final_item_type = spec_data.get('item_type', None)
+                        final_specification = f"{enhanced_spec} - {final_item_type}" if final_item_type != '기타' else enhanced_spec
+
                     transformed_items.append({
                         'major_category': raw_data['major_category_name'],
                         'middle_category': raw_data['middle_category_name'],
                         'sub_category': raw_data['sub_category_name'],
-                        'specification': enhanced_spec,
+                        'specification': final_specification,
                         'unit': actual_unit,
-                        'region': self._normalize_region_name(price_info['region']),
+                        'region': final_region,
                         'date': price_info['date'],
-                        'price': price_value
+                        'price': price_value,
+                        'item_type': final_item_type
                     })
         
         return transformed_items

@@ -36,17 +36,18 @@ const DASHBOARD_CHARTS_CONFIG = [
   {
     title: '플라스틱',
     materials: [
-      { id: '일반용PE하수관-무공관 - 규격100㎜, 외경114㎜, 두께5.5㎜, 중량1.79㎏/m', displayName: 'PE관' },
-      { id: 'HDPE DC 고압관 및 이음관 - 100㎜', displayName: 'HDPE관' },
-      { id: '경질염화비닐관(일반용배수관)-VG1 (두꺼운 관) - 호칭경100㎜, 외경114㎜, 두께6.7(최소)㎜, 중량13,636g/본', displayName: 'PVC관' },
-      { id: 'FRP DUCT(원형) - 호칭경: 4″, 내경: 100㎜', displayName: 'FRP DUCT' },
+      { id: 'PP봉(백색) -  100Ø×1,000', displayName: 'PP' },
+      { id: 'HDPE -  파이프용', displayName: 'HDPE' },
+      { id: '경질염화비닐관(수도용VP)-직관 - VP PN 16 호칭경100㎜, 외경114㎜, 두께6.7(최소)㎜, 중량13,636g/본', displayName: 'PVC관, 100mm' },
+      { id: 'FRP DUCT(원형) -  호칭경: 4″, 내경: 100㎜ - 파이프', displayName: 'FRP DUCT, 파이프' },
+      { id: 'FRP DUCT(원형) - 호칭경: 20", 내경: 500mm - 90°엘보', displayName: 'FRP DUCT, 90°엘보' },
     ]
   },
   {
     title: '테프론',
     materials: [
-      { id: 'PTFE(테프론)판(백색) - 5T 1,000×1,000', displayName: 'PTFE' },
-      { id: 'UHP PVDF PIPE SDR21 - 110㎜', displayName: 'PVDF' },
+      { id: 'PTFE(테프론)판(백색) -  5T 1,000×1,000', displayName: 'PTFE' },
+      { id: 'UHP PVDF PIPE SDR21 - (1PC=5M) 110㎜', displayName: 'PVDF' },
       { id: 'ECTFE PIPE SDR21(1본=5m) - 110㎜', displayName: 'ECTFE' },
     ]
   },

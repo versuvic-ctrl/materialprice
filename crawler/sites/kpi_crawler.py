@@ -345,9 +345,9 @@ INCLUSION_LIST = {
             # "PVC, CPVC 파이프 및 이음관(1)": "개",
             # "PVC, CPVC 파이프 및 이음관(2)": "개",
             "일반용폴리에틸렌파이프": "m",    # 일반용PE하수관-무공관 - 규격100㎜, 외경114㎜, 두께5.5㎜, 중량1.79㎏/m
-            "수도용폴리에틸렌파이프(1)-1": "m",
-            "수도용폴리에틸렌파이프(1)-2": "m",
-            "수도용폴리에틸렌파이프(2)": "m",
+            # "수도용폴리에틸렌파이프(1)-1": "m",
+            # "수도용폴리에틸렌파이프(1)-2": "m",
+            # "수도용폴리에틸렌파이프(2)": "m",
             # "폴리에틸렌파이프ㆍ이음관(1)-1": "m",
             # "폴리에틸렌파이프ㆍ이음관(1)-2": "m",
             # "폴리에틸렌파이프ㆍ이음관(2)": "m",
@@ -557,7 +557,7 @@ INCLUSION_LIST = {
             # "몰드": "개",
             # "전선덕트": "m"
         },
-        "전선관로재": {
+        # "전선관로재": {
             # "레이스웨이": "m",
             # "케이블타이": "개",
             # "케이블연소방지제 방화커버": "개",
@@ -567,15 +567,15 @@ INCLUSION_LIST = {
             # "플라스틱콘트롤BOX(1)": "개",
             # "플라스틱콘트롤BOX(2)": "개",
             # "플라스틱콘트롤BOX(3)": "개",
-            "케이블트레이(KSC8464) 및 부속품(1)": "m",
-            "케이블트레이(KSC8464) 및 부속품(2)-1": "m",
-            "케이블트레이(KSC8464) 및 부속품(2)-2": "m",
-            "CABLE TRAY (사다리형, LADDER TRAY)": "m",
+            # "케이블트레이(KSC8464) 및 부속품(1)": "m",
+            # "케이블트레이(KSC8464) 및 부속품(2)-1": "m",
+            # "케이블트레이(KSC8464) 및 부속품(2)-2": "m",
+            # "CABLE TRAY (사다리형, LADDER TRAY)": "m",
             # "내진서포트행거·내진연결조인트": "개",
             # "광덕트": "m",
-            "래더트레이": "m",
+            # "래더트레이": "m",
             # "하이박스": "개"
-        },
+        # },
         "전력기기": {
             # "전기차충전소 안전시설물": "대",
             # "저손실하이브리드변압기": "대",
@@ -679,7 +679,7 @@ INCLUSION_LIST = {
 
     "석유화학": {
         "유화제품": {
-            "석유화학제품": "톤"
+            "석유화학제품": "ton"
         },
         "화공약품": {
             "화공약품": "㎏",
@@ -1043,7 +1043,8 @@ class KpiCrawler:
             middle_categories_info = []
             for i, middle_element in enumerate(middle_categories_elements):
                 try:
-                    middle_name = await middle_element.inner_text()
+                    parent_li = await middle_element.locator('..').get_attribute('title')
+                    middle_name = parent_li if parent_li else await middle_element.inner_text()
                     middle_href = await middle_element.get_attribute('href')
                     if middle_href and 'CATE_CD=' in middle_href:
                         middle_categories_info.append({
@@ -1099,61 +1100,27 @@ class KpiCrawler:
                     # 소분류가 숨겨져 있을 수 있으므로 직접 찾기
                     await self.page.wait_for_timeout(2000)
 
-                    # 다양한 방법으로 소분류 찾기
+                    # 소분류 크롤링 (detail.asp?CATE_CD= 링크만 사용)
                     sub_categories_info = []
-
-                    # 방법 1: ul.part-list 내의 링크들
-                    part_list_selector = 'ul.part-list'
-                    part_lists = await self.page.locator(
-                        part_list_selector).all()
-                    for part_list in part_lists:
-                        if await part_list.count() > 0:
-                            sub_selector = 'li a'
-                            sub_elements = await part_list.locator(
-                                sub_selector).all()
-                            for sub_element in sub_elements:
-                                try:
-                                    sub_name = await sub_element.inner_text()
-                                    sub_href = await sub_element.get_attribute(
-                                        'href')
-                                    has_cate_cd = (
-                                        sub_href and
-                                        'CATE_CD=' in sub_href)
-                                    if has_cate_cd:
-                                        sub_categories_info.append({
-                                            'name': sub_name,
-                                            'href': sub_href
-                                        })
-                                        log(f"    발견된 소분류: "
-                                            f"'{sub_name}'")
-                                except Exception as e:
-                                    log(f"    소분류 정보 수집 중 오류: "
-                                        f"{str(e)}")
-                                    continue
-
-                    # 방법 2: 만약 위에서 찾지 못했다면 다른 선택자 시도
-                    if not sub_categories_info:
-                        try:
-                            # 소분류 링크 찾기
-                            detail_selector = (
-                                'a[href*="detail.asp?CATE_CD="]')
-                            all_links = await self.page.locator(
-                                detail_selector).all()
-                            for link in all_links:
-                                try:
-                                    sub_name = await link.inner_text()
-                                    sub_href = await link.get_attribute(
-                                        'href')
-                                    if sub_href and sub_name.strip():
-                                        sub_categories_info.append({
-                                            'name': sub_name.strip(),
-                                            'href': sub_href
-                                        })
-                                except Exception:
-                                    continue
-                        except Exception as e:
-                            # 방법2 소분류 검색 중 오류 발생 (로그 생략)
-                            pass
+                    
+                    try:
+                        detail_selector = 'a[href*="detail.asp?CATE_CD="]'
+                        all_links = await self.page.locator(detail_selector).all()
+                        for link in all_links:
+                            try:
+                                parent_li = await link.locator('..').get_attribute('title')
+                                sub_name = parent_li if parent_li else await link.inner_text()
+                                sub_href = await link.get_attribute('href')
+                                if sub_href and sub_name.strip():
+                                    sub_categories_info.append({
+                                        'name': sub_name.strip(),
+                                        'href': sub_href
+                                    })
+                                    log(f"    발견된 소분류: '{sub_name.strip()}'")
+                            except Exception:
+                                continue
+                    except Exception as e:
+                        log(f"  소분류 수집 실패: {str(e)}")
 
                     if not sub_categories_info:
                         log(f"    중분류 '{middle_name}'의 "
@@ -1367,9 +1334,21 @@ class KpiCrawler:
                     await new_page.goto(sub_url, timeout=60000)
                     await new_page.wait_for_load_state('networkidle', timeout=45000)
                     
+                    # "물가추이 보기" 탭 이동 및 규격명 추출
+                    await new_page.click("text=물가추이 보기")
+                    await new_page.wait_for_selector(".selt-list", timeout=5000)
+                    spec_name = await new_page.locator(".selt-list option:first-child").inner_text()
+                    
+                    # "물가정보 보기" 탭 이동 및 단위 추출
+                    await new_page.click("text=물가정보 보기")
+                    await new_page.wait_for_selector("table", timeout=5000)
+                    unit = await new_page.locator("table tr:first-child td:last-child").inner_text()
+                    
                     # 가격 데이터 수집
                     result = await self._get_price_data_with_page(
                         new_page, major_name, middle_name, sub_name, sub_url)
+
+                    # 추출된 규격명과 단위를 결과에 추가 (이미 _get_price_data_with_page에서 처리됨)
 
                     # 페이지 정리
                     await new_page.close()
@@ -1426,10 +1405,10 @@ class KpiCrawler:
 
     async def _check_existing_data(self, major_name, middle_name, 
                                   sub_name, spec_name):
-        """Supabase에서 기존 데이터 확인하여 중복 체크"""
+        """Supabase에서 기존 데이터 확인하여 중복 체크 - 7개 필드 모두 동일할 때 중복으로 간주"""
         try:
             response = self.supabase.table('kpi_price_data').select(
-                'date, region, price, specification'
+                'major_category, middle_category, sub_category, specification, region, date, price'
             ).eq(
                 'major_category', major_name
             ).eq(
@@ -1441,12 +1420,19 @@ class KpiCrawler:
             ).execute()
             
             if response.data:
-                # (날짜, 지역, 가격, 규격) 조합으로 완전 중복 체크
-                # pandas 가공 후 컬럼명 변경 고려 (region_name -> region)
+                # 7개 필드 모두 동일할 때 중복으로 간주 (major_category, middle_category, sub_category, specification, region, date, price)
                 existing_data = set()
                 for item in response.data:
-                    existing_data.add((item['date'], item['region'], str(item['price']), item['specification']))
-                log(f"        - 기존 데이터 발견: {len(existing_data)}개 (날짜-지역-가격-규격 조합)")
+                    existing_data.add((
+                        item['major_category'], 
+                        item['middle_category'], 
+                        item['sub_category'], 
+                        item['specification'], 
+                        item['region'], 
+                        item['date'], 
+                        str(item['price'])
+                    ))
+                log(f"        - 기존 데이터 발견: {len(existing_data)}개 (7개 필드 완전 일치 조합)")
                 return existing_data
             else:
                 log("        - 기존 데이터 없음: 전체 추출 필요")
@@ -1477,8 +1463,16 @@ class KpiCrawler:
             log(f"        - 날짜 범위 확인 중 오류: {str(e)}")
             return []
 
-    async def _get_price_data_with_page(self, page, major_name, 
-                                        middle_name, sub_name, sub_url):
+    async def _get_price_data_with_page(
+        self,
+        page: Page,
+        major_name: str,
+        middle_name: str,
+        sub_name: str,
+        sub_url: str,
+        specification: str,
+        unit: str,
+    ):
         """소분류 페이지에서 월별 가격 데이터를 추출"""
         try:
             # 페이지 상태 확인
@@ -1622,6 +1616,8 @@ class KpiCrawler:
                 'major_category_name': major_name,
                 'middle_category_name': middle_name,
                 'sub_category_name': sub_name,
+                'specification': specification,
+                'unit': unit,
                 'spec_data': []
             }
 
@@ -1638,7 +1634,7 @@ class KpiCrawler:
                 f"최적화된 순차 처리로 진행합니다.")
             await self._process_specs_optimized(
                 page, spec_list, raw_item_data,
-                major_name, middle_name, sub_name)
+                major_name, middle_name, sub_name, unit)
 
         except Exception as e:
             log(f"  소분류 '{sub_name}' 처리 중 오류 "
@@ -1659,17 +1655,12 @@ class KpiCrawler:
 
     async def _process_specs_optimized(
             self, page, spec_list, raw_item_data,
-            major_name, middle_name, sub_name):
+            major_name, middle_name, sub_name, unit):
         """최적화된 순차 처리 - 페이지 리로드 없이 빠른 규격 변경"""
         
-        # 하드코딩된 단위 정보 사용
-        unit_info = self._get_hardcoded_unit(major_name, middle_name, sub_name)
-        if unit_info:
-            log(f"      하드코딩된 단위 정보 사용: {unit_info}")
-            # raw_item_data에 단위 정보 저장
-            raw_item_data['unit'] = unit_info
-        else:
-            log(f"      하드코딩된 단위 정보를 찾을 수 없음 - 단위 없이 진행")
+        # 단위 정보 사용
+        raw_item_data['unit'] = unit
+        log(f"      단위 정보 사용: {unit}")
         
         for i, spec in enumerate(spec_list):
             try:
@@ -1889,8 +1880,10 @@ class KpiCrawler:
                         try:
                             price_value = float(clean_price)
                             
-                            # 중복 체크
-                            if existing_dates and (formatted_date, default_region, str(price_value), spec_name) in existing_dates:
+                            # 중복 체크 (7개 필드: major_category, middle_category, sub_category, specification, region, date, price)
+                            duplicate_key = (raw_item_data['major_category_name'], raw_item_data['middle_category_name'], 
+                                           raw_item_data['sub_category_name'], spec_name, default_region, formatted_date, str(price_value))
+                            if existing_dates and duplicate_key in existing_dates:
                                 continue
                             
                             if not unit_info:
@@ -2004,8 +1997,10 @@ class KpiCrawler:
                             try:
                                 price_value = float(clean_price)
                                 
-                                # 중복 체크
-                                if existing_dates and (formatted_date, region_name, str(price_value), spec_name) in existing_dates:
+                                # 중복 체크 (7개 필드: major_category, middle_category, sub_category, specification, region, date, price)
+                                duplicate_key = (raw_item_data['major_category_name'], raw_item_data['middle_category_name'], 
+                                               raw_item_data['sub_category_name'], spec_name, region_name, formatted_date, str(price_value))
+                                if existing_dates and duplicate_key in existing_dates:
                                     continue
                                     
                                 if not unit_info:
@@ -2780,6 +2775,7 @@ class KpiCrawler:
 # <<< 파일 맨 아래 부분을 이 코드로 전체 교체 (5/5) >>>
 
 async def main():
+    log("DEBUG: main 함수 시작 (kpi_crawler.py)", "DEBUG")
     """메인 실행 로직: 명령행 인자 파싱 및 크롤러 실행"""
     # 명령행 인자 파싱 - 두 가지 방식 지원
     # 방식 1: --major="공통자재" --middle="비철금속" --sub="알루미늄" --mode="sub_only"
@@ -2986,15 +2982,22 @@ async def test_unit_extraction():
 
 
 if __name__ == "__main__":
+    log("DEBUG: if __name__ == \"__main__\" 블록 진입 (kpi_crawler.py)", "DEBUG")
     # 명령행 인수 확인
     if len(sys.argv) > 1 and sys.argv[1] == "test":
         # 단위 추출 테스트 실행
         asyncio.run(test_unit_extraction())
     else:
         # 일반 크롤링 실행
+        log("DEBUG: check_running_crawler() 호출 직전 (kpi_crawler.py)", "DEBUG")
         running_crawlers = check_running_crawler()
+        log("DEBUG: check_running_crawler() 호출 직후 (kpi_crawler.py)", "DEBUG")
         if running_crawlers:
             log(f"이미 실행 중인 크롤러 {len(running_crawlers)}개 발견. 기존 크롤러 완료 후 재실행하세요.", "ERROR")
             sys.exit(1)
+        log("DEBUG: asyncio.run(main()) 호출 직전 (kpi_crawler.py)", "DEBUG")
+        asyncio.run(main())
+        log("DEBUG: asyncio.run(main()) 호출 직후 (kpi_crawler.py)", "DEBUG")
+        log("DEBUG: asyncio.run(main()) 호출 직후 (kpi_crawler.py)", "DEBUG")
         
         asyncio.run(main())

@@ -1,0 +1,5570 @@
+{
+  "extraction_info": {
+    "timestamp": "2025-09-22T10:41:05.349891",
+    "total_major_categories": 3,
+    "total_middle_categories": 41,
+    "total_sub_categories": 608
+  },
+  "categories": {
+    "공통자재": {
+      "봉강": [
+        {
+          "name": "이형철근(이형봉강)(1)",
+          "href": "detail.asp?CATE_CD=10100104",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "이형철근(이형봉강)(2)",
+          "href": "detail.asp?CATE_CD=10100105",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "특수철근",
+          "href": "detail.asp?CATE_CD=10100106",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "원형철근(원형봉강)",
+          "href": "detail.asp?CATE_CD=10100101",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스파이럴철근",
+          "href": "detail.asp?CATE_CD=10100113",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "나선철선",
+          "href": "detail.asp?CATE_CD=10100108",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "PC강봉",
+          "href": "detail.asp?CATE_CD=10100107",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "형강": [
+        {
+          "name": "평강",
+          "href": "detail.asp?CATE_CD=10100611",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "각강",
+          "href": "detail.asp?CATE_CD=10100602",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "ㄱ형강",
+          "href": "detail.asp?CATE_CD=10100601",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "ㄷ형강",
+          "href": "detail.asp?CATE_CD=10100604",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "평행ㄷ형강",
+          "href": "detail.asp?CATE_CD=10100612",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "I형강",
+          "href": "detail.asp?CATE_CD=10100616",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "비대칭H형강",
+          "href": "detail.asp?CATE_CD=10100606",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "레일",
+          "href": "detail.asp?CATE_CD=10100605",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "철골브레이스",
+          "href": "detail.asp?CATE_CD=10100622",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "TSC BEAM",
+          "href": "detail.asp?CATE_CD=10100618",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "OCFT COLUMN",
+          "href": "detail.asp?CATE_CD=10100632",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "선조립보기둥",
+          "href": "detail.asp?CATE_CD=10100620",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "C형강",
+          "href": "detail.asp?CATE_CD=10100613",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아연도C형강",
+          "href": "detail.asp?CATE_CD=10100608",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "HyFo BEAM",
+          "href": "detail.asp?CATE_CD=10100628",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "TH BEAM",
+          "href": "detail.asp?CATE_CD=10100630",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "ACT COLUMN",
+          "href": "detail.asp?CATE_CD=10100624",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "ACT PILE",
+          "href": "detail.asp?CATE_CD=10100625",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "AU BEAM",
+          "href": "detail.asp?CATE_CD=10100631",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "H형강",
+          "href": "detail.asp?CATE_CD=10100615",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "용접경량H형강",
+          "href": "detail.asp?CATE_CD=10100603",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "강판": [
+        {
+          "name": "열연강판-1",
+          "href": "detail.asp?CATE_CD=10101118",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "열연강판-2",
+          "href": "detail.asp?CATE_CD=10101119",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "후판-1",
+          "href": "detail.asp?CATE_CD=10101131",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "후판-2",
+          "href": "detail.asp?CATE_CD=10101132",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "냉연강판-1",
+          "href": "detail.asp?CATE_CD=10101110",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "냉연강판-2",
+          "href": "detail.asp?CATE_CD=10101111",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "무늬강판",
+          "href": "detail.asp?CATE_CD=10101112",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아연도강판-1",
+          "href": "detail.asp?CATE_CD=10101115",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아연도강판-2",
+          "href": "detail.asp?CATE_CD=10101116",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "전기아연도강판-1",
+          "href": "detail.asp?CATE_CD=10101124",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "전기아연도강판-2",
+          "href": "detail.asp?CATE_CD=10101125",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "갈바아닐강판-1",
+          "href": "detail.asp?CATE_CD=10101106",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "갈바아닐강판-2",
+          "href": "detail.asp?CATE_CD=10101107",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "갈바륨ㆍ슈퍼갈륨강판-1",
+          "href": "detail.asp?CATE_CD=10101101",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "갈바륨ㆍ슈퍼갈륨강판-2",
+          "href": "detail.asp?CATE_CD=10101102",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "갈바크린ㆍ슈퍼갈륨크린강판-1",
+          "href": "detail.asp?CATE_CD=10101108",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "갈바크린ㆍ슈퍼갈륨크린강판-2",
+          "href": "detail.asp?CATE_CD=10101109",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "프린트강판",
+          "href": "detail.asp?CATE_CD=10101130",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "용융알루미늄도금강판",
+          "href": "detail.asp?CATE_CD=10101122",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "선듀라강판",
+          "href": "detail.asp?CATE_CD=10101114",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "착색아연도강판(칼라강판)(1)-1",
+          "href": "detail.asp?CATE_CD=10101126",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "착색아연도강판(칼라강판)(1)-2",
+          "href": "detail.asp?CATE_CD=10101127",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "착색아연도강판(칼라강판)(2)",
+          "href": "detail.asp?CATE_CD=10101128",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "갈바륨칼라ㆍ슈퍼갈륨칼라강판(1)-1",
+          "href": "detail.asp?CATE_CD=10101103",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "갈바륨칼라ㆍ슈퍼갈륨칼라강판(1)-2",
+          "href": "detail.asp?CATE_CD=10101104",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "갈바륨칼라ㆍ슈퍼갈륨칼라강판(2)",
+          "href": "detail.asp?CATE_CD=10101105",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "석도강판",
+          "href": "detail.asp?CATE_CD=10101113",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "강관": [
+        {
+          "name": "구조용강관",
+          "href": "detail.asp?CATE_CD=10101402",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "구조용각관",
+          "href": "detail.asp?CATE_CD=10101411",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "특수강": [
+        {
+          "name": "구조용스테인리스관(1)",
+          "href": "detail.asp?CATE_CD=10101801",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "구조용스테인리스관(2)",
+          "href": "detail.asp?CATE_CD=10101802",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "구조용스테인리스관(3)",
+          "href": "detail.asp?CATE_CD=10101815",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스테인리스강판(1)",
+          "href": "detail.asp?CATE_CD=10101813",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스테인리스강판(2)",
+          "href": "detail.asp?CATE_CD=10101806",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스테인리스강판(3)-1",
+          "href": "detail.asp?CATE_CD=10101807",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스테인리스강판(3)-2",
+          "href": "detail.asp?CATE_CD=10101818",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스테인리스강판(4)-1",
+          "href": "detail.asp?CATE_CD=10101816",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스테인리스강판(4)-2",
+          "href": "detail.asp?CATE_CD=10101817",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스테인리스채널-H형강",
+          "href": "detail.asp?CATE_CD=10101820",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스테인리스앵글",
+          "href": "detail.asp?CATE_CD=10101808",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스테인리스환봉",
+          "href": "detail.asp?CATE_CD=10101821",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스테인리스와이어로프",
+          "href": "detail.asp?CATE_CD=10101809",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "주철품ㆍ주강품",
+          "href": "detail.asp?CATE_CD=10101810",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "특수강",
+          "href": "detail.asp?CATE_CD=10101811",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "선재제품": [
+        {
+          "name": "Wire Tension 보강용부속자재",
+          "href": "detail.asp?CATE_CD=10102607",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "그라운드앵커체(1)",
+          "href": "detail.asp?CATE_CD=10102612",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "그라운드앵커체(2)",
+          "href": "detail.asp?CATE_CD=10102611",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "타이케이블 및 압축ㆍ지압형영구앵커(1)",
+          "href": "detail.asp?CATE_CD=10102608",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "타이케이블 및 압축ㆍ지압형영구앵커(2)",
+          "href": "detail.asp?CATE_CD=10102606",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "타이케이블 및 압축ㆍ지압형영구앵커(3)",
+          "href": "detail.asp?CATE_CD=10102609",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "철선",
+          "href": "detail.asp?CATE_CD=10102604",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "와이어로프",
+          "href": "detail.asp?CATE_CD=10102614",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "철못ㆍ콘크리트못",
+          "href": "detail.asp?CATE_CD=10102603",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "강선",
+          "href": "detail.asp?CATE_CD=10102601",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "철망": [
+        {
+          "name": "메탈라스",
+          "href": "detail.asp?CATE_CD=10104107",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "익스펜디드메탈",
+          "href": "detail.asp?CATE_CD=10104104",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "용접철망",
+          "href": "detail.asp?CATE_CD=10104109",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스테인리스망",
+          "href": "detail.asp?CATE_CD=10104102",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "각종철망",
+          "href": "detail.asp?CATE_CD=10104101",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "볼트ㆍ너트": [
+        {
+          "name": "너트",
+          "href": "detail.asp?CATE_CD=10103355",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "접시머리렌지볼트",
+          "href": "detail.asp?CATE_CD=10103356",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "직결나사ㆍ집섬스크류",
+          "href": "detail.asp?CATE_CD=10103330",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "TS 볼트",
+          "href": "detail.asp?CATE_CD=10103359",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "보통6각볼트",
+          "href": "detail.asp?CATE_CD=10103310",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스테인리스6각볼트-1",
+          "href": "detail.asp?CATE_CD=10103314",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스테인리스6각볼트-2",
+          "href": "detail.asp?CATE_CD=10103315",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콜라6각볼트(Gr 10.9)-1",
+          "href": "detail.asp?CATE_CD=10103301",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콜라6각볼트(Gr 10.9)-2",
+          "href": "detail.asp?CATE_CD=10103302",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콜라너트",
+          "href": "detail.asp?CATE_CD=10103348",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아이볼트",
+          "href": "detail.asp?CATE_CD=10103353",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아이너트",
+          "href": "detail.asp?CATE_CD=10103354",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "황동 육각 캡너트",
+          "href": "detail.asp?CATE_CD=10103370",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "전산볼트",
+          "href": "detail.asp?CATE_CD=10103328",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "와셔",
+          "href": "detail.asp?CATE_CD=10103324",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스터드볼트(B7)-1",
+          "href": "detail.asp?CATE_CD=10103347",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스터드볼트(B7)-2",
+          "href": "detail.asp?CATE_CD=10103350",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토글볼트",
+          "href": "detail.asp?CATE_CD=10103372",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "유두렌지볼트(SCM435)",
+          "href": "detail.asp?CATE_CD=10103363",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "유두렌지볼트(STS304)",
+          "href": "detail.asp?CATE_CD=10103362",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "U볼트",
+          "href": "detail.asp?CATE_CD=10103364",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "절연U볼트",
+          "href": "detail.asp?CATE_CD=10103329",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "무두(無頭)렌지볼트(SCM 435)",
+          "href": "detail.asp?CATE_CD=10103308",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "리베트",
+          "href": "detail.asp?CATE_CD=10103307",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "철탑용 용융아연도금볼트-1",
+          "href": "detail.asp?CATE_CD=10103349",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "철탑용 용융아연도금볼트-2",
+          "href": "detail.asp?CATE_CD=10103351",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "철탑용 용융아연도금볼트-3",
+          "href": "detail.asp?CATE_CD=10103352",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스테인리스작은나사",
+          "href": "detail.asp?CATE_CD=10103316",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "황동작은나사",
+          "href": "detail.asp?CATE_CD=10103331",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "십자작은나사(일반용ㆍ철판용)",
+          "href": "detail.asp?CATE_CD=10103317",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "앵커볼트(1)",
+          "href": "detail.asp?CATE_CD=10103319",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "앵커볼트(2)",
+          "href": "detail.asp?CATE_CD=10103320",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "앵커볼트(3)",
+          "href": "detail.asp?CATE_CD=10103338",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "앵커볼트(4)",
+          "href": "detail.asp?CATE_CD=10103334",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "앵커볼트 Box (와인딩 파이프)",
+          "href": "detail.asp?CATE_CD=10103371",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "풀림방지너트",
+          "href": "detail.asp?CATE_CD=10103366",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "비철금속": [
+        {
+          "name": "동제품(1)",
+          "href": "detail.asp?CATE_CD=10104601",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "동제품(2)",
+          "href": "detail.asp?CATE_CD=10104612",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "알루미늄제품(1)",
+          "href": "detail.asp?CATE_CD=10104603",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "알루미늄제품(2)",
+          "href": "detail.asp?CATE_CD=10104604",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "비철지금(非鐵地金)",
+          "href": "detail.asp?CATE_CD=10104602",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "연(납)제품(鉛製品)",
+          "href": "detail.asp?CATE_CD=10104606",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "골재": [
+        {
+          "name": "슬래그파쇄골재",
+          "href": "detail.asp?CATE_CD=10105102",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "자갈ㆍ모래(1)-1",
+          "href": "detail.asp?CATE_CD=10105105",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "자갈ㆍ모래(1)-2",
+          "href": "detail.asp?CATE_CD=10105107",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "자갈ㆍ모래(1)-3",
+          "href": "detail.asp?CATE_CD=10105104",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "자갈ㆍ모래(2)-1",
+          "href": "detail.asp?CATE_CD=10105108",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "자갈ㆍ모래(2)-2",
+          "href": "detail.asp?CATE_CD=10105109",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "자갈ㆍ모래(2)-3",
+          "href": "detail.asp?CATE_CD=10105106",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "자갈ㆍ모래(3)-1",
+          "href": "detail.asp?CATE_CD=10105112",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "자갈ㆍ모래(3)-2",
+          "href": "detail.asp?CATE_CD=10105114",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "시멘트ㆍ콘크리트": [
+        {
+          "name": "레미콘-1",
+          "href": "detail.asp?CATE_CD=10105502",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "레미콘-2",
+          "href": "detail.asp?CATE_CD=10105503",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "시멘트-1",
+          "href": "detail.asp?CATE_CD=10105507",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "시멘트-2",
+          "href": "detail.asp?CATE_CD=10105508",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "시멘트-3",
+          "href": "detail.asp?CATE_CD=10105509",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "시멘트-4",
+          "href": "detail.asp?CATE_CD=10105510",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "방수·방청시멘트",
+          "href": "detail.asp?CATE_CD=10105516",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "특수레미콘",
+          "href": "detail.asp?CATE_CD=10105511",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "모르터-1",
+          "href": "detail.asp?CATE_CD=10105504",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "모르터-2",
+          "href": "detail.asp?CATE_CD=10105505",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "특수시멘트ㆍ타일시멘트(1)",
+          "href": "detail.asp?CATE_CD=10105513",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "특수시멘트ㆍ타일시멘트(2)",
+          "href": "detail.asp?CATE_CD=10105512",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "특수시멘트ㆍ타일시멘트(3)",
+          "href": "detail.asp?CATE_CD=10105515",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "드라이모르터(1)",
+          "href": "detail.asp?CATE_CD=10105501",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "드라이모르터(2)",
+          "href": "detail.asp?CATE_CD=10105514",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "콘크리트혼화재": [
+        {
+          "name": "콘크리트혼화재(1)",
+          "href": "detail.asp?CATE_CD=10105906",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트혼화재(2)",
+          "href": "detail.asp?CATE_CD=10105902",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트혼화재(3)",
+          "href": "detail.asp?CATE_CD=10105903",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트혼화재(4)",
+          "href": "detail.asp?CATE_CD=10105904",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "콘크리트보강재": [
+        {
+          "name": "콘크리트 포장 보수 보강재",
+          "href": "detail.asp?CATE_CD=10106911",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트보강재(1)",
+          "href": "detail.asp?CATE_CD=10106912",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트보강재(2)",
+          "href": "detail.asp?CATE_CD=10106906",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트보강재(3)",
+          "href": "detail.asp?CATE_CD=10106903",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트보강재(4)",
+          "href": "detail.asp?CATE_CD=10106904",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트보강재(5)",
+          "href": "detail.asp?CATE_CD=10106907",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트보강재(6)",
+          "href": "detail.asp?CATE_CD=10106908",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트보강재(7)",
+          "href": "detail.asp?CATE_CD=10106915",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트보강재(8)",
+          "href": "detail.asp?CATE_CD=10106916",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트보강재(9)",
+          "href": "detail.asp?CATE_CD=10106914",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트강섬유",
+          "href": "detail.asp?CATE_CD=10106901",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트보강섬유(친수성섬유)",
+          "href": "detail.asp?CATE_CD=10106909",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "우각부보강공법(cornerSAFE)",
+          "href": "detail.asp?CATE_CD=10106913",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "목재": [
+        {
+          "name": "합성목재(1)",
+          "href": "detail.asp?CATE_CD=10107308",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "합성목재(2)",
+          "href": "detail.asp?CATE_CD=10107313",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "합성목재(3)",
+          "href": "detail.asp?CATE_CD=10107311",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "합성목재(4)",
+          "href": "detail.asp?CATE_CD=10107325",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "천연목재",
+          "href": "detail.asp?CATE_CD=10107334",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "국산목재",
+          "href": "detail.asp?CATE_CD=10107301",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "공학목재",
+          "href": "detail.asp?CATE_CD=10107338",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "방부목",
+          "href": "detail.asp?CATE_CD=10107309",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "방부방충제\t",
+          "href": "detail.asp?CATE_CD=10107332",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "천연생물막제거제",
+          "href": "detail.asp?CATE_CD=10107333",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "원목",
+          "href": "detail.asp?CATE_CD=10107314",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "제재목(1)",
+          "href": "detail.asp?CATE_CD=10107331",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "제재목(각재)(2)-1",
+          "href": "detail.asp?CATE_CD=10107304",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "제재목(각재)(2)-2",
+          "href": "detail.asp?CATE_CD=10107305",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "제재목(판재)(3)-1",
+          "href": "detail.asp?CATE_CD=10107306",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "제재목(판재)(3)-2",
+          "href": "detail.asp?CATE_CD=10107307",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "가설자재": [
+        {
+          "name": "PDF (더블 프레임) 패널",
+          "href": "detail.asp?CATE_CD=10107753",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "PE구조용부재",
+          "href": "detail.asp?CATE_CD=10107752",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "공중 비계설치 및 피난대피 통로 출입문",
+          "href": "detail.asp?CATE_CD=10107761",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "측구복개용비탈형영구거푸집(GRC제)",
+          "href": "detail.asp?CATE_CD=10107746",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "복공판 및 안전발판(1)",
+          "href": "detail.asp?CATE_CD=10107713",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "복공판 및 안전발판(2)",
+          "href": "detail.asp?CATE_CD=10107748",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "레벨봉",
+          "href": "detail.asp?CATE_CD=10107709",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "유로폼",
+          "href": "detail.asp?CATE_CD=10107724",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "복공판",
+          "href": "detail.asp?CATE_CD=10107759",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "강관비계",
+          "href": "detail.asp?CATE_CD=10107701",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "강관써포트",
+          "href": "detail.asp?CATE_CD=10107703",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조립식틀비계(이동식틀비계)",
+          "href": "detail.asp?CATE_CD=10107727",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "컬러문양거푸집",
+          "href": "detail.asp?CATE_CD=10107744",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스크류잭·회전조인트",
+          "href": "detail.asp?CATE_CD=10107715",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "잭써포트",
+          "href": "detail.asp?CATE_CD=10107754",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "PHP도류벽.정류벽.간벽",
+          "href": "detail.asp?CATE_CD=10107757",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "선행하중잭",
+          "href": "detail.asp?CATE_CD=10107755",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "천막": [
+        {
+          "name": "천막지",
+          "href": "detail.asp?CATE_CD=10108204",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "대형텐트(임대)",
+          "href": "detail.asp?CATE_CD=10108210",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "파라솔",
+          "href": "detail.asp?CATE_CD=10108209",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "안전시설물": [
+        {
+          "name": "섬유로프",
+          "href": "detail.asp?CATE_CD=10108302",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스마트로프",
+          "href": "detail.asp?CATE_CD=10108309",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "관로시공원형안전사다리",
+          "href": "detail.asp?CATE_CD=10108314",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "고소용안전펜스",
+          "href": "detail.asp?CATE_CD=10108311",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "박락방지망 및 조류방지망",
+          "href": "detail.asp?CATE_CD=10108315",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "건설안전망",
+          "href": "detail.asp?CATE_CD=10108301",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ]
+    },
+    "토목자재": {
+      "토목용블록": [
+        {
+          "name": "토목용콘크리트블록(1)",
+          "href": "detail.asp?CATE_CD=10150108",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토목용콘크리트블록(2)",
+          "href": "detail.asp?CATE_CD=10150113",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "식생옹벽 및 블록(1)",
+          "href": "detail.asp?CATE_CD=10150137",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "식생옹벽 및 블록(2)",
+          "href": "detail.asp?CATE_CD=10150104",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "생태구조물(1)",
+          "href": "detail.asp?CATE_CD=10150115",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "생태구조물(2)",
+          "href": "detail.asp?CATE_CD=10150116",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "생태구조물(3)",
+          "href": "detail.asp?CATE_CD=10150118",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "친환경콘크리트제품",
+          "href": "detail.asp?CATE_CD=10150125",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토목용블록",
+          "href": "detail.asp?CATE_CD=10150107",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "토목용옹벽": [
+        {
+          "name": "산벽(친환경자연생태옹벽)",
+          "href": "detail.asp?CATE_CD=10159456",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "구조보강옹벽",
+          "href": "detail.asp?CATE_CD=10159401",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "친환경식생토낭옹벽시스템",
+          "href": "detail.asp?CATE_CD=10159445",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "프리캐스트옹벽(PC옹벽)",
+          "href": "detail.asp?CATE_CD=10159452",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "SAP옹벽",
+          "href": "detail.asp?CATE_CD=10159433",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "보강토조립식옹벽시스템",
+          "href": "detail.asp?CATE_CD=10159404",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "비탈면보강옹벽",
+          "href": "detail.asp?CATE_CD=10159467",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "블록식보강토옹벽시스템(1)-1",
+          "href": "detail.asp?CATE_CD=10159412",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "블록식보강토옹벽시스템(1)-2",
+          "href": "detail.asp?CATE_CD=10159426",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "블록식보강토옹벽시스템(2)-1",
+          "href": "detail.asp?CATE_CD=10159414",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "블록식보강토옹벽시스템(2)-2",
+          "href": "detail.asp?CATE_CD=10159424",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "블록식보강토옹벽시스템(3)",
+          "href": "detail.asp?CATE_CD=10159421",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "블록식보강토옹벽시스템(4)",
+          "href": "detail.asp?CATE_CD=10159429",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "옹벽블록(보강토) 및 호안블록",
+          "href": "detail.asp?CATE_CD=10159465",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트 호안 및 옹벽블록 / 디자인블록",
+          "href": "detail.asp?CATE_CD=10159469",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "경관옹벽블록(보강토)(1)",
+          "href": "detail.asp?CATE_CD=10159470",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "경관옹벽블록(보강토)(2)",
+          "href": "detail.asp?CATE_CD=10159442",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "토양안정재": [
+        {
+          "name": "토목섬유(1)",
+          "href": "detail.asp?CATE_CD=10150503",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토목섬유(2)",
+          "href": "detail.asp?CATE_CD=10150513",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토목섬유(3)",
+          "href": "detail.asp?CATE_CD=10150522",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토목섬유(4)-1",
+          "href": "detail.asp?CATE_CD=10150506",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토목섬유(4)-2",
+          "href": "detail.asp?CATE_CD=10150518",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토목섬유(5)",
+          "href": "detail.asp?CATE_CD=10150509",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토목섬유(6)",
+          "href": "detail.asp?CATE_CD=10150524",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "벤토나이트",
+          "href": "detail.asp?CATE_CD=10150515",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "침하구조물복원 및 지내력보강재",
+          "href": "detail.asp?CATE_CD=10150519",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토양응고경화제",
+          "href": "detail.asp?CATE_CD=10150505",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "먼지억제제",
+          "href": "detail.asp?CATE_CD=10150504",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "지수판": [
+        {
+          "name": "강재토류판",
+          "href": "detail.asp?CATE_CD=10151110",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "지수판",
+          "href": "detail.asp?CATE_CD=10151102",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "배수판": [
+        {
+          "name": "차수판(1)",
+          "href": "detail.asp?CATE_CD=10151403",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "차수판(2)",
+          "href": "detail.asp?CATE_CD=10151404",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "배수판",
+          "href": "detail.asp?CATE_CD=10151405",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "배수관": [
+        {
+          "name": "사면방호공",
+          "href": "detail.asp?CATE_CD=10151502",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "다발관(맹암거배수관ㆍ이형집속관)(1)",
+          "href": "detail.asp?CATE_CD=10151501",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "다발관(맹암거배수관ㆍ이형집속관)(2)",
+          "href": "detail.asp?CATE_CD=10151510",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스파이럴 심덕트(연속배수시설·터널종배수관)",
+          "href": "detail.asp?CATE_CD=10151530",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "유공관(1)-1",
+          "href": "detail.asp?CATE_CD=10151512",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "유공관(1)-2",
+          "href": "detail.asp?CATE_CD=10151513",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "유공관(1)-3",
+          "href": "detail.asp?CATE_CD=10151514",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "유공관(1)-4",
+          "href": "detail.asp?CATE_CD=10151515",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "유공관(1)-5",
+          "href": "detail.asp?CATE_CD=10151516",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "유공관(1)-6",
+          "href": "detail.asp?CATE_CD=10151517",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "유공관(2)-1",
+          "href": "detail.asp?CATE_CD=10151518",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "유공관(2)-2",
+          "href": "detail.asp?CATE_CD=10151528",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "유공관(2)-3",
+          "href": "detail.asp?CATE_CD=10151520",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "유공관(2)-4",
+          "href": "detail.asp?CATE_CD=10151519",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "유공관(2)-5",
+          "href": "detail.asp?CATE_CD=10151521",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "드레인벨트·드레인파이프",
+          "href": "detail.asp?CATE_CD=10151531",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "물 순환 배수시스템",
+          "href": "detail.asp?CATE_CD=10151529",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "파일류": [
+        {
+          "name": "화타쐐기ㆍ보강잭",
+          "href": "detail.asp?CATE_CD=10151813",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스크류파일",
+          "href": "detail.asp?CATE_CD=10151867",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "고강도콘크리트파일(PHC-A종)(1)",
+          "href": "detail.asp?CATE_CD=10151804",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "고강도콘크리트파일(PHC-B, C종)(2)",
+          "href": "detail.asp?CATE_CD=10151805",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "강관·PHC파일안전캡·철근안전캡",
+          "href": "detail.asp?CATE_CD=10151854",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "PHC 두부보강자재 ",
+          "href": "detail.asp?CATE_CD=10151855",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "PHC파일캡(막음판)",
+          "href": "detail.asp?CATE_CD=10151853",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "PHC파일볼트식조인트",
+          "href": "detail.asp?CATE_CD=10151842",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "선단확장 PHC말뚝(Ext-PHC pile)",
+          "href": "detail.asp?CATE_CD=10151864",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "에코스파이럴",
+          "href": "detail.asp?CATE_CD=10151869",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "PHC파일 두부보강캡(하부판 스틸제품)",
+          "href": "detail.asp?CATE_CD=10151871",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "PHC파일 두부보강캡(하부판 P.E제품)",
+          "href": "detail.asp?CATE_CD=10151872",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "강관, PHC파일 안전캡(안전용품)스틸제품 ",
+          "href": "detail.asp?CATE_CD=10151873",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": " e-콘주벽체말뚝",
+          "href": "detail.asp?CATE_CD=10151831",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "강관파일(1)",
+          "href": "detail.asp?CATE_CD=10151802",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "강관파일(2)",
+          "href": "detail.asp?CATE_CD=10151820",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "강관해양말뚝(폴리우레탄도장)",
+          "href": "detail.asp?CATE_CD=10151850",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "복합말뚝(SCP)",
+          "href": "detail.asp?CATE_CD=10151845",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "강관말뚝두부보강",
+          "href": "detail.asp?CATE_CD=10151849",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "강관말뚝(이방형 유무기 분체도장)",
+          "href": "detail.asp?CATE_CD=10151870",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "복합말뚝(HCP)",
+          "href": "detail.asp?CATE_CD=10151858",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "MSTRUT(고강도강관버팀보)",
+          "href": "detail.asp?CATE_CD=10151801",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "선단확장형(HD-R) 및 선단쐐기형(HD) 특수 고하중 PHC 말뚝",
+          "href": "detail.asp?CATE_CD=10151837",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "선단확장형 PHC 말뚝(Ext) 및 초고강도 PHC 말뚝(HC-R)",
+          "href": "detail.asp?CATE_CD=10151866",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "SAP(Screw Anchor Pile)",
+          "href": "detail.asp?CATE_CD=10151827",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "Z형&광폭U형시트파일(냉간성형강널말뚝)",
+          "href": "detail.asp?CATE_CD=10151816",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "U형시트파일(열간압연강널말뚝)",
+          "href": "detail.asp?CATE_CD=10151815",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "다동심/다축 기초 파일",
+          "href": "detail.asp?CATE_CD=10151868",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "흙막이 가시설 CIP용 웨지(띠장홈메우기)",
+          "href": "detail.asp?CATE_CD=10151874",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "흙막이 가시설 Sheet Pile용 웨지(띠장홈메우기)",
+          "href": "detail.asp?CATE_CD=10151875",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "교량ㆍ하천ㆍ항만재": [
+        {
+          "name": "교량용품(1)",
+          "href": "detail.asp?CATE_CD=10152551",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량용품(2)-1",
+          "href": "detail.asp?CATE_CD=10152542",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량용품(2)-2",
+          "href": "detail.asp?CATE_CD=10152508",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량용품(3)-1",
+          "href": "detail.asp?CATE_CD=10152599",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량용품(3)-2",
+          "href": "detail.asp?CATE_CD=10152545",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량용품(4)",
+          "href": "detail.asp?CATE_CD=10152581",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량용품(5)",
+          "href": "detail.asp?CATE_CD=101525gr",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량용품(6)",
+          "href": "detail.asp?CATE_CD=10152560",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량용품(7)",
+          "href": "detail.asp?CATE_CD=101525z2",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량용품(8)",
+          "href": "detail.asp?CATE_CD=10152559",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량용품(9)",
+          "href": "detail.asp?CATE_CD=101525b2",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량용품(10)",
+          "href": "detail.asp?CATE_CD=101525fi",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "부유식해상구조물",
+          "href": "detail.asp?CATE_CD=101525z6",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "철도용품",
+          "href": "detail.asp?CATE_CD=101525b3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토목차수재",
+          "href": "detail.asp?CATE_CD=101525a9",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "PE부잔교(해상부유구조물)",
+          "href": "detail.asp?CATE_CD=101525sw",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "해양양식시설물",
+          "href": "detail.asp?CATE_CD=10152530",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로 및 하천 친환경 방재시스템",
+          "href": "detail.asp?CATE_CD=10152515",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "관보호블럭",
+          "href": "detail.asp?CATE_CD=1015259t",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "천해역 마을어장 자원조성장치",
+          "href": "detail.asp?CATE_CD=101525ul",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "하이브리드 섬유보강튜브",
+          "href": "detail.asp?CATE_CD=101525hj",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량용콘크리트프리캐스트패널",
+          "href": "detail.asp?CATE_CD=10152583",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "완제품돌망태블록",
+          "href": "detail.asp?CATE_CD=101525a3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "돌망태(1)",
+          "href": "detail.asp?CATE_CD=10152516",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "돌망태(2)",
+          "href": "detail.asp?CATE_CD=10152517",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "돌망태(3)",
+          "href": "detail.asp?CATE_CD=10152564",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "돌망태(4)",
+          "href": "detail.asp?CATE_CD=101525a7",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "친환경시설물",
+          "href": "detail.asp?CATE_CD=10152525",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "항만용고무방충재(1)-1",
+          "href": "detail.asp?CATE_CD=10152526",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "항만용고무방충재(1)-2",
+          "href": "detail.asp?CATE_CD=101525z4",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "항만용고무방충재(2)",
+          "href": "detail.asp?CATE_CD=101525c2",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수문(1)",
+          "href": "detail.asp?CATE_CD=101525x2",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수문(2)",
+          "href": "detail.asp?CATE_CD=101525yk",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수문(3)",
+          "href": "detail.asp?CATE_CD=10152591",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수문(4)",
+          "href": "detail.asp?CATE_CD=10152535",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수문(5)",
+          "href": "detail.asp?CATE_CD=10152536",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수문(6)",
+          "href": "detail.asp?CATE_CD=1015259r",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수문(7)",
+          "href": "detail.asp?CATE_CD=101525b0",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량유지관리점검대(1)",
+          "href": "detail.asp?CATE_CD=10152543",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량유지관리점검대(2)",
+          "href": "detail.asp?CATE_CD=10152513",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량유지관리점검대(3)",
+          "href": "detail.asp?CATE_CD=101525a6",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량배수시설(1)",
+          "href": "detail.asp?CATE_CD=10152565",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량배수시설(2)",
+          "href": "detail.asp?CATE_CD=10152588",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량배수시설(3)",
+          "href": "detail.asp?CATE_CD=10152504",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량배수시설(4)",
+          "href": "detail.asp?CATE_CD=10152570",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량배수시설(5)",
+          "href": "detail.asp?CATE_CD=101525qr",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "교량배수시설(6)",
+          "href": "detail.asp?CATE_CD=101525nk",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "발파재": [
+        {
+          "name": "산업용화약",
+          "href": "detail.asp?CATE_CD=10153004",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "도로포장재": [
+        {
+          "name": "친환경 맨발걷기 신소재",
+          "href": "detail.asp?CATE_CD=10153368",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "사락사락 K-보습 친환경 맨발 산책로",
+          "href": "detail.asp?CATE_CD=10153362",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아스팔트(1)",
+          "href": "detail.asp?CATE_CD=10153308",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아스팔트(2)",
+          "href": "detail.asp?CATE_CD=10153356",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아스팔트콘크리트(1)",
+          "href": "detail.asp?CATE_CD=10153365",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아스팔트콘크리트(2)",
+          "href": "detail.asp?CATE_CD=10153323",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아스팔트콘크리트(3)",
+          "href": "detail.asp?CATE_CD=10153359",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아스팔트콘크리트(4)",
+          "href": "detail.asp?CATE_CD=10153326",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아스팔트콘크리트(5)",
+          "href": "detail.asp?CATE_CD=10153322",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아스팔트콘크리트(6)",
+          "href": "detail.asp?CATE_CD=10153309",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아스팔트콘크리트(7)",
+          "href": "detail.asp?CATE_CD=10153330",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아스팔트콘크리트(8)",
+          "href": "detail.asp?CATE_CD=10153333",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "아스팔트콘크리트(9)",
+          "href": "detail.asp?CATE_CD=10153321",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "하이브리드 투수콘",
+          "href": "detail.asp?CATE_CD=10153366",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "투수성콘크리트도로포장재(1)",
+          "href": "detail.asp?CATE_CD=10153357",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "투수성콘크리트도로포장재(2)",
+          "href": "detail.asp?CATE_CD=10153324",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "투수성콘크리트도로포장재(3)",
+          "href": "detail.asp?CATE_CD=10153334",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "투수성콘크리트도로포장재(4)",
+          "href": "detail.asp?CATE_CD=10153361",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "흙포장재(1)",
+          "href": "detail.asp?CATE_CD=10153346",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "흙포장재(2)",
+          "href": "detail.asp?CATE_CD=10153363",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "박층포장재",
+          "href": "detail.asp?CATE_CD=10153304",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "신축이음채움재",
+          "href": "detail.asp?CATE_CD=10153307",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "칼라무늬콘크리트",
+          "href": "detail.asp?CATE_CD=10153339",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로포장용보수재(1)",
+          "href": "detail.asp?CATE_CD=10153341",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로포장용보수재(2)",
+          "href": "detail.asp?CATE_CD=10153302",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로포장용보수재(3)",
+          "href": "detail.asp?CATE_CD=10153369",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "코르크포장재",
+          "href": "detail.asp?CATE_CD=10153364",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "경계블록": [
+        {
+          "name": "인조화강석경계블록",
+          "href": "detail.asp?CATE_CD=10153608",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트경계블록(1)",
+          "href": "detail.asp?CATE_CD=10153612",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트경계블록(2)",
+          "href": "detail.asp?CATE_CD=10153632",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "컬러 디자인 콘크리트 경계블록",
+          "href": "detail.asp?CATE_CD=10153642",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "자연석경계석(화강석)(1)",
+          "href": "detail.asp?CATE_CD=10153623",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "자연석경계석(화강석)(2)",
+          "href": "detail.asp?CATE_CD=10153624",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "인조현무암경계ㆍ보차도블록",
+          "href": "detail.asp?CATE_CD=10153626",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "포장용블록": [
+        {
+          "name": "포장용블록",
+          "href": "detail.asp?CATE_CD=10153848",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "디자인보차도용블록-1",
+          "href": "detail.asp?CATE_CD=10153836",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "디자인보차도용블록-2",
+          "href": "detail.asp?CATE_CD=10153838",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "보차도용특수조립블록(1)",
+          "href": "detail.asp?CATE_CD=10153846",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "보차도용특수조립블록(2)",
+          "href": "detail.asp?CATE_CD=10153854",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "보차도용싸인블록",
+          "href": "detail.asp?CATE_CD=10153845",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "보차도용콘크리트조립블록(1)",
+          "href": "detail.asp?CATE_CD=10153826",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "보차도용콘크리트조립블록(2)",
+          "href": "detail.asp?CATE_CD=10153855",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "보차도용콘크리트조립블록(3)",
+          "href": "detail.asp?CATE_CD=10153831",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "보차도용콘크리트조립블록(4)",
+          "href": "detail.asp?CATE_CD=10153821",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "보차도용콘크리트조립블록(5)",
+          "href": "detail.asp?CATE_CD=10153852",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "보차도용점토블록",
+          "href": "detail.asp?CATE_CD=10153808",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "자연석판석(보차도용)",
+          "href": "detail.asp?CATE_CD=10153844",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "보차도용점자블록",
+          "href": "detail.asp?CATE_CD=10153807",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "PE구조물": [
+        {
+          "name": "토목용PE 및 소형구조물",
+          "href": "detail.asp?CATE_CD=10154503",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "유량조절용 우수토실",
+          "href": "detail.asp?CATE_CD=10154505",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "맨홀": [
+        {
+          "name": "맨홀보수ㆍ관리재(1)",
+          "href": "detail.asp?CATE_CD=10154843",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "맨홀보수ㆍ관리재(2)",
+          "href": "detail.asp?CATE_CD=10154803",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "안전사각맨홀덮개",
+          "href": "detail.asp?CATE_CD=10154836",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조립식맨홀(1)",
+          "href": "detail.asp?CATE_CD=10154806",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조립식맨홀(2)",
+          "href": "detail.asp?CATE_CD=10154850",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "맨홀(1)",
+          "href": "detail.asp?CATE_CD=10154842",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "맨홀(2)",
+          "href": "detail.asp?CATE_CD=10154825",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "맨홀(3)",
+          "href": "detail.asp?CATE_CD=10154848",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "맨홀(4)",
+          "href": "detail.asp?CATE_CD=10154846",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "맨홀(5)",
+          "href": "detail.asp?CATE_CD=10154847",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "맨홀(6)",
+          "href": "detail.asp?CATE_CD=10154849",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "맨홀(7)",
+          "href": "detail.asp?CATE_CD=10154809",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "맨홀(8)-1",
+          "href": "detail.asp?CATE_CD=10154838",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "맨홀(8)-2",
+          "href": "detail.asp?CATE_CD=10154851",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "맨홀(9)",
+          "href": "detail.asp?CATE_CD=10154844",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "맨홀(10)",
+          "href": "detail.asp?CATE_CD=10154823",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "맨홀(11)",
+          "href": "detail.asp?CATE_CD=10154814",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "맨홀(12)",
+          "href": "detail.asp?CATE_CD=10154828",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "레진(PRC)맨홀",
+          "href": "detail.asp?CATE_CD=10154833",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "레진(PRC)펌프맨홀",
+          "href": "detail.asp?CATE_CD=10154837",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "그레이팅": [
+        {
+          "name": "스틸그레이팅(1)",
+          "href": "detail.asp?CATE_CD=10155140",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스틸그레이팅(2)",
+          "href": "detail.asp?CATE_CD=10155110",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스틸그레이팅(3)",
+          "href": "detail.asp?CATE_CD=10155132",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스틸그레이팅(4)",
+          "href": "detail.asp?CATE_CD=10155112",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "스틸그레이팅(5)",
+          "href": "detail.asp?CATE_CD=10155141",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "무소음, 중하중 그레이팅",
+          "href": "detail.asp?CATE_CD=10155108",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "오물 및 악취 방지 투수그레이팅",
+          "href": "detail.asp?CATE_CD=10155139",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "디자인그레이팅-1",
+          "href": "detail.asp?CATE_CD=10155130",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "디자인그레이팅-2",
+          "href": "detail.asp?CATE_CD=10155127",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "도로시설물": [
+        {
+          "name": "도로안전시설용품",
+          "href": "detail.asp?CATE_CD=101554j3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지용품(1)",
+          "href": "detail.asp?CATE_CD=10155428",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지용품(2)",
+          "href": "detail.asp?CATE_CD=10155499",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지용품(3)",
+          "href": "detail.asp?CATE_CD=101554z5",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지용품(4)",
+          "href": "detail.asp?CATE_CD=101554cv",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지용품(5) ",
+          "href": "detail.asp?CATE_CD=101554l2",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지용품(6)",
+          "href": "detail.asp?CATE_CD=1015549o",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지용품(7)",
+          "href": "detail.asp?CATE_CD=101554e3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지용품(8)",
+          "href": "detail.asp?CATE_CD=10155412",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지용품(9)",
+          "href": "detail.asp?CATE_CD=10155415",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지용품(10)",
+          "href": "detail.asp?CATE_CD=10155461",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지용품(11)",
+          "href": "detail.asp?CATE_CD=10155469",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지용품(12)",
+          "href": "detail.asp?CATE_CD=10155449",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지용품(13)",
+          "href": "detail.asp?CATE_CD=10155413",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지용품(14)",
+          "href": "detail.asp?CATE_CD=101554c3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전분리대",
+          "href": "detail.asp?CATE_CD=10155403",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "시선유도시설물(1)",
+          "href": "detail.asp?CATE_CD=101554b1",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "시선유도시설물(2)",
+          "href": "detail.asp?CATE_CD=10155479",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "시선유도시설물(3)",
+          "href": "detail.asp?CATE_CD=101554a8",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "시선유도시설물(4)",
+          "href": "detail.asp?CATE_CD=10155419",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "시선유도시설물(5)",
+          "href": "detail.asp?CATE_CD=10155420",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "현수막게시대(1)",
+          "href": "detail.asp?CATE_CD=10155430",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "현수막게시대(2)",
+          "href": "detail.asp?CATE_CD=10155448",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "횡단보도안전등",
+          "href": "detail.asp?CATE_CD=10155408",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "충격흡수시설물(1)",
+          "href": "detail.asp?CATE_CD=10155407",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "충격흡수시설물(2)",
+          "href": "detail.asp?CATE_CD=10155474",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "롤링베리어(차량방호울타리)",
+          "href": "detail.asp?CATE_CD=10155467",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "클린로드시스템",
+          "href": "detail.asp?CATE_CD=101554a9",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전방호책(1)",
+          "href": "detail.asp?CATE_CD=10155484",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전방호책(2)",
+          "href": "detail.asp?CATE_CD=10155459",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전방호책(3)",
+          "href": "detail.asp?CATE_CD=10155470",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전방호책(4)",
+          "href": "detail.asp?CATE_CD=10155472",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전방호책(5)",
+          "href": "detail.asp?CATE_CD=10155451",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전방호책(6)",
+          "href": "detail.asp?CATE_CD=10155423",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전방호책(7)",
+          "href": "detail.asp?CATE_CD=10155422",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전방호책(8)",
+          "href": "detail.asp?CATE_CD=101554n3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전방호책(9)",
+          "href": "detail.asp?CATE_CD=10155486",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전방호책(10)",
+          "href": "detail.asp?CATE_CD=101554k3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "흡수성순간마대",
+          "href": "detail.asp?CATE_CD=10155433",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "잡초 및 이물질 억제 커버",
+          "href": "detail.asp?CATE_CD=10155485",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "잡초성장억제시설",
+          "href": "detail.asp?CATE_CD=10155493",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "바닥형보행신호등(LED)",
+          "href": "detail.asp?CATE_CD=101554z3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지판(1)",
+          "href": "detail.asp?CATE_CD=10155477",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지판(2)",
+          "href": "detail.asp?CATE_CD=101554x3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지판(3)",
+          "href": "detail.asp?CATE_CD=101554y3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지판(4)",
+          "href": "detail.asp?CATE_CD=1015545q",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지판(5)",
+          "href": "detail.asp?CATE_CD=101554p3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지판(6)",
+          "href": "detail.asp?CATE_CD=101554u3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지판(7)",
+          "href": "detail.asp?CATE_CD=101554m3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지판(8)",
+          "href": "detail.asp?CATE_CD=10155427",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지판(9)-1",
+          "href": "detail.asp?CATE_CD=101554c1",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지판(9)-2",
+          "href": "detail.asp?CATE_CD=101554vk",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지판(10)",
+          "href": "detail.asp?CATE_CD=10155416",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지판(11)",
+          "href": "detail.asp?CATE_CD=10155418",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지판(12)",
+          "href": "detail.asp?CATE_CD=10155457",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로안전표지판(13)",
+          "href": "detail.asp?CATE_CD=101554z8",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "맨홀 안전표지판",
+          "href": "detail.asp?CATE_CD=101554h3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "미끄럼방지용품(1)",
+          "href": "detail.asp?CATE_CD=10155426",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "미끄럼방지용품(2)",
+          "href": "detail.asp?CATE_CD=10155446",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "주소정보시설물",
+          "href": "detail.asp?CATE_CD=101554y6",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "도로반사경",
+          "href": "detail.asp?CATE_CD=10155454",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "버스승강장",
+          "href": "detail.asp?CATE_CD=10155453",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "빗물침투시설": [
+        {
+          "name": "빗물침투저류시설",
+          "href": "detail.asp?CATE_CD=101595a1",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "배수집수저류침투시설",
+          "href": "detail.asp?CATE_CD=10159501",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "철근콘크리트관": [
+        {
+          "name": "원심력철근콘크리트관(흄관)-1",
+          "href": "detail.asp?CATE_CD=10155718",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "원심력철근콘크리트관(흄관)-2",
+          "href": "detail.asp?CATE_CD=10155701",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "하수도시험기구 및 접합용고무",
+          "href": "detail.asp?CATE_CD=10155710",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "PC관",
+          "href": "detail.asp?CATE_CD=10155712",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "원심력철근콘크리트추진관-1",
+          "href": "detail.asp?CATE_CD=10155705",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "원심력철근콘크리트추진관-2",
+          "href": "detail.asp?CATE_CD=10155723",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "진동전압철근콘크리트(V.R관)",
+          "href": "detail.asp?CATE_CD=10155702",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "난형철근콘크리트관",
+          "href": "detail.asp?CATE_CD=10155730",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "플륨관",
+          "href": "detail.asp?CATE_CD=10155708",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "플륨관뚜껑",
+          "href": "detail.asp?CATE_CD=10155709",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "SRS폴리에틸렌이음관(하수도분기관)",
+          "href": "detail.asp?CATE_CD=10155713",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "철근콘크리트수로관(1)",
+          "href": "detail.asp?CATE_CD=10155703",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "철근콘크리트수로관(2)",
+          "href": "detail.asp?CATE_CD=10155722",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "콘크리트 공동구 및 배수구뚜껑(일반형/컬러형)",
+          "href": "detail.asp?CATE_CD=10155726",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "수로관ㆍ기타관": [
+        {
+          "name": "레진관ㆍ레진난형관",
+          "href": "detail.asp?CATE_CD=10156073",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "레진추진관",
+          "href": "detail.asp?CATE_CD=10156003",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토목용조립식배수로",
+          "href": "detail.asp?CATE_CD=10156057",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "원형사각수로관",
+          "href": "detail.asp?CATE_CD=101560ml",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조립식PC암거(1)",
+          "href": "detail.asp?CATE_CD=101560er",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조립식PC암거(2)",
+          "href": "detail.asp?CATE_CD=10156051",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조립식PC암거(3)",
+          "href": "detail.asp?CATE_CD=10156018",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "폴리머U형배수로",
+          "href": "detail.asp?CATE_CD=10156074",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "폴리머 밸브실 / 상수맨홀",
+          "href": "detail.asp?CATE_CD=101560c5",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "빗물저류조",
+          "href": "detail.asp?CATE_CD=10156006",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "각형흄관(원심력BOX흄관)",
+          "href": "detail.asp?CATE_CD=10156001",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "복합소재구조물",
+          "href": "detail.asp?CATE_CD=101560a6",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "용배수로관",
+          "href": "detail.asp?CATE_CD=101560k1",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "측구수로관(1)",
+          "href": "detail.asp?CATE_CD=10156047",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "측구수로관(2)",
+          "href": "detail.asp?CATE_CD=10156048",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조립식개거수로",
+          "href": "detail.asp?CATE_CD=10156015",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "파형강판구조물(1)",
+          "href": "detail.asp?CATE_CD=101560j1",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "파형강판구조물(2)",
+          "href": "detail.asp?CATE_CD=10156083",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "PE내면/양면 피복파형강관",
+          "href": "detail.asp?CATE_CD=1015600l",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "CSP 파형강관",
+          "href": "detail.asp?CATE_CD=101560a2",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "파형강관(1RS)",
+          "href": "detail.asp?CATE_CD=101560e2",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "CF파형강관(연결자재포함)(1RS)",
+          "href": "detail.asp?CATE_CD=101560z6",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "내부평활 파형강관(1RS)",
+          "href": "detail.asp?CATE_CD=101560z2",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "초기처리장치(여과형)",
+          "href": "detail.asp?CATE_CD=101560f2",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "플랜지",
+          "href": "detail.asp?CATE_CD=101560g2",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "커플링밴드",
+          "href": "detail.asp?CATE_CD=101560h2",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "안장티",
+          "href": "detail.asp?CATE_CD=101560h3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "빗물재이용시설/우수유출저감시설",
+          "href": "detail.asp?CATE_CD=101560z3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "파형강관(3RS)",
+          "href": "detail.asp?CATE_CD=101560f3",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "CF파형강관(연결자재포함)(3RS)",
+          "href": "detail.asp?CATE_CD=101560z7",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "내부평활 파형강관(3RS)",
+          "href": "detail.asp?CATE_CD=101560h5",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "파형강관/CF파형강관(연결자재포함)/ 유공관(0RS)",
+          "href": "detail.asp?CATE_CD=101560h4",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "CF맨홀(점검구)",
+          "href": "detail.asp?CATE_CD=101560z4",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "엘보 / 접속티",
+          "href": "detail.asp?CATE_CD=101560z5",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "엘보-내부평활형 / 접속티-내부평활형",
+          "href": "detail.asp?CATE_CD=101560f5",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "SL 내부평활관 (양면,내면)",
+          "href": "detail.asp?CATE_CD=101560hq",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "고밀착성 피복 파형강관(양면, 내면)",
+          "href": "detail.asp?CATE_CD=1015600y",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수지파형강관(플랜지평활형 프로파일) 3LC-P",
+          "href": "detail.asp?CATE_CD=10156068",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수지파형강관(플랜지평활형 복합시트) RI3LC",
+          "href": "detail.asp?CATE_CD=101560pz",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ]
+    },
+    "조경자재": {
+      "수목": [
+        {
+          "name": "조경수(1)",
+          "href": "detail.asp?CATE_CD=10186518",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조경수(2)",
+          "href": "detail.asp?CATE_CD=10186528",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조경수(3)",
+          "href": "detail.asp?CATE_CD=10186529",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조경수(4)",
+          "href": "detail.asp?CATE_CD=10186530",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조경수(5)",
+          "href": "detail.asp?CATE_CD=10186531",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조경수(6)",
+          "href": "detail.asp?CATE_CD=10186524",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조경수(7)",
+          "href": "detail.asp?CATE_CD=10186532",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조경수(8)",
+          "href": "detail.asp?CATE_CD=10186533",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조경용지피식물ㆍ야생화(1)",
+          "href": "detail.asp?CATE_CD=10186511",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조경용지피식물ㆍ야생화(2)",
+          "href": "detail.asp?CATE_CD=10186521",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조경용지피식물ㆍ야생화(3)",
+          "href": "detail.asp?CATE_CD=10186510",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조경수ㆍ약용수(특수목)",
+          "href": "detail.asp?CATE_CD=10186522",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "산림종묘",
+          "href": "detail.asp?CATE_CD=10186501",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "조경석": [
+        {
+          "name": "조경석(1)",
+          "href": "detail.asp?CATE_CD=10186807",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조경석(2)",
+          "href": "detail.asp?CATE_CD=10186811",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조경석(3)",
+          "href": "detail.asp?CATE_CD=10186809",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "조경석(4)",
+          "href": "detail.asp?CATE_CD=10186810",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "잔디": [
+        {
+          "name": "천연잔디(1)",
+          "href": "detail.asp?CATE_CD=10187410",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "천연잔디(2)",
+          "href": "detail.asp?CATE_CD=10187407",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "인조잔디(1)",
+          "href": "detail.asp?CATE_CD=10187412",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "인조잔디(2)",
+          "href": "detail.asp?CATE_CD=10187405",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "인조잔디(3)",
+          "href": "detail.asp?CATE_CD=10187401",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "잔디보호매트",
+          "href": "detail.asp?CATE_CD=10187408",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "잔디블록",
+          "href": "detail.asp?CATE_CD=10187403",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "조경기기": [
+        {
+          "name": "조경기기",
+          "href": "detail.asp?CATE_CD=10187101",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ],
+      "식생용재": [
+        {
+          "name": "온실용재",
+          "href": "detail.asp?CATE_CD=10187729",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "종자",
+          "href": "detail.asp?CATE_CD=10187751",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수목보호자재(1)",
+          "href": "detail.asp?CATE_CD=10187764",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수목보호자재(2)",
+          "href": "detail.asp?CATE_CD=101877qi",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "농약(1)",
+          "href": "detail.asp?CATE_CD=10187702",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "농약(2)",
+          "href": "detail.asp?CATE_CD=10187779",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "법면녹화자재(1)",
+          "href": "detail.asp?CATE_CD=10187703",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "법면녹화자재(2)",
+          "href": "detail.asp?CATE_CD=10187792",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "법면녹화자재(3)",
+          "href": "detail.asp?CATE_CD=10187738",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "법면녹화자재(4)",
+          "href": "detail.asp?CATE_CD=10187739",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "법면녹화자재(5)-1",
+          "href": "detail.asp?CATE_CD=10187741",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "법면녹화자재(5)-2",
+          "href": "detail.asp?CATE_CD=10187704",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "법면녹화자재(6)",
+          "href": "detail.asp?CATE_CD=10187778",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "법면녹화자재(7)",
+          "href": "detail.asp?CATE_CD=10187752",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "생태복원용수질정화시스템",
+          "href": "detail.asp?CATE_CD=101877ui",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토양보습제ㆍ염분차단시트",
+          "href": "detail.asp?CATE_CD=10187732",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "공기정화 벽면녹화시스템",
+          "href": "detail.asp?CATE_CD=10187776",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "식물공기청정시스템 벽면녹화(스마트가든)",
+          "href": "detail.asp?CATE_CD=101877g6",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "미세먼지저감 벽면녹화(스마트가든)",
+          "href": "detail.asp?CATE_CD=101877y2",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "인공식물섬",
+          "href": "detail.asp?CATE_CD=10187735",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "비료ㆍ퇴비(1)",
+          "href": "detail.asp?CATE_CD=10187761",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "비료ㆍ퇴비(2)",
+          "href": "detail.asp?CATE_CD=10187754",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "비료ㆍ퇴비(3)",
+          "href": "detail.asp?CATE_CD=10187705",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "비료ㆍ퇴비(4)",
+          "href": "detail.asp?CATE_CD=10187758",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토양개량제(1)",
+          "href": "detail.asp?CATE_CD=10187731",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토양개량제(2)",
+          "href": "detail.asp?CATE_CD=10187770",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "토양개량제(3)",
+          "href": "detail.asp?CATE_CD=10187780",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "인공토양(1)",
+          "href": "detail.asp?CATE_CD=10187728",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "인공토양(2)",
+          "href": "detail.asp?CATE_CD=10187748",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "인공토양(3)",
+          "href": "detail.asp?CATE_CD=101877b4",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수목지주대(1)-1",
+          "href": "detail.asp?CATE_CD=10187788",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수목지주대(2)-1",
+          "href": "detail.asp?CATE_CD=10187713",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수목지주대(2)-2",
+          "href": "detail.asp?CATE_CD=10187742",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수목보호판(1)-1",
+          "href": "detail.asp?CATE_CD=10187781",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수목보호판(1)-2",
+          "href": "detail.asp?CATE_CD=101877kl",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수목보호판(2)-1",
+          "href": "detail.asp?CATE_CD=10187710",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "수목보호판(2)-2",
+          "href": "detail.asp?CATE_CD=101877b1",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        },
+        {
+          "name": "다목적 수목 보호대",
+          "href": "detail.asp?CATE_CD=101877kz",
+          "details": {
+            "mapped_specs": {
+              "mapped_specs": []
+            }
+          }
+        }
+      ]
+    }
+  }
+}
