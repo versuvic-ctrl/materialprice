@@ -38,7 +38,68 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import useMaterialStore from '@/store/materialStore';
 import PriceTable, { MaterialPriceData } from './PriceTable';
-// convertToKgUnit 및 calculatePriceChange import 제거
+/**
+ * 톤 단위 감지 함수 - 다양한 톤 단위 표현을 감지
+ * @param unit - 검사할 단위 문자열
+ * @param specification - 자재 명세 (단위 추론용)
+ * @returns 톤 단위 여부
+ */
+const isLargeWeightUnit = (unit: string, specification?: string): boolean => {
+  if (!unit && !specification) return false;
+  
+  // PP봉 자재만 특별히 kg로 변환하지 않고 톤 단위 유지
+  if (specification) {
+    const specLower = specification.toLowerCase();
+    if (specLower.includes('pp봉')) {
+      return false; // PP봉 자재만 kg로 변환하지 않음
+    }
+  }
+  
+  // 1. 단위 직접 검사
+  if (unit) {
+    const normalizedUnit = unit.toLowerCase().trim();
+    
+    // 다양한 톤 단위 표현 검사
+    const largeUnitPatterns = [
+      'ton',     // 영어
+      '톤',       // 한글
+      't',       // 단일 문자
+      'mt',      // 미터톤
+      'm/t',     // 미터톤 슬래시
+      'metric ton',
+      '메트릭톤',
+      '미터톤'
+    ];
+    
+    const unitMatch = largeUnitPatterns.some(pattern => 
+      normalizedUnit === pattern || 
+      normalizedUnit.includes(pattern)
+    );
+    
+    if (unitMatch) return true;
+  }
+  
+  // 2. 자재명에서 톤 단위 추론 (플라스틱 자재들의 경우 대부분 톤 단위)
+  if (specification) {
+    const specLower = specification.toLowerCase();
+    
+    // 플라스틱 자재들은 대부분 톤 단위로 거래됨 (PP봉 제외, HDPE 포함)
+    const plasticMaterials = ['pe', 'hdpe', 'pvc', 'abs', 'ps', '플라스틱'];
+    const isPlasticMaterial = plasticMaterials.some(material => 
+      specLower.includes(material) || specLower.includes(material.toUpperCase())
+    );
+    
+    // 철강 자재들도 대부분 톤 단위
+    const metalMaterials = ['철근', '철강', '선재', '봉강', '강관'];
+    const isMetalMaterial = metalMaterials.some(material => specLower.includes(material));
+    
+    if (isPlasticMaterial || isMetalMaterial) {
+      return true;
+    }
+  }
+  
+  return false;
+};
 
 // Supabase 클라이언트 초기화 (환경변수에서 URL과 키 가져옴)
 const supabase = createClient(
@@ -144,8 +205,21 @@ const transformDataForChart = (
     // 짧은 이름을 key로 사용하여 평균 가격 데이터를 저장
     if (displayName) {
       const rawPrice = parseFloat(average_price);
-      // ton 단위인 경우 kg으로 변환 (가격을 1/1000로 변환)
-      const convertedPrice = unit === 'ton' ? rawPrice / 1000 : rawPrice;
+      
+      // 톤 단위 감지 및 변환 (자재명도 고려)
+      const isLargeUnit = isLargeWeightUnit(unit, specification);
+      
+      // PP봉만 특별히 톤 단위 유지
+      const isSpecialMaterial = specification && (
+        specification.toLowerCase().includes('pp봉')
+      );
+      
+      // 디버깅 로그 (PP, HDPE 자재의 경우)
+      if (specification && (specification.includes('PP') || specification.includes('HDPE'))) {
+        console.log(`차트 ${specification} 자재 변환: 원본가격: ${rawPrice}, 단위: ${unit}, 톤단위인가: ${isLargeUnit}, 특별자재: ${isSpecialMaterial}, 변환후: ${(isLargeUnit && !isSpecialMaterial) ? rawPrice / 1000 : rawPrice}`);
+      }
+      
+      const convertedPrice = (isLargeUnit && !isSpecialMaterial) ? rawPrice / 1000 : rawPrice;
       acc[time_bucket][displayName] = convertedPrice;
     }
 
@@ -212,21 +286,34 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
       // 실제 단위 정보 사용
       const actualUnit = sortedData[0]?.unit || '';
       
-      // ton 단위인 경우 kg으로 변환 (가격을 1/1000로 변환)
+      // 톤 단위 감지 및 변환 (자재명도 고려)
+      const isLargeUnit = isLargeWeightUnit(actualUnit, material.id);
+      
+      // 디버깅 로그 (PP, HDPE 자재의 경우)
+      if (material.displayName.includes('PP') || material.displayName.includes('HDPE')) {
+        console.log(`테이블 ${material.displayName} 자재 변환: ${material.displayName} (${material.id}) - 원본가격: ${rawPrice}, 단위: ${actualUnit}, 톤단위인가: ${isLargeUnit}`);
+      }
+      
       let currentPrice = rawPrice;
       let displayUnit = actualUnit;
       
-      if (actualUnit === 'ton') {
-        currentPrice = rawPrice / 1000; // ton을 kg으로 변환 시 가격을 1/1000로 변환
+      // PP봉만 특별히 톤 단위 유지
+      const isSpecialMaterial = material.id.toLowerCase().includes('pp봉');
+      
+      if (isLargeUnit && !isSpecialMaterial) {
+        currentPrice = rawPrice / 1000; // 톤을 kg으로 변환 시 가격을 1/1000로 변환
         displayUnit = 'kg';
+      } else if (isSpecialMaterial) {
+        // PP봉만 톤 단위 유지
+        displayUnit = actualUnit || 'ton';
       }
       
       // 전월비 계산 (변환된 가격으로 계산)
       let monthlyChange = 0;
       if (sortedData.length >= 2) {
         const previousRawPrice = parseFloat(sortedData[1]?.average_price || '0');
-        // ton 단위인 경우 이전 가격도 변환
-        const previousPrice = actualUnit === 'ton' ? previousRawPrice / 1000 : previousRawPrice;
+        // 톤 단위인 경우 이전 가격도 변환 (특별 자재 제외)
+        const previousPrice = (isLargeUnit && !isSpecialMaterial) ? previousRawPrice / 1000 : previousRawPrice;
         
         if (previousPrice !== 0) {
           monthlyChange = ((currentPrice - previousPrice) / previousPrice) * 100;
@@ -239,8 +326,8 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
       const yearAgoIndex = Math.min(12, sortedData.length - 1);
       if (yearAgoIndex > 0) {
         const yearAgoRawPrice = parseFloat(sortedData[yearAgoIndex]?.average_price || '0');
-        // ton 단위인 경우 전년 가격도 변환
-        const yearAgoPrice = actualUnit === 'ton' ? yearAgoRawPrice / 1000 : yearAgoRawPrice;
+        // 톤 단위인 경우 전년 가격도 변환 (특별 자재 제외)
+        const yearAgoPrice = (isLargeUnit && !isSpecialMaterial) ? yearAgoRawPrice / 1000 : yearAgoRawPrice;
         
         if (yearAgoPrice !== 0) {
           yearlyChange = ((currentPrice - yearAgoPrice) / yearAgoPrice) * 100;
@@ -264,8 +351,12 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
         <CardTitle className="text-md font-semibold flex justify-between items-center">
           <span>{title}</span>
           <span className="text-sm font-normal text-gray-500">
-            {/* 실제 단위 표시 */}
-            {tableData.length > 0 && tableData[0].unit ? `(원/${tableData[0].unit})` : '(원)'}
+            {/* 혼합 단위 사용 시 일반적인 단위 표시 */}
+            {tableData.length > 0 ? (
+              tableData.some(item => item.unit !== tableData[0]?.unit) 
+                ? '(원)' // 다른 단위가 섞여 있으면 단위 생략
+                : `(원/${tableData[0].unit})` // 모두 같은 단위면 표시
+            ) : '(원)'}
           </span>
         </CardTitle>
       </CardHeader>
@@ -296,8 +387,9 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
                 <Tooltip
                   wrapperClassName="text-xs"
                   formatter={(value: number, name: string) => {
-                    // 실제 데이터의 단위를 사용하고 소수점 없이 반올림
-                    const unit = tableData.length > 0 && tableData[0].unit ? tableData[0].unit : '';
+                    // 각 자재의 실제 단위를 찾아서 표시
+                    const materialData = tableData.find(item => item.name === name);
+                    const unit = materialData?.unit || '';
                     return [`${Math.round(value).toLocaleString('ko-KR')}원${unit ? `/${unit}` : ''}`, name];
                   }}
                 />

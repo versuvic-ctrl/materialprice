@@ -53,278 +53,95 @@ def check_running_crawler():
     return running_crawlers
 
 
-# --- 3. KPI 크롤링 대상 자재 목록 ---
-# <<< 포함할 중분류 및 소분류 설정 >>>
-#
-#   - 중분류 전체를 포함하려면: "중분류명": "__ALL__"
-#   - 특정 소분류만 포함하려면: "중분류명": ["포함할 소분류명1", "포함할 소분류명2"]
-#   - 지정되지 않은 중분류/소분류는 자동으로 제외됩니다
-#
-INCLUSION_LIST = {
+# --- 3. KPI 크롤링 대상 자재 목록 (JSON 파일에서 로드) ---
+# JSON 파일 구조: 대분류 > 중분류 > 소분류 > specifications_with_units
+# 예시:
+# {
+#   "categories": {
+#     "공통자재": {
+#       "봉강": {
+#         "이형철근(이형봉강)(1)": {
+#           "specifications_with_units": [
+#             {
+#               "specification": "D10㎜, 0.560",
+#               "product_name": "고장력철근(하이바)(SD 400)",
+#               "full_specification": "고장력철근(하이바)(SD 400) -  D10㎜, 0.560",
+#               "unit": "M/T",
+#               "matching_confidence": 1.3
+#             }
+#           ]
+#         }
+#       }
+#     }
+#   }
+# }
 
-    "공통자재": {  # --- 아래 목록을 직접 보시고 필요 없는 줄을 삭제하여 사용하세요 ---
-        "봉강": {
-            "이형철근(이형봉강)(1)": "ton",
-            "이형철근(이형봉강)(2)": "ton",
-            "특수철근": "ton",
-            "원형철근(원형봉강)": "ton",
-            "스파이럴철근": "m",
-            "나선철선": "kg",
-            "PC강봉": "kg"
-            },
-        "형강": {
-            "ㄱ형강": "ton",
-            "ㄷ형강": "ton",
-            "I형강": "ton",
-            # "레일": "ton",
-            "철골브레이스": "Set",
-            # "TSC BEAM": "ton",
-            # "OCFT COLUMN": "ton",
-            "C형강": "kg",
-            "HyFo BEAM": "ton",
-            # "ACT COLUMN": "ton",
-            # "ACT PILE": "ton",
-            "H형강": "ton",
-            "용접경량H형강": "ton"
-        },
-        "강판": {
-            "열연강판-1": "ton",
-            "열연강판-2": "ton",
-            "후판-1": "ton",
-            "후판-2": "ton",
-            "냉연강판-1": "ton",
-            "냉연강판-2": "ton",
-            "아연도강판-1": "ton",
-            "아연도강판-2": "매",
-            # "프린트강판": "ton",
-            # "착색아연도강판(칼라강판)(1)-1": "ton",
-            # "착색아연도강판(칼라강판)(1)-2": "m",
-            # "착색아연도강판(칼라강판)(2)": "ton",
-        },
-        "강관": {
-            "구조용강관": "m",
-            "구조용각관": "m"
-        },
-        "특수강": {
-            "구조용스테인리스관(1)": "m",
-            "구조용스테인리스관(2)": "m",
-            # "구조용스테인리스관(3)": "m",
-            "스테인리스강판(1)": "ton",
-            "스테인리스강판(2)": "ton",
-            "스테인리스강판(3)-1": "ton",
-            "스테인리스강판(3)-2": "ton",
-            # "스테인리스강판(4)-1": "ton",
-            # "스테인리스강판(4)-2": "ton",
-            # "스테인리스채널-H형강": "kg",
-            # "스테인리스앵글": "kg",
-            "스테인리스환봉": "kg",
-            # "스테인리스와이어로프": "m",
-            # "주철품ㆍ주강품": "kg",
-            "특수강": "kg"
-        },
-        "볼트ㆍ너트": {
-            # "너트": "개",
-            # "접시머리렌지볼트": "개",
-            "보통6각볼트": "개",
-            # "스테인리스6각볼트-1": "개",
-            # "스테인리스6각볼트-2": "개",
-            # "콜라6각볼트(Gr 10.9)-1": "개",
-            # "콜라6각볼트(Gr 10.9)-2": "개",
-            # "콜라너트": "개",
-            "아이볼트": "개",
-            # "아이너트": "개",
-            "전산볼트": "개",
-            "스터드볼트(B7)-1": "개",
-            "스터드볼트(B7)-2": "개",
-            "U볼트": "개",
-            # "절연U볼트": "개",
-            "앵커볼트(1)": "공",
-            "앵커볼트(2)": "개",
-            "앵커볼트(3)": "개",
-            "앵커볼트(4)": "개",
-            # "풀림방지너트": "개"
-        },
-        "비철금속": {
-            "동제품(1)": "kg",
-            "동제품(2)": "kg",
-            "알루미늄제품(1)": "kg",
-            "알루미늄제품(2)": "kg",
-            "비철지금(非鐵地金)": "kg",
-            "연(납)제품(鉛製品)": "매"
-        },
-        "시멘트ㆍ콘크리트": {
-            "레미콘-1": "㎥",
-            "레미콘-2": "㎥",
-            "시멘트-1": {
-                "default": "톤",
-                "specifications": {
-                    "보통포틀랜드시멘트 - 40㎏ 入": "포",
-                    "보통포틀랜드시멘트 - Bulk": "톤",
-                    "고로슬래그시멘트 - Bulk": "톤",
-                    "백색포틀랜드시멘트 - 40㎏ 入": "포"
-                }
-            },
-            "시멘트-2": "포",
-            # "시멘트-3": "포",
-            # "시멘트-4": "포",
-            # "방수·방청시멘트": "kg",
-            # "특수레미콘": "㎥",
-            "모르터-1": "㎥",
-            "모르터-2": "㎥",
-            # "특수시멘트ㆍ타일시멘트(1)": "포",
-        },
-        "가설자재": {
-            # "PDF (더블 프레임) 패널": "㎡",
-            # "레벨봉": "개",
-            "유로폼": "개",
-            "복공판": "개",
-            "강관비계": "개",
-            "강관써포트": "본",
-            # "조립식틀비계(이동식틀비계)": "개",
-        },
-    },
+INCLUSION_LIST = {}
+INCLUSION_SPECS = {}  # full_specification -> unit 매핑용
 
-    "토목자재": {
-        # "지수판": {
-            # "강재토류판": "㎡"
-            # "지수판": "m"
-        # },
-        # "배수판": {
-            # "차수판(1)": "m",
-            # "차수판(2)": "m",
-            # "배수판": "㎡"
-        # },
-        "파일류": {
-            "스크류파일": "개",
-            "고강도콘크리트파일(PHC-A종)(1)": "본",
-            "고강도콘크리트파일(PHC-B, C종)(2)": "본",
-            # "PHC 두부보강자재 ": "개",
-            # "에코스파이럴": "개",
-            # "PHC파일 두부보강캡(하부판 스틸제품)": "개",
-            # "PHC파일 두부보강캡(하부판 P.E제품)": "개",
-            "강관파일(1)": "m",
-            "강관파일(2)": "m",
-            "복합말뚝(SCP)": "본",
-            "복합말뚝(HCP)": "본",
-        },
-        "경계블록": {
-            # "인조화강석경계블록": "개",
-            "콘크리트경계블록(1)": "개",
-            "콘크리트경계블록(2)": "개",
-        },
-        "맨홀": {
-            "맨홀(1)": "개",
-            "맨홀(2)": "개",
-            #"맨홀(3)": "개",
-        },
-        "그레이팅": {
-            "스틸그레이팅(1)": "조",
-            "스틸그레이팅(2)": "조",
-        },
-    },
-    "건축자재": {
-        "벽돌": {
-            "콘크리트벽돌(시멘트벽돌)(1)": "개",
-            "콘크리트벽돌(시멘트벽돌)(2)": "개",
-            "내화벽돌": "매"
-        },
-        "경량콘크리트판": {
-            "조립식내ㆍ외벽패널": "㎡",
-            # "압출성형시멘트판": "㎡"
-        },
-        "미장재": {
-            # "불연성 무기질계 접착제": "20㎏",
-            "무기질계 내외장 마감재": "㎡",
-            "외벽단열마감재(1)": "㎡",
-            "외벽단열마감재(2)": "㎡",
-            "퍼라이트": "ℓ",
-            # "내화피복재": "㎡"
-        },
-        "지붕재": {
-            "캐노피지붕재(차양)": "㎡",
-            "세라믹사이딩(외벽재+지붕재)": "㎡",
-            "복합강판": "㎡",
-            "징크": "㎡"
-        },
-        # "접착제": {
-            # "접착제(1)": "㎏",
-            # "접착제(2)": "㎏"
-        # },
-        "도료": {
-            "방화ㆍ방염ㆍ내열페인트(1)": "18ℓ",
-            "방화ㆍ방염ㆍ내열페인트(2)": "18ℓ",
-            # "방청페인트(1)": "",
-            # "방청페인트(2)": "",
-            # "방청페인트(3)": "",
-            "세라믹코팅제(1)": "ℓ",
-            "세라믹코팅제(2)": "ℓ",
-            "단열페인트": "ℓ",
-            "에폭시도료(1)": "통",
-            "에폭시도료(2)": "kg"
-        },
-        "내ㆍ외장패널": {
-            # "준불연 성능 벽마감재(상업용·주거용·사무용공간)": "㎡",
-            "알루미늄패널(1)": "㎡",
-            "알루미늄패널(2)": "㎡",
-            "외벽·외장아연도금강판(금속제패널)": "㎡",
-            "준불연실내마감패널": "㎡",
-            "세라믹패널": "㎡",
-            "아연도강판패널": "㎡",
-            "외장패널(금속제패널)": "㎡",
-            "외장패널(석제, 타일 단열패널)": "㎡",
-        },
-        "보온ㆍ단열재": {
-            "미네랄울보온판": "㎡",
-            "진공단열재(미라클히트)": "㎡",
-            "진공단열재(파워백)": "㎡",
-            "글라스울단열보온재(1)": "㎡",
-            "글라스울단열보온재(2)": "㎡",
-            # "발포폴리스티렌판(1)": "",
-            # "발포폴리스티렌판(압출)(2)-1": "",
-            # "발포폴리스티렌판(압출)(2)-2": "",
-            # "발포폴리스티렌판(스티로폴)(3)": "",
-            # "발포폴리스티렌판(스티로폴)(4)": "",
-            "준불연 경질 폴리우레탄 폼 단열재": "㎡",
-            #"가교발포폴리에틸렌 보온판 (카이론)": "㎡",
-            "폴리에스터섬유단열재": "㎡",
-            "심재 준불연 발포폴리스티렌 단열재(EPS)": "㎡",
-            "경질폴리우레탄폼단열재(1)-1": "㎡",
-            "경질폴리우레탄폼단열재(1)-2": "㎡",
-        },
-        # "조립식건물재": [
-            # "경량철골천장부재(1)",
-            # "경량철골천장부재(2)",
-            # "샌드위치패널(1)",
-            # "샌드위치패널(2)",
-            # "샌드위치패널(3)",
-            # "칸막이(1)",
-            # "칸막이(2)",
-            # "칸막이(3)",
-        #],
-    },
+try:
+    # kpi_inclusion_list_progress.json 파일 로드
+    inclusion_list_path = os.path.join(os.path.dirname(__file__), "../kpi_inclusion_list_progress.json")
+    if os.path.exists(inclusion_list_path):
+        with open(inclusion_list_path, 'r', encoding='utf-8') as f:
+            loaded_data = json.load(f)
+            categories = loaded_data.get("categories", {})
+            
+            # INCLUSION_LIST 구성 (카테고리 구조)
+            INCLUSION_LIST = categories
+            
+            # INCLUSION_SPECS 구성 (full_specification -> unit 매핑)
+            for major_cat, middle_cats in categories.items():
+                for middle_cat, sub_cats in middle_cats.items():
+                    for sub_cat, sub_data in sub_cats.items():
+                        if isinstance(sub_data, dict) and 'specifications_with_units' in sub_data:
+                            specs_with_units = sub_data['specifications_with_units']
+                            for spec_item in specs_with_units:
+                                if isinstance(spec_item, dict):
+                                    full_spec = spec_item.get('full_specification')
+                                    unit = spec_item.get('unit')
+                                    if full_spec and unit:
+                                        INCLUSION_SPECS[full_spec] = unit
+        
+        log(f"KPI 포함 목록을 {inclusion_list_path}에서 성공적으로 로드했습니다.")
+        log(f"로드된 specification 수: {len(INCLUSION_SPECS)}개")
+    else:
+        # 기존 간단한 JSON 파일 시도
+        inclusion_list_path = os.path.join(os.path.dirname(__file__), "../../kpi_inclusion_list_simple.json")
+        if os.path.exists(inclusion_list_path):
+            with open(inclusion_list_path, 'r', encoding='utf-8') as f:
+                loaded_data = json.load(f)
+                INCLUSION_LIST = loaded_data.get("categories", {})
+            log(f"KPI 포함 목록을 {inclusion_list_path}에서 성공적으로 로드했습니다.")
+        else:
+            log(f"경고: JSON 포함 목록 파일을 찾을 수 없습니다.", "WARNING")
+except Exception as e:
+    log(f"KPI 포함 목록 로드 중 오류 발생: {e}", "ERROR")
 
-    "급배수": {
-        "배관재(Ⅰ)": {
-            "일반배관용탄소강관(1)": "m",
-            "일반배관용탄소강관(2)": "m",
-            "압력배관용탄소강관(ASTM A53)(1)": "m",
-            "압력배관용탄소강관(SPPS 38)(2)": "m",
-            # "연료가스배관용탄소강관": "",
-            # "송유관": "",
-            # "강관제관이음쇠(나사식)": "",
-            # "강관제관이음쇠(용접식/흑관)-1": "",
-            # "강관제관이음쇠(용접식/흑관)-2": "",
-            # "강관제관이음쇠(용접식/백관)": "",
-            # "강관제관이음쇠(용접식/레듀샤/흑관)-1": "",
-            # "강관제관이음쇠(용접식/레듀샤/백관)-2": "",
-            # "단조플랜지": "",
-            #"단열이중보온관": "",
-            "폴리에틸렌피복강관-1": "m",
-            "폴리에틸렌피복강관-2": "m",
-            "폴리에틸렌피복강관이형관-1": "개",
-            "폴리에틸렌피복강관이형관-2": "개",
-            #"폴리에틸렌피복강관이형관-3": "개",
-            "배관용스테인리스강관(일반용)-1": "m",
+# 주석 처리된 카테고리 제외 로직 (JSON 파일에서는 주석이 없으므로, 이 로직은 필요 없을 수 있습니다.
+# 하지만 만약을 위해, JSON 파일에 'enabled' 또는 유사한 플래그를 추가하여 제어할 수 있습니다.)
+# 현재는 JSON 파일에 주석이 없다고 가정하고, 모든 로드된 카테고리를 포함합니다.
+# 만약 JSON 파일에 'enabled: false'와 같은 필드를 추가한다면, 아래와 같이 필터링 로직을 추가할 수 있습니다.
+# filtered_inclusion_list = {}
+# for major_cat, middle_cats in INCLUSION_LIST.items():
+#     filtered_middle_cats = {}
+#     for middle_cat, sub_cats in middle_cats.items():
+#         filtered_sub_cats = {}
+#         for sub_cat, specs_units in sub_cats.items():
+#             if isinstance(specs_units, dict) and specs_units.get("enabled", True):
+#                 filtered_sub_cats[sub_cat] = {k: v for k, v in specs_units.items() if k != "enabled"}
+#             elif not isinstance(specs_units, dict): # 기존 방식 유지 (단위만 있는 경우)
+#                 filtered_sub_cats[sub_cat] = specs_units
+#         if filtered_sub_cats:
+#             filtered_middle_cats[middle_cat] = filtered_sub_cats
+#     if filtered_middle_cats:
+#         filtered_inclusion_list[major_cat] = filtered_middle_cats
+# INCLUSION_LIST = filtered_inclusion_list
+
+# JSON 파일에서 로드된 INCLUSION_LIST를 사용합니다.
+
+# --- 4. Playwright 웹 크롤러 클래스 ---
+
             "배관용스테인리스강관(일반용)-2": "m",
             "배관용스테인리스강관(공업용)": "m",
             "스테인리스Seamless강관-1": "m",
@@ -2375,10 +2192,10 @@ class KpiCrawler:
         try:
             log(f"[DEBUG] 단위 조회 시작: major='{major_name}', middle='{middle_name}', sub='{sub_name}'")
             
-            # INCLUSION_LIST에서 해당 경로의 단위 정보 찾기
-            if major_name in INCLUSION_LIST:
+            # self.inclusion_list에서 해당 경로의 단위 정보 찾기
+            if major_name in self.inclusion_list:
                 log(f"[DEBUG] 대분류 '{major_name}' 발견")
-                major_data = INCLUSION_LIST[major_name]
+                major_data = self.inclusion_list[major_name]
                 
                 if middle_name in major_data:
                     log(f"[DEBUG] 중분류 '{middle_name}' 발견")
@@ -2447,7 +2264,7 @@ class KpiCrawler:
                 else:
                     log(f"[DEBUG] 중분류 '{middle_name}' 없음. 사용 가능한 중분류: {list(major_data.keys())}")
             else:
-                log(f"[DEBUG] 대분류 '{major_name}' 없음. 사용 가능한 대분류: {list(INCLUSION_LIST.keys())}")
+                log(f"[DEBUG] 대분류 '{major_name}' 없음. 사용 가능한 대분류: {list(self.inclusion_list.keys())}")
             
             log(f"하드코딩된 단위 정보 없음: {major_name} > {middle_name} > {sub_name}")
             return None
