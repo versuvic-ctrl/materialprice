@@ -23,6 +23,8 @@ interface MaterialPriceData {
   unit: string;           // 단위 (kg, ton, m 등)
   monthlyChange: number;  // 전월비 (%)
   yearlyChange: number;   // 전년비 (%)
+  region?: string;        // 지역 (서울1, 서울2, 수원1 등)
+  spec_name?: string;     // 상세규격명 (PVC, STS304, STS316, PTFE 등)
 }
 
 // 컴포넌트 Props 타입 정의

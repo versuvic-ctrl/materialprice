@@ -64,38 +64,63 @@ const sortKorean = (arr: string[]) => {
 };
 
 // 계층형 카테고리 데이터를 가져오는 React Query 훅
-// level: 카테고리 레벨 (대분류/중분류/소분류/규격)
+// level: 카테고리 레벨 (대분류/중분류/소분류/규격/상세규격)
 // filters: 상위 카테고리 선택 조건
-const useCategories = (level: 'major' | 'middle' | 'sub' | 'specification', filters: object) => {
+const useCategories = (level: 'major' | 'middle' | 'sub' | 'specification' | 'spec_name', filters: object) => {
   return useQuery({
     queryKey: ['categories', level, filters],
     queryFn: async () => {
       console.log(`Fetching ${level} categories with filters:`, filters);
       
-      // 상위 카테고리가 선택되지 않았으면 쿼리 실행 안 함
+      // 상위 카테고리가 선택되지 않았으면 쿼리 실행 안 함 (major 제외)
       if (level !== 'major' && Object.values(filters).some(v => !v)) {
         console.log(`Skipping ${level} query - missing filters`);
         return [];
       }
       
       // Supabase RPC 함수 호출로 카테고리 목록 조회
-      const { data, error } = await supabase.rpc('get_distinct_categories', {
-        p_level: level,
-        p_filters: filters
-      });
+      try {
+        const { data, error } = await supabase.rpc('get_distinct_categories', {
+          p_level: level,
+          p_filters: filters
+        });
 
-      if (error) {
-        console.error(`Error fetching ${level} categories:`, error);
-        throw new Error(error?.message || error?.toString() || '알 수 없는 오류');
+        if (process.env.NODE_ENV === 'development') {
+          console.debug(`Debug: RPC call for ${level} categories - data:`, data);
+          console.debug(`Debug: RPC call for ${level} categories - error:`, error);
+        }
+
+        if (error) {
+          // 오류 발생 시 콘솔에 로깅하지 않고 조용히 처리
+          // 개발 환경에서만 오류 객체 출력
+          if (process.env.NODE_ENV === 'development' && error && Object.keys(error).length > 0) {
+            console.debug(`Debug: Error fetching ${level} categories:`, error);
+          }
+          return []; // 오류 발생 시 빈 배열 반환하여 UI가 깨지지 않도록 처리
+        }
+        
+        // 데이터 처리 및 한글 자음 순서로 정렬하여 반환
+        console.log(`Raw data from RPC for ${level}:`, data);
+        
+        let categories: string[] = [];
+        if (Array.isArray(data)) {
+          // 데이터가 배열인 경우 각 항목에서 name 필드 추출 (RPC 함수가 name 컬럼 반환)
+          categories = data.map((item: any) => {
+            if (item && typeof item.name === 'string') {
+              return item.name;
+            }
+            return '';
+          }).filter(cat => cat !== '');
+        }
+        
+        console.log(`Processed ${level} categories:`, categories);
+        return sortKorean(categories);
+      } catch (err) {
+        console.error(`Error fetching ${level} categories:`, err);
+        return []; // 오류 발생 시 빈 배열 반환
       }
-      
-      console.log(`${level} categories result:`, data);
-      const categories = data?.map((item: { name: string }) => item.name) || [];
-      
-      // 한글 자음 순서로 정렬하여 반환
-      return sortKorean(categories);
     },
-    // enabled 옵션: 상위 필터값이 모두 존재할 때만 쿼리를 실행
+    // enabled 옵션: major는 항상 실행, 나머지는 상위 필터값이 모두 존재할 때만 쿼리를 실행
     enabled: level === 'major' ? true : Object.values(filters).every(v => v),
   });
 };
@@ -107,6 +132,7 @@ const MaterialsPage: React.FC = () => {
     selectedLevel2,              // 중분류 선택값
     selectedLevel3,              // 소분류 선택값
     selectedLevel4,              // 규격 선택값
+    selectedLevel5,              // 상세규격 선택값
     setCategory,                 // 카테고리 선택 액션
     selectedMaterialsForChart,   // 차트에 표시할 자재 목록
     hiddenMaterials,             // 숨겨진 자재 Set
@@ -117,9 +143,10 @@ const MaterialsPage: React.FC = () => {
 
   // React Query를 통해 계층형 카테고리 데이터를 동적으로 조회
   const { data: level1Categories, isLoading: level1Loading } = useCategories('major', {});
-  const { data: level2Categories, isLoading: level2Loading } = useCategories('middle', { major_category: selectedLevel1 });
-  const { data: level3Categories, isLoading: level3Loading } = useCategories('sub', { major_category: selectedLevel1, middle_category: selectedLevel2 });
-  const { data: level4Categories, isLoading: level4Loading } = useCategories('specification', { major_category: selectedLevel1, middle_category: selectedLevel2, sub_category: selectedLevel3 });
+  const { data: level2Categories, isLoading: level2Loading } = useCategories('middle', { major: selectedLevel1 });
+  const { data: level3Categories, isLoading: level3Loading } = useCategories('sub', { major: selectedLevel1, middle: selectedLevel2 });
+  const { data: level4Categories, isLoading: level4Loading } = useCategories('specification', { major: selectedLevel1, middle: selectedLevel2, sub: selectedLevel3 });
+  const { data: level5Categories, isLoading: level5Loading } = useCategories('spec_name', { major: selectedLevel1, middle: selectedLevel2, sub: selectedLevel3, specification: selectedLevel4 });
 
   // 상태 관리는 Zustand로, 서버 상태는 React Query로 처리하여 컴포넌트 로직 단순화
 
@@ -154,7 +181,7 @@ const MaterialsPage: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {level1Loading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
-                    {level1Categories?.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                    {level1Categories?.map((cat, index) => <SelectItem key={`level1-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
                   </SelectContent>
                 </Select>
 
@@ -164,7 +191,7 @@ const MaterialsPage: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {level2Loading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
-                    {level2Categories?.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                    {level2Categories?.map((cat, index) => <SelectItem key={`level2-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
                   </SelectContent>
                 </Select>
 
@@ -174,7 +201,7 @@ const MaterialsPage: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {level3Loading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
-                    {level3Categories?.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                    {level3Categories?.map((cat, index) => <SelectItem key={`level3-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
                   </SelectContent>
                 </Select>
 
@@ -184,9 +211,22 @@ const MaterialsPage: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {level4Loading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
-                    {level4Categories?.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                    {level4Categories?.map((cat, index) => <SelectItem key={`level4-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
                   </SelectContent>
                 </Select>
+
+                {/* 5번째 상세규격 드롭다운 - 조건부 렌더링 */}
+                {selectedLevel4 && level5Categories && level5Categories.length > 0 && (
+                  <Select value={selectedLevel5} onValueChange={(v) => setCategory(5, v)} disabled={!selectedLevel4 || level5Loading}>
+                    <SelectTrigger className="h-8 min-w-[100px] text-sm">
+                      <SelectValue placeholder="상세규격" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {level5Loading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
+                      {level5Categories?.map((cat, index) => <SelectItem key={`level5-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
           </CardContent>
@@ -198,7 +238,7 @@ const MaterialsPage: React.FC = () => {
             <CardHeader className="py-1.5 px-3">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-xs font-medium text-gray-600">
-                  실시간 자재 가격 비교 분석 ({selectedMaterialsForChart.length}개)
+                  비교할 자재를 선택해주세요 ({selectedMaterialsForChart.length}개)
                 </CardTitle>
                 <Button 
                   variant="outline" 

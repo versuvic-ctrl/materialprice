@@ -10,6 +10,7 @@ interface MaterialState {
   selectedLevel2: string;
   selectedLevel3: string;
   selectedLevel4: string;
+  selectedLevel5: string;
   
   // 차트 설정 상태
   interval: Interval;
@@ -21,7 +22,7 @@ interface MaterialState {
   hiddenMaterials: Set<string>;
 
   // 상태 변경 액션
-  setCategory: (level: 1 | 2 | 3 | 4, value: string) => void;
+  setCategory: (level: 1 | 2 | 3 | 4 | 5, value: string) => void;
   setInterval: (interval: Interval) => void;
   setDateRange: (start: string, end:string) => void;
   
@@ -37,6 +38,7 @@ const useMaterialStore = create<MaterialState>((set) => ({
   selectedLevel2: '',
   selectedLevel3: '',
   selectedLevel4: '',
+  selectedLevel5: '',
   
   interval: 'monthly', // 기본값 월간
   startDate: format(subYears(new Date(), 3), 'yyyy-MM-dd'), // 3년 전
@@ -56,6 +58,7 @@ const useMaterialStore = create<MaterialState>((set) => ({
         updates.selectedLevel2 = '';
         updates.selectedLevel3 = '';
         updates.selectedLevel4 = '';
+        updates.selectedLevel5 = '';
       }
     } else if (level === 2) {
       updates.selectedLevel2 = value;
@@ -63,16 +66,29 @@ const useMaterialStore = create<MaterialState>((set) => ({
       if (state.selectedLevel2 !== value) {
         updates.selectedLevel3 = '';
         updates.selectedLevel4 = '';
+        updates.selectedLevel5 = '';
       }
     } else if (level === 3) {
       updates.selectedLevel3 = value;
-      // 3단계 변경 시 4단계 초기화
+      // 3단계 변경 시 하위 단계들 초기화
       if (state.selectedLevel3 !== value) {
         updates.selectedLevel4 = '';
+        updates.selectedLevel5 = '';
       }
     } else if (level === 4) {
       updates.selectedLevel4 = value;
-      // 4단계 선택 시 자동으로 차트에 추가 (중복 방지)
+      // 4단계 변경 시 5단계 초기화
+      if (state.selectedLevel4 !== value) {
+        updates.selectedLevel5 = '';
+      }
+      // 4단계 선택 시 5단계가 없으면 자동으로 차트에 추가 (중복 방지)
+      if (value && !state.selectedMaterialsForChart.includes(value)) {
+        // 5단계가 있는지 확인하는 로직은 추후 API 연동 시 추가
+        updates.selectedMaterialsForChart = [...state.selectedMaterialsForChart, value];
+      }
+    } else if (level === 5) {
+      updates.selectedLevel5 = value;
+      // 5단계 선택 시 자동으로 차트에 추가 (중복 방지)
       if (value && !state.selectedMaterialsForChart.includes(value)) {
         updates.selectedMaterialsForChart = [...state.selectedMaterialsForChart, value];
       }

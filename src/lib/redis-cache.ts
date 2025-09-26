@@ -15,8 +15,8 @@
  */
 
 // Redis REST API 설정
-const REDIS_REST_URL = process.env.REDIS_REST_URL || process.env.NEXT_PUBLIC_REDIS_REST_URL;
-const REDIS_REST_TOKEN = process.env.REDIS_REST_TOKEN || process.env.NEXT_PUBLIC_REDIS_REST_TOKEN;
+const REDIS_REST_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.REDIS_REST_URL || process.env.NEXT_PUBLIC_REDIS_REST_URL;
+const REDIS_REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.REDIS_REST_TOKEN || process.env.NEXT_PUBLIC_REDIS_REST_TOKEN;
 
 // 캐시 TTL (24시간)
 const CACHE_TTL = 24 * 60 * 60; // 86400초

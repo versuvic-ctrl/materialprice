@@ -23,7 +23,7 @@
 
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../../lib/supabaseClient';
 import {
   LineChart,
   Line,
@@ -38,13 +38,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import useMaterialStore from '@/store/materialStore';
 import PriceTable, { MaterialPriceData } from './PriceTable';
+import { formatXAxisLabel } from '@/utils/dateFormatter';
 // convertToKgUnit 및 calculatePriceChange import 제거
 
-// Supabase 클라이언트 초기화 (환경변수에서 URL과 키 가져옴)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Supabase 클라이언트는 lib/supabaseClient.ts에서 import
 
 /**
  * 자재 가격 데이터를 Redis 캐시 우선으로 가져오는 함수
@@ -285,20 +282,26 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 2, right: 2, left: 1, bottom: 2 }}>
                 <CartesianGrid strokeDasharray="2 2" strokeOpacity={0.5} vertical={true} />
-                <XAxis dataKey="time_bucket" tick={{ fontSize: 10 }} />
+                <XAxis 
+                  dataKey="time_bucket" 
+                  tick={{ fontSize: 10 }} 
+                  tickFormatter={(value) => formatXAxisLabel(value, interval)}
+                />
                 <YAxis
                   width={80}
                   tick={{ fontSize: 11, fill: '#6b7280' }}
-                  tickFormatter={(value) => `${Math.round(value).toLocaleString('ko-KR')}원`}
+                  tickFormatter={(value) => {
+                    const formattedValue = value.toFixed(1).replace(/\.0$/, '');
+                    return `${formattedValue.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,')}원`;
+                  }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip
                   wrapperClassName="text-xs"
                   formatter={(value: number, name: string) => {
-                    // 실제 데이터의 단위를 사용하고 소수점 없이 반올림
-                    const unit = tableData.length > 0 && tableData[0].unit ? tableData[0].unit : '';
-                    return [`${Math.round(value).toLocaleString('ko-KR')}원${unit ? `/${unit}` : ''}`, name];
+                    const formattedValue = value.toFixed(1).replace(/\.0$/, '');
+                    return [`${formattedValue.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,')}원`, name];
                   }}
                 />
                 <Legend iconSize={10} wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
