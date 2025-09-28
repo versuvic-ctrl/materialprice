@@ -40,7 +40,7 @@ class CategoryExtractorOptimized:
         self.browser = None
         self.context = None
         self.categories_lock = asyncio.Lock()
-        self.max_concurrent_pages = 3  # 동시 페이지 수 제한 (서버 부하 고려)
+        self.max_concurrent_pages = 2  # 동시 페이지 수 제한 (서버 부하 고려)
         self.page_semaphore = asyncio.Semaphore(self.max_concurrent_pages)
 
     async def run(self):
@@ -263,7 +263,7 @@ class CategoryExtractorOptimized:
                 self.categories[major['name']] = {}
 
             # 중분류를 병렬로 처리 (제한된 동시 수행)
-            semaphore = asyncio.Semaphore(2)  # 중분류 동시 처리 수 제한
+            semaphore = asyncio.Semaphore(1)  # 중분류 동시 처리 수 제한
             tasks = []
             for middle_info in middle_categories_info:
                 task = self._process_middle_category_with_semaphore(
@@ -695,7 +695,7 @@ class CategoryExtractorOptimized:
             products = price_info_data.get("products", [])
             
             for spec_item in specifications_data:
-                spec_name = spec_item.get('product_name', '')
+                specification_name = spec_item.get('product_name', '')
                 spec_detail = spec_item.get('specification', '')
                 spec_full = spec_item.get('full_text', '')
                 
@@ -708,8 +708,8 @@ class CategoryExtractorOptimized:
                     score = 0
                     
                     # 1. 품명 매칭
-                    if spec_name and product['name']:
-                        name_score = self._calculate_text_similarity(spec_name, product['name'])
+                    if specification_name and product['name']:
+                        name_score = self._calculate_text_similarity(specification_name, product['name'])
                         score += name_score * 0.4
                     
                     # 2. 규격 매칭
@@ -730,7 +730,7 @@ class CategoryExtractorOptimized:
                 # 결과 추가 (임계값 0.2 이상)
                 matched_results.append({
                     'specification': spec_detail,
-                    'product_name': spec_name,
+                    'product_name': specification_name,
                     'full_specification': spec_full,
                     'unit': best_unit if best_score > 0.2 else None,
                     'matching_confidence': round(best_score, 3)

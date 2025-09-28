@@ -21,8 +21,9 @@ interface MaterialPriceData {
   name: string;           // 품목명 (간단 명료하게)
   currentPrice: number;   // 현재 가격
   unit: string;           // 단위 (kg, ton, m 등)
-  monthlyChange: number;  // 전월비 (%)
-  yearlyChange: number;   // 전년비 (%)
+  monthlyChange: number | null;  // 전월비 (%)
+  yearlyChange: number | null;   // 전년비 (%)
+  twoYearAgoChange: number | null; // 2년전비 (%)
   region?: string;        // 지역 (서울1, 서울2, 수원1 등)
   spec_name?: string;     // 상세규격명 (PVC, STS304, STS316, PTFE 등)
 }
@@ -40,9 +41,12 @@ const formatPrice = (price: number): string => {
 };
 
 // 변동률 포맷팅 및 색상 결정 함수
-const formatChange = (change: number): { text: string; color: string } => {
+const formatChange = (change: number | undefined | null): { text: string; color: string } => {
+  if (change === undefined || change === null || isNaN(change)) {
+    return { text: '-', color: 'text-gray-500' }; // 또는 'N/A', '정보없음' 등으로 표시
+  }
   if (change === 0) {
-    return { text: '변동없음', color: 'text-gray-900' };
+    return { text: '0.00%', color: 'text-gray-900' };
   } else if (change > 0) {
     return { text: `+${change.toFixed(2)}%`, color: 'text-red-500' };
   } else {
@@ -76,12 +80,13 @@ const PriceTable: React.FC<PriceTableProps> = ({ data, isLoading = false }) => {
     <div className="w-full mt-2">
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
         {/* 테이블 헤더 */}
-        <div className="grid grid-cols-5 gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200">
-          <div className="text-xs font-medium text-gray-700">품목</div>
-          <div className="text-xs font-medium text-gray-700 text-right">가격</div>
+        <div className="grid gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1.5fr' }}>
+          <div className="text-xs font-medium text-gray-700 text-center">품목</div>
           <div className="text-xs font-medium text-gray-700 text-center">단위</div>
-          <div className="text-xs font-medium text-gray-700 text-right">전월비</div>
-          <div className="text-xs font-medium text-gray-700 text-right">전년비</div>
+          <div className="text-xs font-medium text-gray-700 text-center">2년전</div>
+          <div className="text-xs font-medium text-gray-700 text-center">1년전</div>
+          <div className="text-xs font-medium text-gray-700 text-center">1개월전</div>
+          <div className="text-xs font-medium text-gray-700 text-center">현재가</div>
         </div>
         
         {/* 테이블 바디 */}
@@ -89,32 +94,38 @@ const PriceTable: React.FC<PriceTableProps> = ({ data, isLoading = false }) => {
           {data.map((item, index) => {
             const monthlyChangeFormat = formatChange(item.monthlyChange);
             const yearlyChangeFormat = formatChange(item.yearlyChange);
+            const twoYearAgoChangeFormat = formatChange(item.twoYearAgoChange);
             
             return (
-              <div key={index} className="grid grid-cols-5 gap-2 px-3 py-2 hover:bg-gray-50 transition-colors">
+              <div key={index} className="grid gap-2 px-3 py-2 hover:bg-gray-50 transition-colors" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1.5fr' }}>
                 {/* 품목명 */}
-                <div className="text-xs text-gray-900 truncate" title={item.name}>
+                <div className="text-xs text-gray-900 text-center overflow-hidden text-ellipsis whitespace-nowrap" title={item.name}>
                   {item.name}
-                </div>
-                
-                {/* 가격 */}
-                <div className="text-xs text-gray-900 text-right font-medium">
-                  {formatPrice(item.currentPrice)}
                 </div>
                 
                 {/* 단위 */}
                 <div className="text-xs text-gray-900 text-center">
                   {item.unit}
                 </div>
-                
-                {/* 전월비 */}
-                <div className={`text-xs text-right font-medium ${monthlyChangeFormat.color}`}>
-                  {monthlyChangeFormat.text}
+
+                {/* 2년전 */}
+                <div className={`text-xs text-center font-medium ${twoYearAgoChangeFormat.color}`}>
+                  {twoYearAgoChangeFormat.text}
                 </div>
                 
-                {/* 전년비 */}
-                <div className={`text-xs text-right font-medium ${yearlyChangeFormat.color}`}>
+                {/* 1년전 */}
+                <div className={`text-xs text-center font-medium ${yearlyChangeFormat.color}`}>
                   {yearlyChangeFormat.text}
+                </div>
+
+                {/* 1개월전 */}
+                <div className={`text-xs text-center font-medium ${monthlyChangeFormat.color}`}>
+                  {monthlyChangeFormat.text}
+                </div>
+
+                {/* 현재가 */}
+                <div className="text-xs text-gray-900 text-center font-medium">
+                  {formatPrice(item.currentPrice)}
                 </div>
               </div>
             );

@@ -62,3 +62,8 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
+# Authentication files
+auth.json
+crawler/auth.json
+crawler/sites/auth.json

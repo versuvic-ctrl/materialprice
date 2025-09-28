@@ -142,10 +142,10 @@ const formatNumber = (value: number): string => {
   return new Intl.NumberFormat('ko-KR').format(value);
 };
 
-// 단위 정보를 포함한 툴팁 포맷팅 함수 - 소수점 첫째자리까지 표시
+// 단위 정보를 포함한 툌팁 포맷팅 함수 - 소수점 첫째자리까지 표시
 const formatTooltipValue = (value: number, unit?: string): string => {
-  const formattedValue = value.toFixed(1).replace(/\.0$/, '');
-  return `${formattedValue.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,')}${unit ? ` ${unit}` : ''}`;
+  const formattedValue = value.toFixed(1);
+  return `${formattedValue.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,')}원${unit ? `/${unit}` : ''}`;
 };
 
 // 자재별 가격 범위 분석 함수
@@ -357,14 +357,14 @@ const calculateSmartYAxisDomain = (data: any[], materials: string[]): [number, n
   // 데이터 범위에 여유 공간 추가 (상하 10% 패딩)
   const range = max - min;
   const padding = range * 0.1; // 10% 패딩
-  const paddedMin = min - padding;
+  const paddedMin = Math.max(0, min - padding); // 최소값이 0보다 작아지지 않도록 제한
   const paddedMax = max + padding;
 
   // 적절한 눈금 간격 계산 (패딩된 범위 기준)
   const tickInterval = calculateTickInterval(paddedMin, paddedMax, 5);
   
   // 도메인 범위를 눈금에 맞춰 조정
-  const domainMin = Math.floor(paddedMin / tickInterval) * tickInterval;
+  const domainMin = Math.max(0, Math.floor(paddedMin / tickInterval) * tickInterval); // 최소값이 0보다 작아지지 않도록 제한
   const domainMax = Math.ceil(paddedMax / tickInterval) * tickInterval;
   
   // 눈금 배열 생성
@@ -376,7 +376,7 @@ const calculateSmartYAxisDomain = (data: any[], materials: string[]): [number, n
   // 최소 3개, 최대 7개의 눈금 보장
   if (ticks.length < 3) {
     const additionalTicks = Math.ceil((3 - ticks.length) / 2);
-    const newMin = domainMin - (additionalTicks * tickInterval);
+    const newMin = Math.max(0, domainMin - (additionalTicks * tickInterval)); // 최소값이 0보다 작아지지 않도록 제한
     const newMax = domainMax + (additionalTicks * tickInterval);
     
     ticks.length = 0;
@@ -432,6 +432,7 @@ const fetchPriceData = async (
       p_middle_categories: null,
       p_sub_categories: null,
       p_specifications: materials,
+      p_spec_names: null,
     });
 
     const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as any;
@@ -485,7 +486,7 @@ const fetchPriceData = async (
   // 조회 결과를 캐시에 저장 - try-catch 블록 내부로 이동했으므로 이 부분은 제거
 };
 
-// [수정] 차트 데이터 변환 함수 - RPC 응답 구조 처리 및 배열 타입 보장
+// [수정] 차트 데이터 변환 함수 - RPC 응답 구조 처리 및 배열 타입 보장, ton→kg 변환 포함
 const transformDataForChart = (data: any[], visibleMaterials: string[]) => {
   if (!data || !Array.isArray(data) || data.length === 0) return [];
 
@@ -500,7 +501,9 @@ const transformDataForChart = (data: any[], visibleMaterials: string[]) => {
     // 가격 데이터 처리 (숫자로 변환)
     const numericPrice = typeof price === 'number' ? price : parseFloat(price);
     if (!isNaN(numericPrice)) {
-      acc[date][specification] = numericPrice;
+      // ton 단위인 경우 kg으로 변환 (가격을 1/1000로 변환)
+      const convertedPrice = unit === 'ton' ? numericPrice / 1000 : numericPrice;
+      acc[date][specification] = convertedPrice;
     }
     return acc;
   }, {});
@@ -532,8 +535,8 @@ const COLORS = [
 
 // Y축 가격 포맷팅 함수 - 소수점 첫째자리까지 표시
 const formatYAxisPrice = (value: number) => {
-  // 소수점 첫째 자리까지 표시하고, .0으로 끝나면 정수로 표시
-  const formattedValue = value.toFixed(1).replace(/\.0$/, '');
+  // 소수점 첫째 자리까지 표시
+  const formattedValue = value.toFixed(1);
   return `${formattedValue.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,')}원`;
 };
 
@@ -625,18 +628,19 @@ const MaterialsChart: React.FC = () => {
   
   // 단위 정보 추출 및 변환 처리
   const unitInfo = useMemo(() => {
-    if (!rawData || rawData.length === 0) return { displayUnit: 'ton', unitMap: new Map() };
+    if (!rawData || rawData.length === 0) return { displayUnit: 'kg', unitMap: new Map() };
     
     // 각 자재별 단위 정보를 맵으로 저장
     const unitMap = new Map();
     rawData.forEach((item: { unit?: string; specification: string }) => {
-      const originalUnit = item.unit || 'ton';
+      const originalUnit = item.unit || 'kg';
+      // ton 단위는 가격 변환 후 kg으로 표시, 다른 단위는 원래 단위 유지
       const displayUnit = originalUnit === 'ton' ? 'kg' : originalUnit;
       unitMap.set(item.specification, displayUnit);
     });
     
     // 대표 단위 (첫 번째 데이터의 단위)
-    const firstUnit = rawData[0].unit || 'ton';
+    const firstUnit = rawData[0].unit || 'kg';
     const displayUnit = firstUnit === 'ton' ? 'kg' : firstUnit;
     
     return { displayUnit, unitMap };
@@ -658,7 +662,7 @@ const MaterialsChart: React.FC = () => {
 
   return (
     <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-      <CardHeader className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+      <CardHeader className="p-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
         <CardTitle className="text-xl font-bold text-gray-900 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
@@ -670,8 +674,8 @@ const MaterialsChart: React.FC = () => {
             )}
           </div>
           <div className="flex items-center gap-3">
-            <Select value={interval} onValueChange={(value: any) => setInterval(value)}>
-              <SelectTrigger className="w-28 h-9 border-gray-300 hover:border-gray-400 transition-colors">
+            <Select onValueChange={setInterval} value={interval}>
+              <SelectTrigger className="w-24 h-8 text-sm font-normal">
                 <SelectValue placeholder="기간" />
               </SelectTrigger>
               <SelectContent>
@@ -680,8 +684,8 @@ const MaterialsChart: React.FC = () => {
                 <SelectItem value="yearly">연간</SelectItem>
               </SelectContent>
             </Select>
-            <Input type="date" value={startDate} onChange={(e) => setDateRange(e.target.value, endDate)} className="w-40 h-9 border-gray-300 hover:border-gray-400 transition-colors" />
-            <Input type="date" value={endDate} onChange={(e) => setDateRange(startDate, e.target.value)} className="w-40 h-9 border-gray-300 hover:border-gray-400 transition-colors" />
+            <Input type="date" value={startDate} onChange={(e) => setDateRange(e.target.value, endDate)} className="w-32 h-8 text-sm font-normal border-gray-300 hover:border-gray-400 transition-colors" />
+            <Input type="date" value={endDate} onChange={(e) => setDateRange(startDate, e.target.value)} className="w-32 h-8 text-sm font-normal border-gray-300 hover:border-gray-400 transition-colors" />
           </div>
         </CardTitle>
       </CardHeader>
@@ -739,9 +743,8 @@ const MaterialsChart: React.FC = () => {
                     contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontSize: '14px', fontWeight: 500 }}
                     labelStyle={{ color: '#374151', fontWeight: 600 }}
                     formatter={(value: number, name: string) => {
-                      const formattedPrice = new Intl.NumberFormat('ko-KR').format(value);
                       const materialUnit = unitInfo.unitMap.get(name) || 'kg';
-                      return [`${formattedPrice}원/${materialUnit}`, shortenMaterialName(name, visibleMaterials)];
+                      return [formatTooltipValue(value, materialUnit), shortenMaterialName(name)];
                     }}
                     labelFormatter={(label) => `기간: ${label}`}
                   />

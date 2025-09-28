@@ -50,7 +50,7 @@ export const formatWeekLabel = (isoWeek: string): string => {
     // 음수나 0이 나오는 경우 처리 (이전 달의 마지막 주)
     if (weekOfMonth <= 0) {
       const prevMonth = month === 1 ? 12 : month - 1;
-      const prevYear = month === 1 ? shortYear - 1 : shortYear;
+      const prevYear = month === 1 ? Number(shortYear) - 1 : shortYear;
       
       // 이전 달의 마지막 주 계산
       const lastDayOfPrevMonth = new Date(year, targetWeekMonday.getMonth(), 0);
