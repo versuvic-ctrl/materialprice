@@ -9,6 +9,11 @@ const nextConfig = {
     };
     return config;
   },
+  turbopack: {
+    resolveAlias: {
+      '@/': './src/',
+    },
+  },
 };
 
 module.exports = nextConfig;
