@@ -30,25 +30,14 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, CalendarDays, BarChart3 } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabaseClient';
 import useMaterialStore from '@/store/materialStore'; // [교체] Zustand 스토어 import
 import MaterialsChart from '@/components/materials/MaterialsChart'; // [교체] 새로운 차트 컴포넌트 import
-
-// 정적 자재 물성 데이터 (자재 비교 테이블 및 계산기에서 사용)
-// price: 원/kg, density: g/cm³, tensile: MPa, yield: MPa, elastic: GPa, thermal: W/m·K
-// SUS304, SUS316 등은 원래 ton/원 단위였으므로 1000으로 나누어 kg/원으로 변환
-const MATERIAL_DATA = {
-  'SUS304': { price: 8.5, density: 7.93, tensile: 520, yield: 205, elastic: 200, thermal: 16.2 },
-  'SUS316': { price: 9.2, density: 8.0, tensile: 515, yield: 205, elastic: 200, thermal: 16.3 },
-  'AL6061': { price: 3.2, density: 2.7, tensile: 310, yield: 276, elastic: 68.9, thermal: 167 },
-  'Carbon Steel': { price: 2.8, density: 7.85, tensile: 400, yield: 250, elastic: 200, thermal: 50 }
-};
+import MaterialsPriceTable from '@/components/materials/MaterialsPriceTable'; // [추가] 자재 가격 테이블 컴포넌트 import
 
 // Supabase 클라이언트는 lib/supabaseClient.ts에서 import
 
@@ -63,70 +52,81 @@ const sortKorean = (arr: string[]) => {
   });
 };
 
-// 계층형 카테고리 데이터를 가져오는 React Query 훅
-// level: 카테고리 레벨 (대분류/중분류/소분류/규격/상세규격)
-// filters: 상위 카테고리 선택 조건
-const useCategories = (level: 'major' | 'middle' | 'sub' | 'specification' | 'spec_name', filters: object) => {
-  return useQuery({
+// useCategories 훅의 반환 타입 정의
+interface UseCategoriesReturn {
+  data: string[] | undefined;
+  isLoading: boolean;
+  error: Error | null;
+}
+
+const useCategories = (
+  level: 'major' | 'middle' | 'sub' | 'specification' | 'detail_spec', 
+  filters: Record<string, any>
+): UseCategoriesReturn => {
+  
+  const queryResult = useQuery<string[], Error>({
     queryKey: ['categories', level, filters],
     queryFn: async () => {
-      console.log(`Fetching ${level} categories with filters:`, filters);
       
-      // 상위 카테고리가 선택되지 않았으면 쿼리 실행 안 함 (major 제외)
-      if (level !== 'major' && Object.values(filters).some(v => !v)) {
-        console.log(`Skipping ${level} query - missing filters`);
-        return [];
-      }
+      // 타임아웃과 함께 Supabase RPC 함수 호출
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 15000); // 15초 타임아웃
+      });
       
-      // Supabase RPC 함수 호출로 카테고리 목록 조회
+      const rpcPromise = supabase.rpc('get_distinct_categories', {
+        p_level: level,
+        p_filters: filters
+      });
+      
       try {
-        const { data, error } = await supabase.rpc('get_distinct_categories', {
-          p_level: level,
-          p_filters: filters
-        });
-
-        if (process.env.NODE_ENV === 'development') {
-          console.debug(`Debug: RPC call for ${level} categories - data:`, data);
-          console.debug(`Debug: RPC call for ${level} categories - error:`, error);
-        }
+        const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as any;
 
         if (error) {
-          // 오류 발생 시 콘솔에 로깅하지 않고 조용히 처리
-          // 개발 환경에서만 오류 객체 출력
-          if (process.env.NODE_ENV === 'development' && error && Object.keys(error).length > 0) {
-            console.debug(`Debug: Error fetching ${level} categories:`, error);
-          }
-          return []; // 오류 발생 시 빈 배열 반환하여 UI가 깨지지 않도록 처리
+          throw new Error(`Failed to fetch ${level} categories: ${error.message || 'Unknown error'}`);
         }
         
         // 데이터 처리 및 한글 자음 순서로 정렬하여 반환
-        console.log(`Raw data from RPC for ${level}:`, data);
-        
         let categories: string[] = [];
         if (Array.isArray(data)) {
-          // 데이터가 배열인 경우 각 항목에서 name 필드 추출 (RPC 함수가 name 컬럼 반환)
+          // RPC 함수가 다양한 형태로 반환하는 경우 처리
           categories = data.map((item: any) => {
-            if (item && typeof item.name === 'string') {
+            if (typeof item === 'string') {
+              return item;
+            } else if (item && typeof item.category === 'string') {
+              // {category: "값"} 형태 처리 (우선순위 높임)
+              return item.category;
+            } else if (item && typeof item.get_distinct_categories === 'string') {
+              return item.get_distinct_categories;
+            } else if (item && typeof item.name === 'string') {
               return item.name;
+            } else if (item && typeof item[level] === 'string') {
+              return item[level];
             }
             return '';
           }).filter(cat => cat !== '');
         }
         
-        console.log(`Processed ${level} categories:`, categories);
         return sortKorean(categories);
       } catch (err) {
-        console.error(`Error fetching ${level} categories:`, err);
-        return []; // 오류 발생 시 빈 배열 반환
+        // 에러를 throw하여 React Query의 재시도 메커니즘 활용
+        throw err;
       }
     },
-    // enabled 옵션: major는 항상 실행, 나머지는 상위 필터값이 모두 존재할 때만 쿼리를 실행
-    enabled: level === 'major' ? true : Object.values(filters).every(v => v),
+    // enabled 옵션: 모든 레벨에서 쿼리를 실행하도록 변경하여 디버깅
+    enabled: true,
+    // 재시도 설정: 3번 재시도, 지수 백오프 적용
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // 1초, 2초, 4초 후 재시도
+    // 스테일 타임 설정: 5분간 캐시된 데이터 사용
+    staleTime: 5 * 60 * 1000,
+    // 에러 발생 시에도 이전 데이터 유지
+    placeholderData: []
   });
+  
+  return queryResult;
 };
 
 const MaterialsPage: React.FC = () => {
-  // Zustand 전역 스토어에서 카테고리 선택 상태 및 액션 가져오기
   const {
     selectedLevel1,              // 대분류 선택값
     selectedLevel2,              // 중분류 선택값
@@ -136,17 +136,30 @@ const MaterialsPage: React.FC = () => {
     setCategory,                 // 카테고리 선택 액션
     selectedMaterialsForChart,   // 차트에 표시할 자재 목록
     hiddenMaterials,             // 숨겨진 자재 Set
+    addMaterialToChart,          // 차트에 자재 추가
     removeMaterialFromChart,     // 차트에서 자재 제거
     toggleMaterialVisibility,    // 자재 표시/숨김 토글
     clearAllMaterials,           // 모든 자재 제거
   } = useMaterialStore();
 
   // React Query를 통해 계층형 카테고리 데이터를 동적으로 조회
-  const { data: level1Categories, isLoading: level1Loading } = useCategories('major', {});
-  const { data: level2Categories, isLoading: level2Loading } = useCategories('middle', { major: selectedLevel1 });
-  const { data: level3Categories, isLoading: level3Loading } = useCategories('sub', { major: selectedLevel1, middle: selectedLevel2 });
-  const { data: level4Categories, isLoading: level4Loading } = useCategories('specification', { major: selectedLevel1, middle: selectedLevel2, sub: selectedLevel3 });
-  const { data: level5Categories, isLoading: level5Loading } = useCategories('spec_name', { major: selectedLevel1, middle: selectedLevel2, sub: selectedLevel3, specification: selectedLevel4 });
+  const level1Categories = useCategories('major', {});
+  
+  const level2Categories = useCategories('middle', 
+    React.useMemo(() => ({ major: selectedLevel1 }), [selectedLevel1])
+  );
+  
+  const level3Categories = useCategories('sub', 
+    React.useMemo(() => ({ major: selectedLevel1, middle: selectedLevel2 }), [selectedLevel1, selectedLevel2])
+  );
+  
+  const level4Categories = useCategories('specification', 
+    React.useMemo(() => ({ major: selectedLevel1, middle: selectedLevel2, sub: selectedLevel3 }), [selectedLevel1, selectedLevel2, selectedLevel3])
+  );
+  
+  const level5Categories = useCategories('detail_spec', 
+    React.useMemo(() => ({ major: selectedLevel1, middle: selectedLevel2, sub: selectedLevel3, specification: selectedLevel4 }), [selectedLevel1, selectedLevel2, selectedLevel3, selectedLevel4])
+  );
 
   // 상태 관리는 Zustand로, 서버 상태는 React Query로 처리하여 컴포넌트 로직 단순화
 
@@ -180,54 +193,70 @@ const MaterialsPage: React.FC = () => {
                     <SelectValue placeholder="대분류" />
                   </SelectTrigger>
                   <SelectContent>
-                    {level1Loading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
-                    {level1Categories?.map((cat, index) => <SelectItem key={`level1-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
+                    {level1Categories.isLoading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
+                    {level1Categories.data?.map((cat: string, index: number) => <SelectItem key={`level1-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
                   </SelectContent>
                 </Select>
 
-                <Select value={selectedLevel2} onValueChange={(v) => setCategory(2, v)} disabled={!selectedLevel1 || level2Loading}>
+                <Select value={selectedLevel2} onValueChange={(v) => setCategory(2, v)} disabled={!selectedLevel1 || level2Categories.isLoading}>
                   <SelectTrigger className="h-8 min-w-[100px] text-sm">
                     <SelectValue placeholder="중분류" />
                   </SelectTrigger>
                   <SelectContent>
-                    {level2Loading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
-                    {level2Categories?.map((cat, index) => <SelectItem key={`level2-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
+                    {level2Categories.isLoading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
+                    {level2Categories.data?.map((cat: string, index: number) => <SelectItem key={`level2-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
                   </SelectContent>
                 </Select>
 
-                <Select value={selectedLevel3} onValueChange={(v) => setCategory(3, v)} disabled={!selectedLevel2 || level3Loading}>
+                <Select value={selectedLevel3} onValueChange={(v) => setCategory(3, v)} disabled={!selectedLevel2 || level3Categories.isLoading}>
                   <SelectTrigger className="h-8 min-w-[100px] text-sm">
                     <SelectValue placeholder="소분류" />
                   </SelectTrigger>
                   <SelectContent>
-                    {level3Loading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
-                    {level3Categories?.map((cat, index) => <SelectItem key={`level3-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
+                    {level3Categories.isLoading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
+                    {level3Categories.data?.map((cat: string, index: number) => <SelectItem key={`level3-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
                   </SelectContent>
                 </Select>
 
-                <Select value={selectedLevel4} onValueChange={(v) => setCategory(4, v)} disabled={!selectedLevel3 || level4Loading}>
+                <Select value={selectedLevel4} onValueChange={(v) => setCategory(4, v)} disabled={!selectedLevel3 || level4Categories.isLoading}>
                   <SelectTrigger className="h-8 min-w-[100px] text-sm">
                     <SelectValue placeholder="규격" />
                   </SelectTrigger>
                   <SelectContent>
-                    {level4Loading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
-                    {level4Categories?.map((cat, index) => <SelectItem key={`level4-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
+                    {level4Categories.isLoading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
+                    {level4Categories.data?.map((cat: string, index: number) => <SelectItem key={`level4-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
                   </SelectContent>
                 </Select>
 
                 {/* 5번째 상세규격 드롭다운 - 조건부 렌더링 */}
-                {selectedLevel4 && level5Categories && level5Categories.length > 0 && (
-                  <Select value={selectedLevel5} onValueChange={(v) => setCategory(5, v)} disabled={!selectedLevel4 || level5Loading}>
+                {selectedLevel4 && level5Categories.data && Array.isArray(level5Categories.data) && level5Categories.data.length > 0 && (
+                  <Select value={selectedLevel5} onValueChange={(v) => setCategory(5, v)} disabled={!selectedLevel4 || level5Categories.isLoading}>
                     <SelectTrigger className="h-8 min-w-[100px] text-sm">
                       <SelectValue placeholder="상세규격" />
                     </SelectTrigger>
                     <SelectContent>
-                      {level5Loading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
-                      {level5Categories?.map((cat, index) => <SelectItem key={`level5-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
+                      {level5Categories.isLoading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
+                      {level5Categories.data?.map((cat: string, index: number) => <SelectItem key={`level5-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 )}
               </div>
+              
+              {/* 자재를 차트에 추가하는 버튼 */}
+              {selectedLevel5 && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <Button 
+                    onClick={() => {
+                      const materialName = `${selectedLevel1} > ${selectedLevel2} > ${selectedLevel3} > ${selectedLevel4} > ${selectedLevel5}`;
+                      addMaterialToChart(materialName);
+                    }}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    disabled={!selectedLevel5}
+                  >
+                    차트에 추가
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -289,29 +318,11 @@ const MaterialsPage: React.FC = () => {
 
         {/* [교체] 차트 영역: 기존 DashboardCharts를 MaterialsChart로 교체 */}
         <MaterialsChart />
+
+        {/* [추가] 자재 가격 테이블 */}
+        <MaterialsPriceTable selectedMaterials={selectedMaterialsForChart} />
         
-        {/* 요약 정보 카드 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Card className="border border-gray-200">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-blue-600" /> 자재 정보
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">선택된 자재:</span>
-                  <span className="text-sm font-medium">
-                    {selectedMaterialsForChart.length > 0 ? `${selectedMaterialsForChart.length}개` : '없음'}
-                  </span>
-                </div>
-                {/* ... 다른 정보들 ... */}
-              </div>
-            </CardContent>
-          </Card>
-          {/* ... ASME 물성정보 & 가격정보 Card, 물성 정보 Card ... */}
-        </div>
+
 
 
       </div>

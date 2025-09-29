@@ -80,12 +80,12 @@ const PriceTable: React.FC<PriceTableProps> = ({ data, isLoading = false }) => {
     <div className="w-full mt-2">
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
         {/* 테이블 헤더 */}
-        <div className="grid gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1.5fr' }}>
+        <div className="grid gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200" style={{ gridTemplateColumns: '2fr 1fr 1.5fr 1.5fr 1.5fr 1.5fr' }}>
           <div className="text-xs font-medium text-gray-700 text-center">품목</div>
           <div className="text-xs font-medium text-gray-700 text-center">단위</div>
-          <div className="text-xs font-medium text-gray-700 text-center">2년전</div>
-          <div className="text-xs font-medium text-gray-700 text-center">1년전</div>
-          <div className="text-xs font-medium text-gray-700 text-center">1개월전</div>
+          <div className="text-xs font-medium text-gray-700 text-center">2년전비</div>
+          <div className="text-xs font-medium text-gray-700 text-center">전년비</div>
+          <div className="text-xs font-medium text-gray-700 text-center">전월비</div>
           <div className="text-xs font-medium text-gray-700 text-center">현재가</div>
         </div>
         
@@ -97,7 +97,7 @@ const PriceTable: React.FC<PriceTableProps> = ({ data, isLoading = false }) => {
             const twoYearAgoChangeFormat = formatChange(item.twoYearAgoChange);
             
             return (
-              <div key={index} className="grid gap-2 px-3 py-2 hover:bg-gray-50 transition-colors" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1.5fr' }}>
+              <div key={index} className="grid gap-2 px-3 py-2 hover:bg-gray-50 transition-colors" style={{ gridTemplateColumns: '2fr 1fr 1.5fr 1.5fr 1.5fr 1.5fr' }}>
                 {/* 품목명 */}
                 <div className="text-xs text-gray-900 text-center overflow-hidden text-ellipsis whitespace-nowrap" title={item.name}>
                   {item.name}
@@ -108,22 +108,22 @@ const PriceTable: React.FC<PriceTableProps> = ({ data, isLoading = false }) => {
                   {item.unit}
                 </div>
 
-                {/* 2년전 */}
+                {/* 2년전비 */}
                 <div className={`text-xs text-center font-medium ${twoYearAgoChangeFormat.color}`}>
                   {twoYearAgoChangeFormat.text}
                 </div>
                 
-                {/* 1년전 */}
+                {/* 전년비 */}
                 <div className={`text-xs text-center font-medium ${yearlyChangeFormat.color}`}>
                   {yearlyChangeFormat.text}
                 </div>
 
-                {/* 1개월전 */}
+                {/* 전월비 */}
                 <div className={`text-xs text-center font-medium ${monthlyChangeFormat.color}`}>
                   {monthlyChangeFormat.text}
                 </div>
 
-                {/* 현재가 */}
+                {/* 가격 */}
                 <div className="text-xs text-gray-900 text-center font-medium">
                   {formatPrice(item.currentPrice)}
                 </div>

@@ -20,11 +20,32 @@ import { createClient } from '@supabase/supabase-js';
  * - 로컬 JavaScript 계산 함수
  */
 
-// Supabase 설정
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// 환경변수 확인 함수
+export const isSupabaseConfigured = () => {
+  return process.env.NEXT_PUBLIC_SUPABASE_URL && 
+         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+         process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co';
+};
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Supabase 클라이언트 지연 초기화 (빌드 시 오류 방지)
+let _supabaseClient: ReturnType<typeof createClient> | null = null;
+
+export const getSupabaseClient = () => {
+  if (!_supabaseClient) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxOTI4MDAsImV4cCI6MTk2MDc2ODgwMH0.placeholder';
+    
+    _supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  return _supabaseClient;
+};
+
+// 하위 호환성을 위한 supabase export (지연 초기화 사용)
+export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
+  get(target, prop) {
+    return getSupabaseClient()[prop as keyof ReturnType<typeof createClient>];
+  }
+});
 
 // ==================== 타입 정의 ====================
 export interface MaterialPrice {

@@ -20,6 +20,7 @@ const DASHBOARD_CHARTS_CONFIG = [
       { id: '후판 -  6.0 ≤T ≤7.0, 2,438 ×6,096㎜', displayName: 'SS275' },
       { id: '고장력철근(하이바)(SD 400) -  D10㎜, 0.560', displayName: '고장력철근' },
       { id: 'H형강 -  (소형)H200×B100×t₁5.5×t₂8㎜ 단중21.3㎏/m', displayName: 'H형강' },
+      { id: '고철(철) - 중량철 A ', displayName: '고철(중량철A)' }
     ]
   },
   {

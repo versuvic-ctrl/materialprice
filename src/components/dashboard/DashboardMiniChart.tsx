@@ -626,7 +626,7 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
           </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-2">
+      <CardContent className="p-4">
         <div className="h-64 w-full relative">
           {isLoading ? (
             <Skeleton className="h-full w-full" />
@@ -760,7 +760,7 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
         
         {/* 커스텀 범례 - 좌우 분리 배치 */}
         {materials.length > 0 && (
-          <div className="mt-4 flex justify-between items-start">
+          <div className="mt-1 flex justify-between items-start">
             {/* 좌측 범례 (주축) */}
             <div className="flex-1">
               {axisAssignment.leftAxisMaterials.length > 0 && (
@@ -804,7 +804,9 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
         )}
         
         {/* 가격 정보 테이블 */}
-        <PriceTable data={tableData} isLoading={isLoading} />
+        <div className="mt-5">
+          <PriceTable data={tableData} isLoading={isLoading} />
+        </div>
       </CardContent>
     </Card>
   );

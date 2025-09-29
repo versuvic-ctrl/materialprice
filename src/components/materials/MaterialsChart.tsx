@@ -1,10 +1,10 @@
 // src/components/materials/MaterialsChart.tsx
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -460,12 +460,30 @@ const fetchPriceData = async (
       throw new Error(`Supabase RPC Error: ${errorMessage}`);
     }
     
-    // 조회 결과를 캐시에 저장
-    if (data && data.length > 0) {
-      await setMaterialDataToCache(materials, startDate, endDate, interval, data);
+    console.log('RPC 응답 데이터:', {
+      dataType: typeof data,
+      isArray: Array.isArray(data),
+      dataLength: data?.length || 0,
+      firstItem: data?.[0],
+      hasGetPriceData: data?.[0]?.get_price_data
+    });
+    
+    // RPC 함수가 {get_price_data: [...]} 형태로 반환하는 경우 처리
+    let processedData = data;
+    if (data && data.length > 0 && data[0].get_price_data) {
+      processedData = data[0].get_price_data;
+      console.log('get_price_data 필드에서 데이터 추출:', {
+        extractedLength: processedData.length,
+        firstExtractedItem: processedData[0]
+      });
     }
     
-    return data;
+    // 조회 결과를 캐시에 저장
+    if (processedData && processedData.length > 0) {
+      await setMaterialDataToCache(materials, startDate, endDate, interval, processedData);
+    }
+    
+    return processedData;
   } catch (err: any) {
     console.error('Error fetching price data:', err);
     
@@ -490,20 +508,26 @@ const fetchPriceData = async (
 const transformDataForChart = (data: any[], visibleMaterials: string[]) => {
   if (!data || !Array.isArray(data) || data.length === 0) return [];
 
+  console.log('transformDataForChart 입력:', {
+    dataLength: data.length,
+    firstItem: data[0],
+    visibleMaterials
+  });
+
   const groupedData = data.reduce((acc, item) => {
-    // RPC 응답에서 date, specification, price, unit 필드 사용
-    const { date, specification, price, unit } = item;
+    // RPC 응답에서 time_bucket, specification, average_price, unit 필드 사용
+    const { time_bucket, specification, average_price, unit } = item;
     
-    if (!acc[date]) {
-      acc[date] = { time_bucket: date };
+    if (!acc[time_bucket]) {
+      acc[time_bucket] = { time_bucket };
     }
     
     // 가격 데이터 처리 (숫자로 변환)
-    const numericPrice = typeof price === 'number' ? price : parseFloat(price);
+    const numericPrice = typeof average_price === 'number' ? average_price : parseFloat(average_price);
     if (!isNaN(numericPrice)) {
       // ton 단위인 경우 kg으로 변환 (가격을 1/1000로 변환)
       const convertedPrice = unit === 'ton' ? numericPrice / 1000 : numericPrice;
-      acc[date][specification] = convertedPrice;
+      acc[time_bucket][specification] = convertedPrice;
     }
     return acc;
   }, {});
@@ -522,7 +546,15 @@ const transformDataForChart = (data: any[], visibleMaterials: string[]) => {
   });
   
   // 날짜순으로 정렬
-  return result.sort((a, b) => a.time_bucket.localeCompare(b.time_bucket));
+  const sortedResult = result.sort((a, b) => a.time_bucket.localeCompare(b.time_bucket));
+  
+  console.log('transformDataForChart 결과:', {
+    resultLength: sortedResult.length,
+    firstResult: sortedResult[0],
+    lastResult: sortedResult[sortedResult.length - 1]
+  });
+  
+  return sortedResult;
 };
 
 // [삭제] assignYAxis 함수는 더 이상 필요하지 않습니다.
@@ -593,7 +625,21 @@ const MaterialsChart: React.FC = () => {
     selectedMaterialsForChart, hiddenMaterials,
   } = useMaterialStore();
 
-  const visibleMaterials = selectedMaterialsForChart.filter(m => !hiddenMaterials.has(m));
+  const [shouldRotateLabels, setShouldRotateLabels] = useState(false);
+  const chartRef = useRef<HTMLDivElement>(null);
+
+  // visibleMaterials를 useMemo로 최적화하여 무한 렌더링 방지
+  const visibleMaterials = useMemo(() => {
+    return selectedMaterialsForChart.filter(m => !hiddenMaterials.has(m));
+  }, [selectedMaterialsForChart, hiddenMaterials]);
+
+  console.log('MaterialsChart 렌더링:', {
+    selectedMaterialsForChart,
+    visibleMaterials,
+    startDate,
+    endDate,
+    interval
+  });
 
   const { data: rawData, isLoading, isError, error } = useQuery({
     queryKey: ['materialPrices', visibleMaterials, startDate, endDate, interval],
@@ -601,14 +647,43 @@ const MaterialsChart: React.FC = () => {
     enabled: visibleMaterials.length > 0,
     staleTime: 1000 * 60 * 5, // 5분
   });
+
+  console.log('useQuery 상태:', {
+    isLoading,
+    isError,
+    error,
+    rawDataLength: rawData?.length || 0,
+    rawData: rawData?.slice(0, 2) // 처음 2개 데이터만 로그
+  });
   
   const chartData = useMemo(() => {
     const transformed = transformDataForChart(rawData, visibleMaterials);
     const chartArray = Array.isArray(transformed) ? transformed : [];
     
+    console.log('차트 데이터 변환:', {
+      rawDataLength: rawData?.length || 0,
+      transformedLength: chartArray.length,
+      chartArray: chartArray.slice(0, 2) // 처음 2개 데이터만 로그
+    });
+    
     // 원본 데이터를 그대로 사용 (단위 변환 제거)
     return chartArray;
   }, [rawData, visibleMaterials]);
+
+  useEffect(() => {
+    const checkLabelOverlap = () => {
+      if (chartRef.current && chartData) {
+        const containerWidth = chartRef.current.offsetWidth;
+        const labelWidth = 60; // 예상되는 레이블의 평균 너비
+        const totalLabelsWidth = chartData.length * labelWidth;
+        setShouldRotateLabels(totalLabelsWidth > containerWidth);
+      }
+    };
+
+    checkLabelOverlap();
+    window.addEventListener('resize', checkLabelOverlap);
+    return () => window.removeEventListener('resize', checkLabelOverlap);
+  }, [chartData, interval]);
   
   // 스마트 Y축 배치 계산
   const axisAssignment = useMemo(() => {
@@ -698,8 +773,9 @@ const MaterialsChart: React.FC = () => {
         )}
         
         <div 
-          className="bg-white rounded-lg p-2 border-0 shadow-none relative"
+          className="bg-white rounded-lg border-0 shadow-none relative"
           style={{ height: `${chartHeight}px` }}
+          ref={chartRef}
         >
           {isLoading ? (
             <div className="space-y-4"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /><Skeleton className="h-64 w-full" /></div>
@@ -718,7 +794,10 @@ const MaterialsChart: React.FC = () => {
                     fontSize={12} 
                     tickLine={false} 
                     axisLine={true} 
-                    tick={{ fill: '#6b7280', fontWeight: 500 }} 
+                    tick={shouldRotateLabels 
+                      ? { fill: '#6b7280', fontWeight: 500, angle: -45, textAnchor: 'end' } as any
+                      : { fill: '#6b7280', fontWeight: 500 }
+                    }
                     tickFormatter={(value) => formatXAxisLabel(value, interval)}
                   />
                   
@@ -780,7 +859,7 @@ const MaterialsChart: React.FC = () => {
                 </LineChart>
                </ResponsiveContainer>
                {visibleMaterials.length > 0 && (
-                 <div style={{ marginTop: '8px' }}>
+                 <div style={{ marginTop: '0px' }}>
                    <CustomizedLegend 
                      payload={chartData.length > 0 ? visibleMaterials.map((material, index) => ({ 
                        value: material, 

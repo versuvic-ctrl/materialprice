@@ -49,6 +49,7 @@ const useMaterialStore = create<MaterialState>((set) => ({
 
   // 카테고리 변경 시 하위 카테고리 초기화 및 상태 업데이트
   setCategory: (level, value) => set((state) => {
+    console.log(`setCategory called - level: ${level}, value: ${value}`);
     const updates: Partial<MaterialState> = {};
     
     if (level === 1) {
@@ -81,19 +82,33 @@ const useMaterialStore = create<MaterialState>((set) => ({
       if (state.selectedLevel4 !== value) {
         updates.selectedLevel5 = '';
       }
-      // 4단계 선택 시 5단계가 없으면 자동으로 차트에 추가 (중복 방지)
-      if (value && !state.selectedMaterialsForChart.includes(value)) {
-        // 5단계가 있는지 확인하는 로직은 추후 API 연동 시 추가
-        updates.selectedMaterialsForChart = [...state.selectedMaterialsForChart, value];
+      // 4단계 선택 시 자동으로 차트에 추가 (전체 자재명으로 구성)
+      if (value) {
+        const materialName = value; // 규격명을 자재명으로 사용
+        console.log(`Adding material to chart: ${materialName}`);
+        if (!state.selectedMaterialsForChart.includes(materialName)) {
+          updates.selectedMaterialsForChart = [...state.selectedMaterialsForChart, materialName];
+          console.log(`Material added. New list:`, [...state.selectedMaterialsForChart, materialName]);
+        } else {
+          console.log(`Material already exists in chart: ${materialName}`);
+        }
       }
     } else if (level === 5) {
       updates.selectedLevel5 = value;
-      // 5단계 선택 시 자동으로 차트에 추가 (중복 방지)
-      if (value && !state.selectedMaterialsForChart.includes(value)) {
-        updates.selectedMaterialsForChart = [...state.selectedMaterialsForChart, value];
+      // 5단계 선택 시 자동으로 차트에 추가 (상세규격명을 자재명으로 사용)
+      if (value) {
+        const materialName = value; // 상세규격명을 자재명으로 사용
+        console.log(`Adding material to chart: ${materialName}`);
+        if (!state.selectedMaterialsForChart.includes(materialName)) {
+          updates.selectedMaterialsForChart = [...state.selectedMaterialsForChart, materialName];
+          console.log(`Material added. New list:`, [...state.selectedMaterialsForChart, materialName]);
+        } else {
+          console.log(`Material already exists in chart: ${materialName}`);
+        }
       }
     }
     
+    console.log('setCategory updates:', updates);
     return updates;
   }),
   
