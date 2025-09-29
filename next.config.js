@@ -11,7 +11,7 @@ const nextConfig = {
   },
   turbopack: {
     resolveAlias: {
-      '@/': './src/',
+      '@': path.resolve(__dirname, 'src'),
     },
   },
 };
