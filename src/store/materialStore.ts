@@ -1,7 +1,7 @@
 // src/store/materialStore.ts
 import { create } from 'zustand';
 import { subYears, format } from 'date-fns';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 
 type Interval = 'weekly' | 'monthly' | 'yearly';
 
