@@ -24,6 +24,10 @@ import CalculatorPreview from '@/components/dashboard/CalculatorPreview';
 import DashboardClient from '@/components/DashboardClient';
 import DashboardChartGrid from '@/components/dashboard/DashboardChartGrid'; // [추가] 새로 만든 차트 그리드 컴포넌트를 import 합니다.
 
+// 빌드 시 프리렌더 오류를 회피하기 위해 동적 렌더링 강제
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // 서버 컴포넌트에서 대시보드 데이터를 가져오는 함수
 // 현재는 샘플 데이터를 반환하지만, 향후 Supabase에서 실제 데이터를 가져올 예정
 function getDashboardData() {

@@ -1,7 +1,6 @@
 // src/store/materialStore.ts
 import { create } from 'zustand';
 import { subYears, format } from 'date-fns';
-import { supabase } from '@/lib/supabaseClient';
 
 type Interval = 'weekly' | 'monthly' | 'yearly';
 
@@ -199,22 +198,15 @@ const useMaterialStore = create<MaterialState>((set) => ({
   // 카테고리별 자재 목록 가져오기 함수
   fetchMaterialsByCategory: async (level: number, categoryName: string) => {
     try {
-      let query = supabase.from('kpi_price_data').select('specification').limit(10);
+      // Construct API endpoint based on level and categoryName
+      // Assuming the API returns an array of objects, each with a 'specification' property
+      const response = await fetch(`/api/materials-by-category?level=${level}&categoryName=${encodeURIComponent(categoryName)}`);
       
-      if (level === 1) {
-        query = query.eq('major_category', categoryName);
-      } else if (level === 2) {
-        query = query.eq('middle_category', categoryName);
-      } else if (level === 3) {
-        query = query.eq('specification', categoryName);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const { data, error } = await query;
-      
-      if (error) {
-        console.error('Error fetching materials:', error);
-        return [];
-      }
+      const data: { specification: string }[] = await response.json();
       
       // 중복 제거하고 specification만 추출
       const materials = [...new Set(data.map(item => item.specification))];
