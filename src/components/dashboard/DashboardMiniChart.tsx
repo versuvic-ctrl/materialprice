@@ -79,36 +79,67 @@ const fetchPriceData = async (
   // 자재별로 개별 RPC 호출하여 타임아웃 방지
   const allData: any[] = [];
   
-  for (const material of materials) {
-    try {
-      console.log(`자재 ${material}에 대한 RPC 호출 시작`);
-      
-      const { data, error } = await supabase.rpc('get_price_data', {
-        p_interval: interval,
-        p_start_date: startDate,
-        p_end_date: endDate,
-        p_major_categories: null,
-        p_middle_categories: null,
-        p_sub_categories: null,
-        p_specifications: [material], // 단일 자재로 호출
-        p_spec_names: null,
-      });
+  try {
+    console.log(`배치 자재 ${materials.length}개에 대한 RPC 호출 시작`);
+    
+    // 모든 자재를 한 번의 RPC 호출로 처리
+    const { data, error } = await supabase.rpc('get_price_data', {
+      p_interval: interval,
+      p_start_date: startDate,
+      p_end_date: endDate,
+      p_major_categories: null,
+      p_middle_categories: null,
+      p_sub_categories: null,
+      p_specifications: materials, // 모든 자재를 배열로 전달
+      p_spec_names: null,
+    });
 
-      if (error) {
-        console.error(`자재 ${material} RPC 오류:`, error);
-        throw new Error(`자재 ${material} 데이터 조회 실패: ${error?.message || error?.toString() || '알 수 없는 오류'}`);
-      }
+    if (error) {
+      console.error(`배치 RPC 오류:`, error);
+      throw new Error(`자재 데이터 조회 실패: ${error?.message || error?.toString() || '알 수 없는 오류'}`);
+    }
 
-      if (data && data.length > 0) {
-        allData.push(...data);
-        console.log(`자재 ${material}: ${data.length}개 데이터 조회 완료`);
-      } else {
-        console.warn(`자재 ${material}: 데이터 없음`);
+    if (data && data.length > 0) {
+      allData.push(...data);
+      console.log(`배치 처리 완료: ${data.length}개 데이터 조회`);
+    } else {
+      console.warn(`선택한 자재에 대한 데이터 없음`);
+    }
+  } catch (batchError) {
+    console.error(`배치 처리 중 오류:`, batchError);
+    // 배치 처리 실패 시 개별 자재별로 폴백 처리
+    console.log('배치 처리 실패, 개별 자재별로 폴백 처리 시작');
+    
+    for (const material of materials) {
+      try {
+        console.log(`자재 ${material} 폴백 호출 시작`);
+        
+        const { data, error } = await supabase.rpc('get_price_data', {
+          p_interval: interval,
+          p_start_date: startDate,
+          p_end_date: endDate,
+          p_major_categories: null,
+          p_middle_categories: null,
+          p_sub_categories: null,
+          p_specifications: [material], // 단일 자재로 호출
+          p_spec_names: null,
+        });
+
+        if (error) {
+          console.error(`자재 ${material} RPC 오류:`, error);
+          continue; // 개별 자재 오류는 스킵
+        }
+
+        if (data && data.length > 0) {
+          allData.push(...data);
+          console.log(`자재 ${material}: ${data.length}개 데이터 조회 완료`);
+        } else {
+          console.warn(`자재 ${material}: 데이터 없음`);
+        }
+      } catch (materialError) {
+        console.error(`자재 ${material} 처리 중 오류:`, materialError);
+        continue; // 개별 자재 오류는 스킵
       }
-    } catch (materialError) {
-      console.error(`자재 ${material} 처리 중 오류:`, materialError);
-      // 개별 자재 오류는 전체 실패로 이어지지 않도록 처리
-      continue;
     }
   }
   

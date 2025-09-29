@@ -23,6 +23,9 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, title = '대시보드' }
         <div className="flex items-center space-x-4">
           {/* Mobile menu button */}
           <button
+            type="button"
+            aria-label="Toggle sidebar"
+            title="Toggle sidebar"
             onClick={toggleSidebar}
             className="lg:hidden p-2 rounded-md hover:bg-gray-100 transition-colors"
           >
@@ -55,7 +58,12 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, title = '대시보드' }
         {/* Right Section */}
         <div className="flex items-center space-x-3">
           {/* Search button for mobile */}
-          <button className="md:hidden p-2 rounded-md hover:bg-gray-100 transition-colors">
+          <button
+            type="button"
+            aria-label="검색"
+            title="검색"
+            className="md:hidden p-2 rounded-md hover:bg-gray-100 transition-colors"
+          >
             <MagnifyingGlassIcon className="w-5 h-5 text-gray-600" />
           </button>
           

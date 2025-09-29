@@ -41,7 +41,8 @@ export default function Dashboard() {
   
   return (
     <Layout title="대시보드">
-      {/* 상단 통계 카드 섹션 */}
+      
+      {/* 통계 카드 섹션 */}
       <DashboardClient dashboardData={dashboardData} />
       
       {/* 중앙 차트 그리드 섹션 */}

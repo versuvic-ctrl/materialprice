@@ -11,7 +11,7 @@ import DashboardMiniChart from '@/components/dashboard/DashboardMiniChart';
 
 // 대시보드 차트 설정: 여기에 표시하고 싶은 차트와 자재를 정의합니다.
 // 중요: materials 배열 안의 이름은 DB의 'specification' 컬럼에 있는 실제 값과 일치해야 합니다.
-const DASHBOARD_CHARTS_CONFIG = [
+export const DASHBOARD_CHARTS_CONFIG = [
   {
     title: '철금속(Ferrous metals)',
     materials: [

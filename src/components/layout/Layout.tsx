@@ -223,6 +223,8 @@ export default function Layout({ children, title }: LayoutProps) {
           <div className="flex items-center justify-between h-full px-3 sm:px-4 lg:px-6">
             <div className="flex items-center">
               <button
+                aria-label="Open sidebar"
+                title="Open sidebar"
                 onClick={() => setSidebarOpen(true)}
                 className="text-gray-500 hover:text-gray-600 lg:hidden"
               >
@@ -249,12 +251,20 @@ export default function Layout({ children, title }: LayoutProps) {
               </div>
 
               {/* Notifications */}
-              <button className="text-gray-400 hover:text-gray-500">
+              <button
+                className="text-gray-400 hover:text-gray-500"
+                aria-label="Notifications"
+                title="Notifications"
+              >
                 <BellIcon className="h-5 w-5" />
               </button>
 
               {/* Profile */}
-              <button className="text-gray-400 hover:text-gray-500">
+              <button
+                className="text-gray-400 hover:text-gray-500"
+                aria-label="Profile"
+                title="Profile"
+              >
                 <UserCircleIcon className="h-5 w-5" />
               </button>
             </div>

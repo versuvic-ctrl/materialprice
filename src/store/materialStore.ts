@@ -1,6 +1,7 @@
 // src/store/materialStore.ts
 import { create } from 'zustand';
 import { subYears, format } from 'date-fns';
+import { supabase } from '../lib/supabaseClient';
 
 type Interval = 'weekly' | 'monthly' | 'yearly';
 
@@ -61,6 +62,24 @@ const useMaterialStore = create<MaterialState>((set) => ({
         updates.selectedLevel4 = '';
         updates.selectedLevel5 = '';
       }
+      // 1단계 선택 시 해당 카테고리의 모든 자재를 차트에 추가
+      if (value) {
+        // API 호출로 해당 카테고리의 자재들을 가져와서 차트에 추가
+        console.log(`Level 1 category selected: ${value} - loading materials from API`);
+        // 비동기로 처리하기 위해 setTimeout 사용
+        setTimeout(async () => {
+          const materials = await (useMaterialStore.getState() as any).fetchMaterialsByCategory(1, value);
+          if (materials.length > 0) {
+            useMaterialStore.getState().clearAllMaterials();
+            materials.forEach((material: string) => {
+              useMaterialStore.getState().addMaterialToChart(material);
+            });
+            console.log(`Added ${materials.length} materials to chart for category: ${value}`);
+          } else {
+            console.log(`No materials found for category: ${value}`);
+          }
+        }, 0);
+      }
     } else if (level === 2) {
       updates.selectedLevel2 = value;
       // 2단계 변경 시 하위 단계들 초기화
@@ -69,12 +88,48 @@ const useMaterialStore = create<MaterialState>((set) => ({
         updates.selectedLevel4 = '';
         updates.selectedLevel5 = '';
       }
+      // 2단계 선택 시 해당 카테고리의 모든 자재를 차트에 추가
+      if (value) {
+        // API 호출로 해당 카테고리의 자재들을 가져와서 차트에 추가
+        console.log(`Level 2 category selected: ${value} - loading materials from API`);
+        // 비동기로 처리하기 위해 setTimeout 사용
+        setTimeout(async () => {
+          const materials = await (useMaterialStore.getState() as any).fetchMaterialsByCategory(2, value);
+          if (materials.length > 0) {
+            useMaterialStore.getState().clearAllMaterials();
+            materials.forEach((material: string) => {
+              useMaterialStore.getState().addMaterialToChart(material);
+            });
+            console.log(`Added ${materials.length} materials to chart for category: ${value}`);
+          } else {
+            console.log(`No materials found for category: ${value}`);
+          }
+        }, 0);
+      }
     } else if (level === 3) {
       updates.selectedLevel3 = value;
       // 3단계 변경 시 하위 단계들 초기화
       if (state.selectedLevel3 !== value) {
         updates.selectedLevel4 = '';
         updates.selectedLevel5 = '';
+      }
+      // 3단계 선택 시 해당 카테고리의 모든 자재를 차트에 추가
+      if (value) {
+        // API 호출로 해당 카테고리의 자재들을 가져와서 차트에 추가
+        console.log(`Level 3 category selected: ${value} - loading materials from API`);
+        // 비동기로 처리하기 위해 setTimeout 사용
+        setTimeout(async () => {
+          const materials = await (useMaterialStore.getState() as any).fetchMaterialsByCategory(3, value);
+          if (materials.length > 0) {
+            useMaterialStore.getState().clearAllMaterials();
+            materials.forEach((material: string) => {
+              useMaterialStore.getState().addMaterialToChart(material);
+            });
+            console.log(`Added ${materials.length} materials to chart for category: ${value}`);
+          } else {
+            console.log(`No materials found for category: ${value}`);
+          }
+        }, 0);
       }
     } else if (level === 4) {
       updates.selectedLevel4 = value;
@@ -140,6 +195,36 @@ const useMaterialStore = create<MaterialState>((set) => ({
   }),
   
   clearAllMaterials: () => set({ selectedMaterialsForChart: [], hiddenMaterials: new Set() }),
+
+  // 카테고리별 자재 목록 가져오기 함수
+  fetchMaterialsByCategory: async (level: number, categoryName: string) => {
+    try {
+      let query = supabase.from('kpi_price_data').select('specification').limit(10);
+      
+      if (level === 1) {
+        query = query.eq('major_category', categoryName);
+      } else if (level === 2) {
+        query = query.eq('middle_category', categoryName);
+      } else if (level === 3) {
+        query = query.eq('specification', categoryName);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('Error fetching materials:', error);
+        return [];
+      }
+      
+      // 중복 제거하고 specification만 추출
+      const materials = [...new Set(data.map(item => item.specification))];
+      console.log(`Fetched ${materials.length} materials for ${categoryName} (level ${level})`);
+      return materials;
+    } catch (error) {
+      console.error('Error in fetchMaterialsByCategory:', error);
+      return [];
+    }
+  },
 }));
 
 export default useMaterialStore;

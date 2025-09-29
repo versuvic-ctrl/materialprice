@@ -73,15 +73,11 @@ const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMater
       for (const material of selectedMaterials) {
         try {
           const { data, error } = await supabase.rpc('get_price_data', {
-            p_interval: interval,
-            p_start_date: startDate,
-            p_end_date: endDate,
-            p_major_categories: null,
-            p_middle_categories: null,
-            p_sub_categories: null,
-            p_specifications: [material],
-            p_spec_names: null,
-          });
+        material_ids: [material],
+        start_date: startDate,
+        end_date: endDate,
+        interval_type: interval,
+      });
 
           if (error) {
             console.error(`자재 ${material} RPC 오류:`, error);
