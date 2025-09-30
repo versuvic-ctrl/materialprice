@@ -22,14 +22,31 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    console.log(`Fetching materials for level ${level}, category: ${categoryName}`);
+    
+    // Create a timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout')), 10000); // 10 second timeout
+    });
+
     // Use RPC to fetch distinct specifications under the given filters
-    const { data, error } = await supabase.rpc('get_distinct_categories', {
+    const rpcPromise = supabase.rpc('get_distinct_categories', {
       p_level: 'specification',
       p_filters: filters,
     });
 
+    // Race between RPC call and timeout
+    const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as any;
+
     if (error) {
       console.error('Supabase RPC error:', error);
+      
+      // Handle specific timeout error
+      if (error.code === '57014' || error.message?.includes('timeout')) {
+        console.log('Query timeout detected, returning empty result');
+        return NextResponse.json([], { status: 200 }); // Return empty array instead of error
+      }
+      
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -43,11 +60,21 @@ export async function GET(req: NextRequest) {
             return null;
           })
           .filter(Boolean)
+          .slice(0, 100) // Limit results to prevent UI overload
       : [];
 
+    console.log(`Found ${specs.length} specifications for ${categoryName}`);
     return NextResponse.json(specs);
+    
   } catch (err: any) {
     console.error('Unexpected error:', err);
+    
+    // Handle timeout from Promise.race
+    if (err.message === 'Request timeout') {
+      console.log('Request timeout, returning empty result');
+      return NextResponse.json([], { status: 200 }); // Return empty array instead of error
+    }
+    
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

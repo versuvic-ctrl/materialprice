@@ -93,12 +93,19 @@ export const formatXAxisLabel = (value: string, interval: string): string => {
     return formatWeekLabel(value);
   }
   
-  // 월간, 연간은 YY.MM 형식으로 변경
-  if (interval === 'monthly' || interval === 'yearly') {
+  // 월간: '25년 1월' 형태로 변경
+  if (interval === 'monthly') {
     const date = new Date(value);
     const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    return `${year}.${month}`;
+    const month = date.getMonth() + 1;
+    return `${year}년 ${month}월`;
+  }
+  
+  // 연간: '25년' 형태로 변경
+  if (interval === 'yearly') {
+    const date = new Date(value);
+    const year = date.getFullYear().toString().slice(-2);
+    return `${year}년`;
   }
 
   return value;

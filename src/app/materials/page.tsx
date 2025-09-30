@@ -181,150 +181,152 @@ const MaterialsPage: React.FC = () => {
             <TabsTrigger value="material-comparison-detail">재질비교 상세</TabsTrigger>
           </TabsList>
           <TabsContent value="material-price-detail">
-            {/* 가격 변동률 지표 (이 부분은 추후 동적 데이터로 연결 가능) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              
-              {/* ... 다른 지표 카드들 ... */}
-            </div>
+            <div className="space-y-6">
+              {/* 가격 변동률 지표 (이 부분은 추후 동적 데이터로 연결 가능) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                {/* ... 다른 지표 카드들 ... */}
+              </div>
 
-            {/* [수정] 조회 조건: 컴팩트한 디자인 */}
-            <Card className="border border-gray-200">
-              <CardContent className="p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex flex-wrap gap-2">
-                    <Select value={selectedLevel1} onValueChange={(v) => setCategory(1, v)}>
-                      <SelectTrigger className="h-8 min-w-[100px] text-sm">
-                        <SelectValue placeholder="대분류" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {level1Categories.isLoading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
-                        {level1Categories.data?.map((cat: string, index: number) => <SelectItem key={`level1-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={selectedLevel2} onValueChange={(v) => setCategory(2, v)} disabled={!selectedLevel1 || level2Categories.isLoading}>
-                      <SelectTrigger className="h-8 min-w-[100px] text-sm">
-                        <SelectValue placeholder="중분류" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {level2Categories.isLoading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
-                        {level2Categories.data?.map((cat: string, index: number) => <SelectItem key={`level2-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={selectedLevel3} onValueChange={(v) => setCategory(3, v)} disabled={!selectedLevel2 || level3Categories.isLoading}>
-                      <SelectTrigger className="h-8 min-w-[100px] text-sm">
-                        <SelectValue placeholder="소분류" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {level3Categories.isLoading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
-                        {level3Categories.data?.map((cat: string, index: number) => <SelectItem key={`level3-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={selectedLevel4} onValueChange={(v) => setCategory(4, v)} disabled={!selectedLevel3 || level4Categories.isLoading}>
-                      <SelectTrigger className="h-8 min-w-[100px] text-sm">
-                        <SelectValue placeholder="규격" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {level4Categories.isLoading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
-                        {level4Categories.data?.map((cat: string, index: number) => <SelectItem key={`level4-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-
-                    {/* 5번째 상세규격 드롭다운 - 조건부 렌더링 */}
-                    {selectedLevel4 && level5Categories.data && Array.isArray(level5Categories.data) && level5Categories.data.length > 0 && (
-                      <Select value={selectedLevel5} onValueChange={(v) => setCategory(5, v)} disabled={!selectedLevel4 || level5Categories.isLoading}>
+              {/* [수정] 조회 조건: 컴팩트한 디자인 */}
+              <Card className="border border-gray-200">
+                <CardContent className="p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      <Select value={selectedLevel1} onValueChange={(v) => setCategory(1, v)}>
                         <SelectTrigger className="h-8 min-w-[100px] text-sm">
-                          <SelectValue placeholder="상세규격" />
+                          <SelectValue placeholder="대분류" />
                         </SelectTrigger>
                         <SelectContent>
-                          {level5Categories.isLoading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
-                          {level5Categories.data?.map((cat: string, index: number) => <SelectItem key={`level5-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
+                          {level1Categories.isLoading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
+                          {level1Categories.data?.map((cat: string, index: number) => <SelectItem key={`level1-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                    )}
-                  </div>
-                  
-                  {/* 자재를 차트에 추가하는 버튼 */}
-                  {selectedLevel5 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <Button 
-                        onClick={() => {
-                          const materialName = `${selectedLevel1} > ${selectedLevel2} > ${selectedLevel3} > ${selectedLevel4} > ${selectedLevel5}`;
-                          addMaterialToChart(materialName);
-                        }}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                        disabled={!selectedLevel5}
-                      >
-                        차트에 추가
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* [수정] 선택된 자재 목록: 컴팩트하고 세련된 디자인 */}
-            {selectedMaterialsForChart.length > 0 && (
-              <Card className="border border-gray-200">
-                <CardHeader className="py-1.5 px-3">
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-xs font-medium text-gray-600">
-                      비교할 자재를 선택해주세요 ({selectedMaterialsForChart.length}개)
-                    </CardTitle>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={clearAllMaterials} 
-                      className="h-6 px-2 text-xs border-gray-300 hover:bg-gray-50"
-                    >
-                      전체 제거
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-2">
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedMaterialsForChart.map((material) => (
-                      <div key={material} className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 rounded-md border border-gray-200">
-                        {/* 세련된 토글 스위치 */}
-                        <button
-                          title={`Toggle visibility of ${material}`}
-                          aria-label={`Toggle visibility of ${material}`}
-                          onClick={() => toggleMaterialVisibility(material)}
-                          className={`relative inline-flex h-3 w-6 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
-                            !hiddenMaterials.has(material) ? 'bg-blue-500' : 'bg-gray-300'
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-2 w-2 transform rounded-full bg-white transition-transform duration-200 ${
-                              !hiddenMaterials.has(material) ? 'translate-x-3.5' : 'translate-x-0.5'
-                            }`}
-                          />
-                        </button>
-                        <Label className="text-xs font-medium text-gray-700 cursor-pointer max-w-[200px] truncate" title={material}>
-                          {material}
-                        </Label>
+                      <Select value={selectedLevel2} onValueChange={(v) => setCategory(2, v)} disabled={!selectedLevel1 || level2Categories.isLoading}>
+                        <SelectTrigger className="h-8 min-w-[100px] text-sm">
+                          <SelectValue placeholder="중분류" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {level2Categories.isLoading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
+                          {level2Categories.data?.map((cat: string, index: number) => <SelectItem key={`level2-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+
+                      <Select value={selectedLevel3} onValueChange={(v) => setCategory(3, v)} disabled={!selectedLevel2 || level3Categories.isLoading}>
+                        <SelectTrigger className="h-8 min-w-[100px] text-sm">
+                          <SelectValue placeholder="소분류" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {level3Categories.isLoading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
+                          {level3Categories.data?.map((cat: string, index: number) => <SelectItem key={`level3-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+
+                      <Select value={selectedLevel4} onValueChange={(v) => setCategory(4, v)} disabled={!selectedLevel3 || level4Categories.isLoading}>
+                        <SelectTrigger className="h-8 min-w-[100px] text-sm">
+                          <SelectValue placeholder="규격" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {level4Categories.isLoading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
+                          {level4Categories.data?.map((cat: string, index: number) => <SelectItem key={`level4-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+
+                      {/* 5번째 상세규격 드롭다운 - 조건부 렌더링 */}
+                      {selectedLevel4 && level5Categories.data && Array.isArray(level5Categories.data) && level5Categories.data.length > 0 && (
+                        <Select value={selectedLevel5} onValueChange={(v) => setCategory(5, v)} disabled={!selectedLevel4 || level5Categories.isLoading}>
+                          <SelectTrigger className="h-8 min-w-[100px] text-sm">
+                            <SelectValue placeholder="상세규격" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {level5Categories.isLoading && <SelectItem value="loading" disabled>로딩 중...</SelectItem>}
+                            {level5Categories.data?.map((cat: string, index: number) => <SelectItem key={`level5-${cat}-${index}`} value={cat}>{cat}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    
+                    {/* 자재를 차트에 추가하는 버튼 */}
+                    {selectedLevel5 && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
                         <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => removeMaterialFromChart(material)} 
-                          className="h-4 w-4 p-0 hover:bg-red-100 hover:text-red-600 text-gray-400"
+                          onClick={() => {
+                            const materialName = `${selectedLevel1} > ${selectedLevel2} > ${selectedLevel3} > ${selectedLevel4} > ${selectedLevel5}`;
+                            addMaterialToChart(materialName);
+                          }}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                          disabled={!selectedLevel5}
                         >
-                          ×
+                          차트에 추가
                         </Button>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </CardContent>
               </Card>
-            )}
 
-            {/* [교체] 차트 영역: 기존 DashboardCharts를 MaterialsChart로 교체 */}
-            <MaterialsChart />
+              {/* [수정] 선택된 자재 목록: 컴팩트하고 세련된 디자인 */}
+              {selectedMaterialsForChart.length > 0 && (
+                <Card className="border border-gray-200">
+                  <CardHeader className="py-1.5 px-3">
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-xs font-medium text-gray-600">
+                        비교할 자재를 선택해주세요 ({selectedMaterialsForChart.length}개)
+                      </CardTitle>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={clearAllMaterials} 
+                        className="h-6 px-2 text-xs border-gray-300 hover:bg-gray-50"
+                      >
+                        전체 제거
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedMaterialsForChart.map((material) => (
+                        <div key={material} className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 rounded-md border border-gray-200">
+                          {/* 세련된 토글 스위치 */}
+                          <button
+                            title={`Toggle visibility of ${material}`}
+                            aria-label={`Toggle visibility of ${material}`}
+                            onClick={() => toggleMaterialVisibility(material)}
+                            className={`relative inline-flex h-3 w-6 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                              !hiddenMaterials.has(material) ? 'bg-blue-500' : 'bg-gray-300'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-2 w-2 transform rounded-full bg-white transition-transform duration-200 ${
+                                !hiddenMaterials.has(material) ? 'translate-x-3.5' : 'translate-x-0.5'
+                              }`}
+                            />
+                          </button>
+                          <Label className="text-xs font-medium text-gray-700 cursor-pointer max-w-[200px] truncate" title={material}>
+                            {material}
+                          </Label>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => removeMaterialFromChart(material)} 
+                            className="h-4 w-4 p-0 hover:bg-red-100 hover:text-red-600 text-gray-400"
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
-            {/* [추가] 자재 가격 테이블 */}
-            <MaterialsPriceTable selectedMaterials={selectedMaterialsForChart} />
+              {/* [교체] 차트 영역: 기존 DashboardCharts를 MaterialsChart로 교체 */}
+              <MaterialsChart />
+
+              {/* [추가] 자재 가격 테이블 */}
+              <MaterialsPriceTable selectedMaterials={selectedMaterialsForChart} />
+            </div>
           </TabsContent>
           <TabsContent value="material-comparison-detail">
             {/* 재질비교 상세 페이지 내용이 들어갈 곳 */}

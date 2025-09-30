@@ -29,6 +29,9 @@ interface MaterialPriceData {
   monthlyChange: number | null;  // 전월비 (%)
   yearlyChange: number | null;   // 전년비 (%)
   twoYearAgoChange: number | null; // 2년전비 (%)
+  previousMonthPrice: number | null; // 전월 가격
+  yearAgoPrice: number | null;       // 전년 가격
+  twoYearAgoPrice: number | null;    // 2년전 가격
   region?: string;        // 지역 (서울1, 서울2, 수원1 등)
   spec_name?: string;     // 상세규격명 (PVC, STS304, STS316, PTFE 등)
 }
@@ -41,6 +44,35 @@ interface MaterialsPriceTableProps {
 // 가격 포맷팅 함수 - 원본 가격 사용
 const formatPrice = (price: number): string => {
   return `${Math.round(price).toLocaleString('ko-KR')}원`;
+};
+
+// 변동률과 가격을 함께 포맷팅하는 함수
+const formatChangeWithPrice = (change: number | null, price: number | null): { text: string; color: string; priceText: string; changeText: string } => {
+  if (change === undefined || change === null || isNaN(change) || price === null || price === undefined) {
+    return { text: '-', color: 'text-gray-500', priceText: '-', changeText: '-' };
+  }
+  
+  const priceText = `${Math.round(price).toLocaleString('ko-KR')}원`;
+  let changeText = '';
+  let color = '';
+  
+  if (change === 0) {
+    changeText = '(0.00%)';
+    color = 'text-gray-900';
+  } else if (change > 0) {
+    changeText = `(+${change.toFixed(2)}%)`;
+    color = 'text-red-500';
+  } else {
+    changeText = `(${change.toFixed(2)}%)`;
+    color = 'text-blue-500';
+  }
+  
+  return {
+    text: `${priceText}${changeText}`,
+    color,
+    priceText,
+    changeText
+  };
 };
 
 // 변동률 포맷팅 및 색상 결정 함수
@@ -73,10 +105,10 @@ const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMater
       for (const material of selectedMaterials) {
         try {
           const { data, error } = await supabase.rpc('get_price_data', {
-        material_ids: [material],
-        start_date: startDate,
-        end_date: endDate,
-        interval_type: interval,
+        p_interval: interval === 'monthly' ? 'month' : interval,
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_specifications: [material],
       });
 
           if (error) {
@@ -84,13 +116,22 @@ const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMater
             continue;
           }
 
-          if (data && data.length > 0) {
+          // data가 undefined이거나 null인 경우 안전하게 처리
+          if (data && Array.isArray(data) && data.length > 0) {
             allData.push(...data);
+          } else {
+            console.log(`자재 ${material}: 데이터가 없거나 유효하지 않음`, data);
           }
         } catch (materialError) {
           console.error(`자재 ${material} 처리 중 오류:`, materialError);
           continue;
         }
+      }
+
+      // allData가 비어있는 경우 안전하게 처리
+      if (!allData || allData.length === 0) {
+        console.log('MaterialsPriceTable: 모든 자재에 대한 데이터가 없습니다.');
+        return [];
       }
 
       // 데이터를 MaterialPriceData 형식으로 변환
@@ -105,6 +146,9 @@ const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMater
             monthlyChange: null,
             yearlyChange: null,
             twoYearAgoChange: null,
+            previousMonthPrice: null,
+            yearAgoPrice: null,
+            twoYearAgoPrice: null,
           };
         }
 
@@ -116,32 +160,38 @@ const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMater
         const rawPrice = parseFloat(sortedData[0]?.average_price || '0');
         const actualUnit = sortedData[0]?.unit || '';
         
-        // 전월비 계산
+        // 전월비 계산 및 전월 가격 저장
         let monthlyChange: number | null = null;
+        let previousMonthPrice: number | null = null;
         if (sortedData.length >= 2) {
           const previousRawPrice = parseFloat(sortedData[1]?.average_price || '0');
+          previousMonthPrice = previousRawPrice;
           if (previousRawPrice !== 0) {
             monthlyChange = ((rawPrice - previousRawPrice) / previousRawPrice) * 100;
             monthlyChange = Math.round(monthlyChange * 100) / 100;
           }
         }
 
-        // 전년비 계산
+        // 전년비 계산 및 전년 가격 저장
         let yearlyChange: number | null = null;
+        let yearAgoPrice: number | null = null;
         const yearAgoIndex = Math.min(12, sortedData.length - 1);
         if (yearAgoIndex > 0) {
           const yearAgoRawPrice = parseFloat(sortedData[yearAgoIndex]?.average_price || '0');
+          yearAgoPrice = yearAgoRawPrice;
           if (yearAgoRawPrice !== 0) {
             yearlyChange = ((rawPrice - yearAgoRawPrice) / yearAgoRawPrice) * 100;
             yearlyChange = Math.round(yearlyChange * 100) / 100;
           }
         }
 
-        // 2년전비 계산
+        // 2년전비 계산 및 2년전 가격 저장
         let twoYearAgoChange: number | null = null;
+        let twoYearAgoPrice: number | null = null;
         const twoYearAgoIndex = Math.min(24, sortedData.length - 1);
         if (twoYearAgoIndex > 0) {
           const twoYearAgoRawPrice = parseFloat(sortedData[twoYearAgoIndex]?.average_price || '0');
+          twoYearAgoPrice = twoYearAgoRawPrice;
           if (twoYearAgoRawPrice !== 0) {
             twoYearAgoChange = ((rawPrice - twoYearAgoRawPrice) / twoYearAgoRawPrice) * 100;
             twoYearAgoChange = Math.round(twoYearAgoChange * 100) / 100;
@@ -155,6 +205,9 @@ const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMater
           monthlyChange,
           yearlyChange,
           twoYearAgoChange,
+          previousMonthPrice,
+          yearAgoPrice,
+          twoYearAgoPrice,
         };
       });
 
@@ -237,9 +290,9 @@ const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMater
             {priceData
               .filter(item => !hiddenMaterials.has(item.name))
               .map((item, index) => {
-                const monthlyChangeFormat = formatChange(item.monthlyChange);
-                const yearlyChangeFormat = formatChange(item.yearlyChange);
-                const twoYearAgoChangeFormat = formatChange(item.twoYearAgoChange);
+                const monthlyChangeFormat = formatChangeWithPrice(item.monthlyChange, item.previousMonthPrice);
+                const yearlyChangeFormat = formatChangeWithPrice(item.yearlyChange, item.yearAgoPrice);
+                const twoYearAgoChangeFormat = formatChangeWithPrice(item.twoYearAgoChange, item.twoYearAgoPrice);
                 
                 return (
                   <div key={index} className="grid gap-2 px-3 py-2 hover:bg-gray-50 transition-colors" style={{ gridTemplateColumns: '2.5fr 0.8fr 1.2fr 1.2fr 1.2fr 1.2fr' }}>
@@ -254,18 +307,21 @@ const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMater
                     </div>
 
                     {/* 2년전비 */}
-                    <div className={`text-xs text-center font-medium ${twoYearAgoChangeFormat.color}`}>
-                      {twoYearAgoChangeFormat.text}
+                    <div className="text-xs text-center font-medium" title={twoYearAgoChangeFormat.text}>
+                      <span className="text-gray-900">{twoYearAgoChangeFormat.priceText}</span>
+                      <span className={twoYearAgoChangeFormat.color}>{twoYearAgoChangeFormat.changeText}</span>
                     </div>
                     
                     {/* 전년비 */}
-                    <div className={`text-xs text-center font-medium ${yearlyChangeFormat.color}`}>
-                      {yearlyChangeFormat.text}
+                    <div className="text-xs text-center font-medium" title={yearlyChangeFormat.text}>
+                      <span className="text-gray-900">{yearlyChangeFormat.priceText}</span>
+                      <span className={yearlyChangeFormat.color}>{yearlyChangeFormat.changeText}</span>
                     </div>
 
                     {/* 전월비 */}
-                    <div className={`text-xs text-center font-medium ${monthlyChangeFormat.color}`}>
-                      {monthlyChangeFormat.text}
+                    <div className="text-xs text-center font-medium" title={monthlyChangeFormat.text}>
+                      <span className="text-gray-900">{monthlyChangeFormat.priceText}</span>
+                      <span className={monthlyChangeFormat.color}>{monthlyChangeFormat.changeText}</span>
                     </div>
 
                     {/* 가격 */}

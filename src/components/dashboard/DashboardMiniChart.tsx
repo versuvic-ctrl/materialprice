@@ -528,7 +528,14 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
   });
 
   // DB에서 받아온 데이터를 차트용으로 가공
-  const chartData = useMemo(() => transformDataForChart(rawData || [], materials), [rawData, materials]);
+  const chartData = useMemo(() => {
+    // rawData가 undefined이거나 null인 경우 안전하게 처리
+    if (!rawData) {
+      console.log('DashboardMiniChart: rawData가 undefined 또는 null입니다.');
+      return [];
+    }
+    return transformDataForChart(rawData, materials);
+  }, [rawData, materials]);
 
   // 스마트 축 배치 계산
   const axisAssignment = useMemo(() => {

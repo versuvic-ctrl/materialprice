@@ -60,24 +60,11 @@ const useMaterialStore = create<MaterialState>((set) => ({
         updates.selectedLevel3 = '';
         updates.selectedLevel4 = '';
         updates.selectedLevel5 = '';
+        // 카테고리 변경 시에는 차트 자재 목록을 유지 (사용자가 수동으로 제거해야 함)
       }
-      // 1단계 선택 시 해당 카테고리의 모든 자재를 차트에 추가
+      // Level 1 선택 시에는 차트에 자재를 추가하지 않음 (드롭다운 로드만)
       if (value) {
-        // API 호출로 해당 카테고리의 자재들을 가져와서 차트에 추가
-        console.log(`Level 1 category selected: ${value} - loading materials from API`);
-        // 비동기로 처리하기 위해 setTimeout 사용
-        setTimeout(async () => {
-          const materials = await (useMaterialStore.getState() as any).fetchMaterialsByCategory(1, value);
-          if (materials.length > 0) {
-            useMaterialStore.getState().clearAllMaterials();
-            materials.forEach((material: string) => {
-              useMaterialStore.getState().addMaterialToChart(material);
-            });
-            console.log(`Added ${materials.length} materials to chart for category: ${value}`);
-          } else {
-            console.log(`No materials found for category: ${value}`);
-          }
-        }, 0);
+        console.log(`Level 1 category selected: ${value} - only loading dropdown options`);
       }
     } else if (level === 2) {
       updates.selectedLevel2 = value;
@@ -86,24 +73,11 @@ const useMaterialStore = create<MaterialState>((set) => ({
         updates.selectedLevel3 = '';
         updates.selectedLevel4 = '';
         updates.selectedLevel5 = '';
+        // 카테고리 변경 시에는 차트 자재 목록을 유지 (사용자가 수동으로 제거해야 함)
       }
-      // 2단계 선택 시 해당 카테고리의 모든 자재를 차트에 추가
+      // Level 2 선택 시에는 차트에 자재를 추가하지 않음 (드롭다운 로드만)
       if (value) {
-        // API 호출로 해당 카테고리의 자재들을 가져와서 차트에 추가
-        console.log(`Level 2 category selected: ${value} - loading materials from API`);
-        // 비동기로 처리하기 위해 setTimeout 사용
-        setTimeout(async () => {
-          const materials = await (useMaterialStore.getState() as any).fetchMaterialsByCategory(2, value);
-          if (materials.length > 0) {
-            useMaterialStore.getState().clearAllMaterials();
-            materials.forEach((material: string) => {
-              useMaterialStore.getState().addMaterialToChart(material);
-            });
-            console.log(`Added ${materials.length} materials to chart for category: ${value}`);
-          } else {
-            console.log(`No materials found for category: ${value}`);
-          }
-        }, 0);
+        console.log(`Level 2 category selected: ${value} - only loading dropdown options`);
       }
     } else if (level === 3) {
       updates.selectedLevel3 = value;
@@ -111,24 +85,11 @@ const useMaterialStore = create<MaterialState>((set) => ({
       if (state.selectedLevel3 !== value) {
         updates.selectedLevel4 = '';
         updates.selectedLevel5 = '';
+        // 카테고리 변경 시에는 차트 자재 목록을 유지 (사용자가 수동으로 제거해야 함)
       }
-      // 3단계 선택 시 해당 카테고리의 모든 자재를 차트에 추가
+      // Level 3 선택 시에는 차트에 자재를 추가하지 않음 (드롭다운 로드만)
       if (value) {
-        // API 호출로 해당 카테고리의 자재들을 가져와서 차트에 추가
-        console.log(`Level 3 category selected: ${value} - loading materials from API`);
-        // 비동기로 처리하기 위해 setTimeout 사용
-        setTimeout(async () => {
-          const materials = await (useMaterialStore.getState() as any).fetchMaterialsByCategory(3, value);
-          if (materials.length > 0) {
-            useMaterialStore.getState().clearAllMaterials();
-            materials.forEach((material: string) => {
-              useMaterialStore.getState().addMaterialToChart(material);
-            });
-            console.log(`Added ${materials.length} materials to chart for category: ${value}`);
-          } else {
-            console.log(`No materials found for category: ${value}`);
-          }
-        }, 0);
+        console.log(`Level 3 category selected: ${value} - only loading dropdown options`);
       }
     } else if (level === 4) {
       updates.selectedLevel4 = value;
@@ -136,7 +97,7 @@ const useMaterialStore = create<MaterialState>((set) => ({
       if (state.selectedLevel4 !== value) {
         updates.selectedLevel5 = '';
       }
-      // 4단계 선택 시 자동으로 차트에 추가 (전체 자재명으로 구성)
+      // 4단계(규격) 선택 시 자동으로 차트에 추가 (전체 자재명으로 구성)
       if (value) {
         const materialName = value; // 규격명을 자재명으로 사용
         console.log(`Adding material to chart: ${materialName}`);
@@ -198,22 +159,36 @@ const useMaterialStore = create<MaterialState>((set) => ({
   // 카테고리별 자재 목록 가져오기 함수
   fetchMaterialsByCategory: async (level: number, categoryName: string) => {
     try {
+      console.log(`Fetching materials for level ${level}, category: ${categoryName}`);
+      
       // Construct API endpoint based on level and categoryName
       // Assuming the API returns an array of objects, each with a 'specification' property
       const response = await fetch(`/api/materials-by-category?level=${level}&categoryName=${encodeURIComponent(categoryName)}`);
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Log the response status and text for debugging
+        const errorText = await response.text();
+        console.error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+        
+        // Return empty array instead of throwing error to prevent UI breakage
+        return [];
       }
       
       const data: { specification: string }[] = await response.json();
       
+      // Handle case where API returns empty array (e.g., due to timeout)
+      if (!Array.isArray(data)) {
+        console.warn('API returned non-array data:', data);
+        return [];
+      }
+      
       // 중복 제거하고 specification만 추출
-      const materials = [...new Set(data.map(item => item.specification))];
+      const materials = [...new Set(data.map(item => item.specification))].filter(Boolean);
       console.log(`Fetched ${materials.length} materials for ${categoryName} (level ${level})`);
       return materials;
     } catch (error) {
       console.error('Error in fetchMaterialsByCategory:', error);
+      // Return empty array instead of throwing to prevent UI breakage
       return [];
     }
   },

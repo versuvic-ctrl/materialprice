@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import useMaterialStore from '@/store/materialStore';
 import { supabase } from '../../../lib/supabaseClient';
-import { formatXAxisLabel } from '@/utils/dateFormatter';
+import { formatXAxisLabel, formatWeekLabel } from '@/utils/dateFormatter';
 
 // [개선] 자재명을 더 구체적으로 표시하는 함수
 const shortenMaterialName = (name: string, allMaterials: string[] = []): string => {
@@ -24,7 +24,7 @@ const shortenMaterialName = (name: string, allMaterials: string[] = []): string 
             '자흡식펌프': '자흡식펌프',
             '자자흡식펌프': '자자흡식펌프',
             '고강도': '고강도',
-            '아노다이징': '아노다이징',
+            '아��no다이징': '아��no다이징',
             '알루미늄': '알루미늄',
             '복합판넬': '복합판넬',
             '스테인리스': '스테인리스',
@@ -45,9 +45,9 @@ const shortenMaterialName = (name: string, allMaterials: string[] = []): string 
 
         // 주요 키워드 찾기 (긴 키워드부터 우선 매칭)
         let mainKeywords: string[] = [];
-        const sortedKeywords = Object.keys(keywordMap).sort((a, b) => b.length - a.length);
-        
-        for (const keyword of sortedKeywords) {
+         const sortedKeywords = Object.keys(keywordMap).sort((a, b) => b.length - a.length);
+         
+         for (const keyword of sortedKeywords) {
             if (materialName.includes(keyword)) {
                 mainKeywords.push(keywordMap[keyword]);
                 break; // 첫 번째 매칭된 키워드만 사용
@@ -108,7 +108,7 @@ const shortenMaterialName = (name: string, allMaterials: string[] = []): string 
             '자흡식펌프': '자흡식펌프',
             '자자흡식펌프': '자자흡식펌프',
             '고강도': '고강도',
-            '아노다이징': '아노다이징',
+            '아��no다이징': '아��no다이징',
             '알루미늄': '알루미늄',
             '복합판넬': '복합판넬',
             '스테인리스': '스테인리스',
@@ -138,7 +138,7 @@ const shortenMaterialName = (name: string, allMaterials: string[] = []): string 
 };
 
 // [유지] 숫자에 천 단위 구분자 추가하는 함수
-const formatNumber = (value: number): string => {
+export const formatNumber = (value: number): string => {
   return new Intl.NumberFormat('ko-KR').format(value);
 };
 
@@ -209,7 +209,14 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
     ...analyzePriceRange(data, material)
   }));
 
-  // 첫 번째 자재는 무조건 주축(좌측)
+  // 가격 범위에 따라 자재들을 정렬 (평균 가격 기준)
+  materialRanges.sort((a, b) => {
+    const avgA = (a.min + a.max) / 2;
+    const avgB = (b.min + b.max) / 2;
+    return avgB - avgA; // 높은 가격부터 정렬
+  });
+
+  // 가장 높은 가격대의 자재를 주축(좌측)에 배치
   const leftAxisMaterials = [materialRanges[0].material];
   const rightAxisMaterials: string[] = [];
 
@@ -225,8 +232,13 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
       currentMaterial.range
     );
 
-    // 우축이 비어있거나, 좌축과의 차이가 5배 미만이면 좌축에 배치
-    if (rightAxisMaterials.length === 0 && ratioWithLeft < 5) {
+    // 가격 차이 비율 계산 (평균 가격 기준)
+    const leftAvg = (leftAxisRange.min + leftAxisRange.max) / 2;
+    const currentAvg = (currentMaterial.min + currentMaterial.max) / 2;
+    const priceRatio = Math.max(leftAvg, currentAvg) / Math.min(leftAvg, currentAvg);
+
+    // 우축이 비어있거나, 좌축과의 차이가 3배 미만이면 좌축에 배치
+    if (rightAxisMaterials.length === 0 && priceRatio < 3) {
       leftAxisMaterials.push(currentMaterial.material);
       // 좌축 범위 업데이트 (통합된 범위)
       leftAxisRange = {
@@ -249,13 +261,11 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
           };
         }, { min: Infinity, max: -Infinity, range: 0 });
 
-        const ratioWithRight = calculateRangeDifferenceRatio(
-          rightAxisRange.range,
-          currentMaterial.range
-        );
+        const rightAvg = (rightAxisRange.min + rightAxisRange.max) / 2;
+        const priceRatioWithRight = Math.max(rightAvg, currentAvg) / Math.min(rightAvg, currentAvg);
 
-        // 좌축과 우축 중 더 적합한 곳에 배치
-        if (ratioWithLeft <= ratioWithRight) {
+        // 좌축과 우축 중 가격 차이가 더 적은 곳에 배치
+        if (priceRatio <= priceRatioWithRight) {
           leftAxisMaterials.push(currentMaterial.material);
           leftAxisRange = {
             material: 'combined',
@@ -268,13 +278,8 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
           rightAxisMaterials.push(currentMaterial.material);
         }
       } else {
-        // 우축이 비어있고 좌축과 차이가 10배 이상이면서 
-        // 절대 가격 차이도 1000원 이상인 경우에만 우축에 배치
-        const priceDifference = Math.abs(leftAxisRange.max - currentMaterial.max);
-        const rangeRatio = Math.max(leftAxisRange.range, currentMaterial.range) / 
-                          Math.min(leftAxisRange.range, currentMaterial.range);
-        
-        if (rangeRatio >= 10 && priceDifference >= 1000) {
+        // 우축이 비어있고 좌축과 가격 차이가 3배 이상인 경우 우축에 배치
+        if (priceRatio >= 3) {
           rightAxisMaterials.push(currentMaterial.material);
         } else {
           leftAxisMaterials.push(currentMaterial.material);
@@ -294,13 +299,13 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
   const leftAxisDomain = calculateYAxisDomain(data, leftAxisMaterials);
   const rightAxisDomain = rightAxisMaterials.length > 0 
     ? calculateYAxisDomain(data, rightAxisMaterials)
-    : ['dataMin - 100', 'dataMax + 100'];
+    : { domain: ['dataMin - 100', 'dataMax + 100'], ticks: [] };
 
   return {
     leftAxisMaterials,
     rightAxisMaterials,
-    leftAxisDomain,
-    rightAxisDomain
+    leftAxisDomain: leftAxisDomain.domain,
+    rightAxisDomain: rightAxisDomain.domain
   };
 };
 
@@ -332,9 +337,10 @@ const calculateTickInterval = (min: number, max: number, targetTickCount: number
 };
 
 // 명확한 기준으로 Y축 도메인과 눈금을 계산하는 함수
-const calculateSmartYAxisDomain = (data: any[], materials: string[]): [number, number, number[]] => {
+// 고정 단위 Y축 도메인 계산 함수
+const calculateFixedYAxisDomain = (data: any[], materials: string[]): [number, number, number[]] => {
   if (!data || data.length === 0 || materials.length === 0) {
-    return [0, 1000, [0, 250, 500, 750, 1000]];
+    return [0, 1000, [0, 200, 400, 600, 800, 1000]];
   }
 
   let min = Infinity;
@@ -351,20 +357,127 @@ const calculateSmartYAxisDomain = (data: any[], materials: string[]): [number, n
   });
 
   if (min === Infinity || max === -Infinity) {
+    return [0, 1000, [0, 200, 400, 600, 800, 1000]];
+  }
+
+  // 1단계: 직관적인 단위 스텝 결정 (500원, 1000원 우선)
+  const getOptimalUnitStep = (dataRange: number): number => {
+    if (dataRange <= 1000) return 100;      // 1000원 이하 → 100원 단위
+    if (dataRange <= 2500) return 250;      // 2500원 이하 → 250원 단위  
+    if (dataRange <= 5000) return 500;      // 5000원 이하 → 500원 단위
+    if (dataRange <= 10000) return 1000;    // 10000원 이하 → 1000원 단위
+    if (dataRange <= 25000) return 2500;    // 25000원 이하 → 2500원 단위
+    if (dataRange <= 50000) return 5000;    // 50000원 이하 → 5000원 단위
+    if (dataRange <= 100000) return 10000;  // 100000원 이하 → 10000원 단위
+    return 50000;                           // 그 이상 → 50000원 단위
+  };
+  
+  const dataRange = max - min;
+  const unitStep = getOptimalUnitStep(dataRange);
+  
+  // 2단계: 여유있는 범위 설정 (실제 데이터보다 한 단계씩 더 넓게)
+  const paddedMin = Math.floor(min / unitStep) * unitStep - unitStep;
+  const paddedMax = Math.ceil(max / unitStep) * unitStep + unitStep;
+  
+  // 최소값이 음수가 되지 않도록 조정
+  const adjustedMin = Math.max(0, paddedMin);
+  
+  // 3단계: 균등한 6개 눈금 생성
+  const totalRange = paddedMax - adjustedMin;
+  const stepSize = totalRange / 5; // 5등분하여 6개 눈금
+  
+  const ticks: number[] = [];
+  for (let i = 0; i <= 5; i++) {
+    const tickValue = adjustedMin + (stepSize * i);
+    // 단위 스텝에 맞춰 반올림하여 깔끔한 숫자로 만들기
+    const roundedTick = Math.round(tickValue / 100) * 100;
+    ticks.push(roundedTick);
+  }
+  
+  // 중복 제거 및 정렬
+  const uniqueTicks = Array.from(new Set(ticks)).sort((a, b) => a - b);
+  
+  // 6개가 아닌 경우 강제로 6개 균등 분할 생성
+  if (uniqueTicks.length !== 6) {
+    const finalTicks: number[] = [];
+    const range = uniqueTicks[uniqueTicks.length - 1] - uniqueTicks[0];
+    const equalStep = range / 5;
+    
+    for (let i = 0; i <= 5; i++) {
+      const tickValue = uniqueTicks[0] + (equalStep * i);
+      // 100원 단위로 반올림
+      const roundedTick = Math.round(tickValue / 100) * 100;
+      finalTicks.push(roundedTick);
+    }
+    
+    // 최종 중복 제거 및 정렬
+    const finalUniqueTicks = Array.from(new Set(finalTicks)).sort((a, b) => a - b);
+    
+    // 정확히 6개가 되도록 보장
+    if (finalUniqueTicks.length < 6) {
+      const minTick = finalUniqueTicks[0];
+      const maxTick = finalUniqueTicks[finalUniqueTicks.length - 1];
+      const step = (maxTick - minTick) / 5;
+      
+      const guaranteedTicks: number[] = [];
+      for (let i = 0; i <= 5; i++) {
+        const tickValue = minTick + (step * i);
+        const roundedTick = Math.round(tickValue / 100) * 100;
+        guaranteedTicks.push(roundedTick);
+      }
+      
+      // 마지막으로 중복 제거하되, 인덱스를 추가하여 고유성 보장
+      const finalGuaranteedTicks = Array.from(new Set(guaranteedTicks)).sort((a, b) => a - b);
+      
+      // 6개 미만인 경우 강제로 6개 생성
+      while (finalGuaranteedTicks.length < 6) {
+        const lastTick = finalGuaranteedTicks[finalGuaranteedTicks.length - 1];
+        finalGuaranteedTicks.push(lastTick + 100);
+      }
+      
+      return [finalGuaranteedTicks[0], finalGuaranteedTicks[5], finalGuaranteedTicks.slice(0, 6)];
+    }
+    
+    return [finalUniqueTicks[0], finalUniqueTicks[5], finalUniqueTicks.slice(0, 6)];
+  }
+  
+  return [uniqueTicks[0], uniqueTicks[5], uniqueTicks];
+};
+
+const calculateSmartYAxisDomain = (data: any[], materials: string[]): [number, number, number[]] => {
+  if (!data || data.length === 0 || materials.length === 0) {
     return [0, 1000, [0, 250, 500, 750, 1000]];
   }
 
-  // 데이터 범위에 여유 공간 추가 (상하 10% 패딩)
+  let min = Infinity;
+  let max = -Infinity;
+
+  data.forEach(item => {
+    materials.forEach(material => {
+      const value = item[material];
+      // 더 엄격한 숫자 검증
+      if (typeof value === 'number' && isFinite(value) && value >= 0) {
+        min = Math.min(min, value);
+        max = Math.max(max, value);
+      }
+    });
+  });
+
+  if (min === Infinity || max === -Infinity) {
+    return [0, 1000, [0, 250, 500, 750, 1000]];
+  }
+
+  // 데이터 범위에 최소한의 여유 공간만 추가 (상하 2% 패딩으로 줄임)
   const range = max - min;
-  const padding = range * 0.1; // 10% 패딩
+  const padding = range * 0.02; // 10%에서 2%로 줄임
   const paddedMin = Math.max(0, min - padding); // 최소값이 0보다 작아지지 않도록 제한
   const paddedMax = max + padding;
 
   // 적절한 눈금 간격 계산 (패딩된 범위 기준)
   const tickInterval = calculateTickInterval(paddedMin, paddedMax, 5);
   
-  // 도메인 범위를 눈금에 맞춰 조정
-  const domainMin = Math.max(0, Math.floor(paddedMin / tickInterval) * tickInterval); // 최소값이 0보다 작아지지 않도록 제한
+  // 도메인 범위를 눈금에 맞춰 조정하되, 데이터에 더 가깝게 설정
+  const domainMin = Math.max(0, Math.floor(paddedMin / tickInterval) * tickInterval);
   const domainMax = Math.ceil(paddedMax / tickInterval) * tickInterval;
   
   // 눈금 배열 생성
@@ -373,10 +486,10 @@ const calculateSmartYAxisDomain = (data: any[], materials: string[]): [number, n
     ticks.push(tick);
   }
   
-  // 최소 3개, 최대 7개의 눈금 보장
+  // 최소 3개, 최대 7개의 눈금 보장하되 데이터 범위를 벗어나지 않도록 조정
   if (ticks.length < 3) {
     const additionalTicks = Math.ceil((3 - ticks.length) / 2);
-    const newMin = Math.max(0, domainMin - (additionalTicks * tickInterval)); // 최소값이 0보다 작아지지 않도록 제한
+    const newMin = Math.max(0, domainMin - (additionalTicks * tickInterval));
     const newMax = domainMax + (additionalTicks * tickInterval);
     
     ticks.length = 0;
@@ -390,8 +503,8 @@ const calculateSmartYAxisDomain = (data: any[], materials: string[]): [number, n
 
 // Y축 도메인 계산 함수 (패딩 포함) - 개선된 버전
 const calculateYAxisDomain = (data: any[], materials: string[]) => {
-  const [domainMin, domainMax, ticks] = calculateSmartYAxisDomain(data, materials);
-  return [domainMin, domainMax];
+  const [domainMin, domainMax, ticks] = calculateFixedYAxisDomain(data, materials);
+  return { domain: [domainMin, domainMax], ticks };
 };
 
 // [수정] 자재 가격 데이터 조회 함수 - Redis 캐시 우선 사용
@@ -427,7 +540,7 @@ const fetchPriceData = async (
     const rpcPromise = supabase.rpc('get_price_data', {
       p_start_date: startDate,
       p_end_date: endDate,
-      p_interval: interval,
+      p_interval: interval === 'monthly' ? 'month' : interval === 'weekly' ? 'week' : interval === 'yearly' ? 'year' : interval,
       p_major_categories: null,
       p_middle_categories: null,
       p_sub_categories: null,
@@ -505,13 +618,14 @@ const fetchPriceData = async (
 };
 
 // [수정] 차트 데이터 변환 함수 - RPC 응답 구조 처리 및 배열 타입 보장, ton→kg 변환 포함
-const transformDataForChart = (data: any[], visibleMaterials: string[]) => {
+const transformDataForChart = (data: any[], visibleMaterials: string[], interval: 'weekly' | 'monthly' | 'yearly') => {
   if (!data || !Array.isArray(data) || data.length === 0) return [];
 
   console.log('transformDataForChart 입력:', {
     dataLength: data.length,
     firstItem: data[0],
-    visibleMaterials
+    visibleMaterials,
+    interval
   });
 
   const groupedData = data.reduce((acc, item) => {
@@ -533,20 +647,66 @@ const transformDataForChart = (data: any[], visibleMaterials: string[]) => {
   }, {});
   
   // Object.values() 결과를 명시적으로 배열로 변환
-  const resultArray = Object.values(groupedData);
+  let resultArray = Object.values(groupedData);
   
-  // 모든 자재에 대해 null 값 채우기
-  const result = resultArray.map((group: any) => {
-    visibleMaterials.forEach(material => {
-      if (!(material in group)) {
-        group[material] = null; // 데이터 없는 부분은 null로 채워 'connectNulls'가 잘 동작하도록 함
+  // 주간 모드에서 더 조밀한 데이터 포인트 생성
+  if (interval === 'weekly' && resultArray.length > 0) {
+    const expandedData: any[] = [];
+    
+    // 날짜순으로 정렬
+    const sortedData = resultArray.sort((a: any, b: any) => a.time_bucket.localeCompare(b.time_bucket));
+    
+    for (let i = 0; i < sortedData.length; i++) {
+      const currentData = sortedData[i];
+      const currentDate = new Date((currentData as { time_bucket: string }).time_bucket);
+      
+      // 현재 월의 주차별 데이터 생성 (4-5개 주차)
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      
+      // 해당 월의 첫 번째 날과 마지막 날
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      
+      // 해당 월의 주차 수 계산 (대략 4-5주)
+      const weeksInMonth = Math.ceil((lastDay.getDate() + firstDay.getDay()) / 7);
+      
+      // 각 주차별 데이터 생성
+      for (let week = 1; week <= weeksInMonth; week++) {
+        const weekData: any = {};
+        
+        // ISO 주간 형식으로 time_bucket 생성 (예: "2024-W05")
+        const weekNumber = getWeekNumber(year, month, week);
+        weekData.time_bucket = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
+        
+        // 모든 자재에 대해 동일한 가격 데이터 복사
+        visibleMaterials.forEach(material => {
+          if ((currentData as Record<string, number>)[material] !== undefined) {
+            weekData[material] = (currentData as Record<string, number>)[material];
+          } else {
+            weekData[material] = null;
+          }
+        });
+        
+        expandedData.push(weekData);
       }
+    }
+    
+    resultArray = expandedData;
+  } else {
+    // 모든 자재에 대해 null 값 채우기 (월간/연간 모드)
+    resultArray = resultArray.map((group: any) => {
+      visibleMaterials.forEach(material => {
+        if (!(material in group)) {
+          group[material] = null; // 데이터 없는 부분은 null로 채워 'connectNulls'가 잘 동작하도록 함
+        }
+      });
+      return group;
     });
-    return group;
-  });
+  }
   
   // 날짜순으로 정렬
-  const sortedResult = result.sort((a, b) => a.time_bucket.localeCompare(b.time_bucket));
+  const sortedResult = resultArray.sort((a, b) => (a as { time_bucket: string }).time_bucket.localeCompare((b as { time_bucket: string }).time_bucket));
   
   console.log('transformDataForChart 결과:', {
     resultLength: sortedResult.length,
@@ -555,6 +715,30 @@ const transformDataForChart = (data: any[], visibleMaterials: string[]) => {
   });
   
   return sortedResult;
+};
+
+// 주어진 연도, 월, 주차에 대한 ISO 주간 번호 계산
+const getWeekNumber = (year: number, month: number, weekOfMonth: number): number => {
+  const firstDayOfMonth = new Date(year, month, 1);
+  
+  // 해당 월의 첫 번째 주의 시작일 계산
+  const firstMondayOfMonth = new Date(firstDayOfMonth);
+  const dayOfWeek = firstDayOfMonth.getDay();
+  const daysToMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+  firstMondayOfMonth.setDate(firstDayOfMonth.getDate() + daysToMonday);
+  
+  // 해당 주차의 월요일 날짜 계산
+  const targetMonday = new Date(firstMondayOfMonth);
+  targetMonday.setDate(firstMondayOfMonth.getDate() + (weekOfMonth - 1) * 7);
+  
+  // ISO 주간 번호 계산
+  const jan4 = new Date(year, 0, 4);
+  const jan4Day = jan4.getDay() || 7;
+  const firstMondayOfYear = new Date(jan4.getTime() - (jan4Day - 1) * 24 * 60 * 60 * 1000);
+  
+  const weekNumber = Math.floor((targetMonday.getTime() - firstMondayOfYear.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  
+  return Math.max(1, Math.min(53, weekNumber));
 };
 
 // [삭제] assignYAxis 함수는 더 이상 필요하지 않습니다.
@@ -653,11 +837,17 @@ const MaterialsChart: React.FC = () => {
     isError,
     error,
     rawDataLength: rawData?.length || 0,
-    rawData: rawData?.slice(0, 2) // 처음 2개 데이터만 로그
+    rawData: rawData ? rawData.slice(0, 2) : undefined // 안전한 접근
   });
   
   const chartData = useMemo(() => {
-    const transformed = transformDataForChart(rawData, visibleMaterials);
+    // rawData가 undefined이거나 null인 경우 안전하게 처리
+    if (!rawData) {
+      console.log('rawData가 undefined 또는 null입니다.');
+      return [];
+    }
+    
+    const transformed = transformDataForChart(rawData, visibleMaterials, interval);
     const chartArray = Array.isArray(transformed) ? transformed : [];
     
     console.log('차트 데이터 변환:', {
@@ -668,15 +858,81 @@ const MaterialsChart: React.FC = () => {
     
     // 원본 데이터를 그대로 사용 (단위 변환 제거)
     return chartArray;
-  }, [rawData, visibleMaterials]);
+  }, [rawData, visibleMaterials, interval]);
+
+  // 스마트 Y축 배치 계산
+  const axisAssignment = useMemo(() => {
+    return calculateSmartAxisAssignment(chartData, visibleMaterials);
+  }, [chartData, visibleMaterials]);
+
+  // 범례 높이 계산 (자재 수에 따른 동적 계산)
+  const calculateLegendHeight = useMemo(() => {
+    if (!visibleMaterials || visibleMaterials.length === 0) return 0;
+    
+    const leftCount = axisAssignment?.leftAxisMaterials?.length || 0;
+    const rightCount = axisAssignment?.rightAxisMaterials?.length || 0;
+    const maxCount = Math.max(leftCount, rightCount);
+    
+    // 각 범례 아이템당 약 20px + 패딩
+    return Math.max(maxCount * 20 + 10, 30);
+  }, [visibleMaterials, axisAssignment]);
+
+  // 차트 높이 계산 (1:5 비율 적용, 범례 공간 고려)
+  const calculateChartHeight = useMemo(() => {
+    if (!chartRef.current) return 500;
+    
+    const containerWidth = chartRef.current.offsetWidth || 800;
+    const baseHeight = containerWidth / 5; // 1:5 비율
+    
+    // 최소/최대 높이 제한 (적절히 조정)
+    const minHeight = 400; // 최소 높이를 적절히 조정
+    const maxHeight = 650; // 최대 높이를 적절히 조정
+    
+    // 실제 차트 높이 (범례 높이를 빼지 않음)
+    return Math.max(minHeight, Math.min(maxHeight, baseHeight));
+  }, [chartData, visibleMaterials]);
+
+  // X축 라벨 간격 계산 (월 단위로 표시)
+  const xAxisInterval = useMemo(() => {
+    if (!chartData || chartData.length === 0) return 0;
+    
+    // 월간 데이터의 경우 매월 표시하도록 설정
+    if (interval === 'monthly') {
+      return 0; // 모든 월 표시
+    }
+    
+    // 주간 데이터의 경우 4주마다 (월 단위로) 표시
+    if (interval === 'weekly') {
+      return 3; // 4주마다 표시 (0, 4, 8, 12...)
+    }
+    
+    // 연간 데이터의 경우 모든 년도 표시
+    if (interval === 'yearly') {
+      return 0;
+    }
+    
+    return 0;
+  }, [chartData, interval]);
 
   useEffect(() => {
     const checkLabelOverlap = () => {
       if (chartRef.current && chartData) {
         const containerWidth = chartRef.current.offsetWidth;
-        const labelWidth = 60; // 예상되는 레이블의 평균 너비
-        const totalLabelsWidth = chartData.length * labelWidth;
-        setShouldRotateLabels(totalLabelsWidth > containerWidth);
+        const labelCount = chartData.length;
+        
+        // 레이블 길이에 따른 동적 너비 계산
+        let maxLabelWidth = 0;
+        chartData.forEach(item => {
+          const labelText = formatXAxisLabel((item as { time_bucket: string }).time_bucket, interval);
+          // 한글 문자는 영문보다 넓으므로 더 큰 값 사용
+          const estimatedWidth = labelText.length * (labelText.match(/[가-힣]/g) ? 12 : 8);
+          maxLabelWidth = Math.max(maxLabelWidth, estimatedWidth);
+        });
+        
+        const totalLabelsWidth = labelCount * (maxLabelWidth + 20); // 여백 포함
+        const shouldRotate = totalLabelsWidth > containerWidth * 0.9; // 90% 기준
+        
+        setShouldRotateLabels(shouldRotate);
       }
     };
 
@@ -684,23 +940,28 @@ const MaterialsChart: React.FC = () => {
     window.addEventListener('resize', checkLabelOverlap);
     return () => window.removeEventListener('resize', checkLabelOverlap);
   }, [chartData, interval]);
-  
-  // 스마트 Y축 배치 계산
-  const axisAssignment = useMemo(() => {
-    return calculateSmartAxisAssignment(chartData, visibleMaterials);
-  }, [chartData, visibleMaterials]);
 
   // 개선된 Y축 도메인 계산 (눈금 포함)
   const leftAxisConfig = useMemo(() => {
-    const [domainMin, domainMax, ticks] = calculateSmartYAxisDomain(chartData, axisAssignment.leftAxisMaterials);
+    const [domainMin, domainMax, ticks] = calculateFixedYAxisDomain(chartData, axisAssignment.leftAxisMaterials);
     return { domain: [domainMin, domainMax], ticks };
   }, [chartData, axisAssignment.leftAxisMaterials]);
 
   const rightAxisConfig = useMemo(() => {
-    const [domainMin, domainMax, ticks] = calculateSmartYAxisDomain(chartData, axisAssignment.rightAxisMaterials);
+    const [domainMin, domainMax, ticks] = calculateFixedYAxisDomain(chartData, axisAssignment.rightAxisMaterials);
     return { domain: [domainMin, domainMax], ticks };
   }, [chartData, axisAssignment.rightAxisMaterials]);
   
+  // 격자선용 Y축 포인트 계산 (중간 값들만)
+  const gridHorizontalPoints = useMemo(() => {
+    if (!leftAxisConfig.ticks || leftAxisConfig.ticks.length <= 2) return [];
+    // 맨 위(마지막)와 맨 아래(첫번째) 값을 제외한 중간 값들 반환
+    const points = leftAxisConfig.ticks.slice(1, -1);
+    console.log('gridHorizontalPoints:', points, 'leftAxisConfig.ticks:', leftAxisConfig.ticks);
+    return points;
+  }, [leftAxisConfig.ticks]);
+
+
   // 단위 정보 추출 및 변환 처리
   const unitInfo = useMemo(() => {
     if (!rawData || rawData.length === 0) return { displayUnit: 'kg', unitMap: new Map() };
@@ -764,7 +1025,7 @@ const MaterialsChart: React.FC = () => {
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-6 bg-white">
+      <CardContent className="p-3 bg-white">
         {/* 단위 표시 - 오른쪽 위 */}
         {unitInfo.displayUnit && (
           <div className="absolute top-4 right-6 text-xs text-gray-500 bg-white/80 px-2 py-1 rounded border border-gray-200 z-10">
@@ -774,7 +1035,7 @@ const MaterialsChart: React.FC = () => {
         
         <div 
           className="bg-white rounded-lg border-0 shadow-none relative"
-          style={{ height: `${chartHeight}px` }}
+          style={{ height: `${calculateChartHeight + calculateLegendHeight}px` }}
           ref={chartRef}
         >
           {isLoading ? (
@@ -785,23 +1046,33 @@ const MaterialsChart: React.FC = () => {
             <div className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg border border-gray-200"><div className="text-gray-600 font-medium">표시할 데이터가 없거나, 조회할 자재를 선택해주세요.</div></div>
           ) : (
             <>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 30, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="2 2" horizontal={true} vertical={true} stroke="#d1d5db" opacity={0.5} />
-                  <XAxis 
+              <ResponsiveContainer width="100%" height={calculateChartHeight}>
+                  <LineChart data={chartData} margin={{ top: 10, right: 50, left: 50, bottom: shouldRotateLabels ? 25 : 5 }}>
+                    <CartesianGrid 
+                      strokeDasharray="3 3" 
+                      stroke="#e5e7eb" 
+                      strokeWidth={0.8}
+                      horizontal={true} 
+                      vertical={false}
+                      horizontalPoints={gridHorizontalPoints}
+                    />
+                    <XAxis 
                     dataKey="time_bucket" 
                     stroke="#6b7280" 
                     fontSize={12} 
                     tickLine={false} 
                     axisLine={true} 
+                    height={shouldRotateLabels ? 60 : 20}
+                    interval={xAxisInterval}
+                    angle={shouldRotateLabels ? -45 : 0}
                     tick={shouldRotateLabels 
-                      ? { fill: '#6b7280', fontWeight: 500, angle: -45, textAnchor: 'end' } as any
-                      : { fill: '#6b7280', fontWeight: 500 }
+                      ? { fill: '#6b7280', fontWeight: 500, textAnchor: 'end' }
+                      : { fill: '#6b7280', fontWeight: 500, textAnchor: 'middle' }
                     }
                     tickFormatter={(value) => formatXAxisLabel(value, interval)}
                   />
                   
-                  <YAxis yAxisId="left" stroke="#6b7280" tickFormatter={formatYAxisPrice} fontSize={12} tickLine={false} axisLine={true} tick={{ fill: '#6b7280', fontWeight: 500 }} domain={leftAxisConfig.domain} ticks={leftAxisConfig.ticks} />
+                  <YAxis yAxisId="left" stroke="#6b7280" tickFormatter={formatYAxisPrice} fontSize={12} tickLine={false} axisLine={true} tick={{ fill: '#6b7280', fontWeight: 500 }} domain={leftAxisConfig.domain} ticks={leftAxisConfig.ticks} width={50} />
                   
                   {/* 우측 Y축을 스마트 배치에 따라 표시 */}
                   <YAxis 
@@ -814,9 +1085,11 @@ const MaterialsChart: React.FC = () => {
                     axisLine={true} 
                     tick={{ fill: '#6b7280', fontWeight: 500 }} 
                     domain={rightAxisConfig.domain}
-                    ticks={rightAxisConfig.ticks}
+                    width={50}
                     hide={axisAssignment.rightAxisMaterials.length === 0} // 우측 축에 표시할 자재가 없을 때만 숨김
                   />
+                  
+                  {/* 고공대 지지 가격대 관련 코드 제거됨 */}
 
                   <Tooltip 
                     contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontSize: '14px', fontWeight: 500 }}
@@ -825,7 +1098,13 @@ const MaterialsChart: React.FC = () => {
                       const materialUnit = unitInfo.unitMap.get(name) || 'kg';
                       return [formatTooltipValue(value, materialUnit), shortenMaterialName(name)];
                     }}
-                    labelFormatter={(label) => `기간: ${label}`}
+                    labelFormatter={(label) => {
+                      // ISO 주간 형식(2023-W36)을 한국어 형식(23년9월1주)으로 변환
+                      if (typeof label === 'string' && label.includes('-W')) {
+                        return `기간: ${formatWeekLabel(label)}`;
+                      }
+                      return `기간: ${label}`;
+                    }}
                   />
 
                   {visibleMaterials.map((material, index) => {
@@ -859,7 +1138,7 @@ const MaterialsChart: React.FC = () => {
                 </LineChart>
                </ResponsiveContainer>
                {visibleMaterials.length > 0 && (
-                 <div style={{ marginTop: '0px' }}>
+                 <div style={{ marginTop: '0px', height: `${calculateLegendHeight}px` }}>
                    <CustomizedLegend 
                      payload={chartData.length > 0 ? visibleMaterials.map((material, index) => ({ 
                        value: material, 
