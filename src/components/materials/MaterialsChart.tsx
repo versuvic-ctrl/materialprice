@@ -631,7 +631,7 @@ const CustomizedLegend = (props: any) => {
   );
 
   const renderLegendItems = (items: any[], alignment: 'start' | 'end') => (
-    <div className={`flex flex-col items-${alignment} bg-white/70 p-1 rounded`}>
+    <div className={`flex flex-row flex-wrap items-${alignment} bg-white/70 p-1 rounded space-x-2`}>
       {items.map((entry: any, index: number) => {
         const materialName = entry.dataKey;
         const materialUnit = unitMap?.get(materialName) || 'kg';
