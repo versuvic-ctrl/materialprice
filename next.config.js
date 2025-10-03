@@ -6,6 +6,8 @@ const __dirname = dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
+  outputFileTracingRoot: path.join(__dirname, '../'),
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,

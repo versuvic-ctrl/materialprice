@@ -34,13 +34,13 @@ import { Label } from '@/components/ui/label';
 import { BarChart3 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client'; // [수정]
 import useMaterialStore from '@/store/materialStore'; // [교체] Zustand 스토어 import
 import MaterialsChart from '@/components/materials/MaterialsChart'; // [교체] 새로운 차트 컴포넌트 import
 import MaterialsPriceTable from '@/components/materials/MaterialsPriceTable'; // [추가] 자재 가격 테이블 컴포넌트 import
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'; // [추가] Tabs 컴포넌트 import
 
-// Supabase 클라이언트는 lib/supabaseClient.ts에서 import
+const supabase = createClient(); // [수정]
 
 // 한글 자음 순서로 배열을 정렬하는 유틸리티 함수
 // 카테고리 목록을 사용자가 찾기 쉽도록 가나다 순으로 정렬

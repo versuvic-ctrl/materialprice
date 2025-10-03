@@ -11,7 +11,7 @@
  * 연관 파일:
  * - src/components/dashboard/DashboardChartGrid.tsx (부모 컴포넌트)
  * - src/store/materialStore.ts (날짜/기간 설정 공유)
- * - src/lib/supabase.ts (데이터베이스 연동)
+ * - src/utils/supabase/client.ts (데이터베이스 연동)
  * - src/components/ui/card.tsx, skeleton.tsx (UI 컴포넌트)
  * 
  * 중요도: ⭐⭐⭐ 필수 - 대시보드의 핵심 차트 기능
@@ -24,7 +24,7 @@
 
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../../lib/supabaseClient';
+
 import {
   LineChart,
   Line,
@@ -43,7 +43,7 @@ import PriceTable, { MaterialPriceData } from './PriceTable';
 import { formatXAxisLabel } from '@/utils/dateFormatter';
 // convertToKgUnit 및 calculatePriceChange import 제거
 
-// Supabase 클라이언트는 lib/supabaseClient.ts에서 import
+
 
 /**
  * 자재 가격 데이터를 Redis 캐시 우선으로 가져오는 함수
@@ -59,106 +59,23 @@ const fetchPriceData = async (
   endDate: string,
   interval: 'weekly' | 'monthly' | 'yearly'
 ) => {
-  console.log('fetchPriceData called with:', { materials, startDate, endDate, interval }); // Modified log
   if (!materials || materials.length === 0) return [];
-  
-  // Redis 캐시에서 먼저 조회
-  const { getMaterialDataFromCache, setMaterialDataToCache } = await import('../../lib/redis-cache');
-  
-  const cachedData = await getMaterialDataFromCache(
-    materials, startDate, endDate, interval
-  );
-  
-  if (cachedData) {
-    console.log('캐시에서 자재 데이터 조회 성공');
-    return cachedData;
+
+  const response = await fetch('/api/materials/prices', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include', // 인증 쿠키 전송을 위해 추가
+    body: JSON.stringify({ materials, startDate, endDate, interval }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: '알 수 없는 API 오류' }));
+    throw new Error(errorData.message || `API 요청 실패: ${response.statusText}`);
   }
-  
-  console.log('캐시 MISS - Supabase에서 자재 데이터 조회'); // Added log
-  
-  // 자재별로 개별 RPC 호출하여 타임아웃 방지
-  const allData: any[] = [];
-  
-  try {
-    console.log(`배치 자재 ${materials.length}개에 대한 RPC 호출 시작`);
-    
-    // 모든 자재를 한 번의 RPC 호출로 처리
-    const { data, error } = await supabase.rpc('get_price_data', {
-      p_interval: interval,
-      p_start_date: startDate,
-      p_end_date: endDate,
-      p_major_categories: null,
-      p_middle_categories: null,
-      p_sub_categories: null,
-      p_specifications: materials, // 모든 자재를 배열로 전달
-      p_spec_names: null,
-    });
 
-    if (error) {
-      console.error(`배치 RPC 오류:`, error);
-      throw new Error(`자재 데이터 조회 실패: ${error?.message || error?.toString() || '알 수 없는 오류'}`);
-    }
-
-    if (data && data.length > 0) {
-      allData.push(...data);
-      console.log(`배치 처리 완료: ${data.length}개 데이터 조회`);
-    } else {
-      console.warn(`선택한 자재에 대한 데이터 없음`);
-    }
-  } catch (batchError) {
-    console.error(`배치 처리 중 오류:`, batchError);
-    // 배치 처리 실패 시 개별 자재별로 폴백 처리
-    console.log('배치 처리 실패, 개별 자재별로 폴백 처리 시작');
-    
-    for (const material of materials) {
-      try {
-        console.log(`자재 ${material} 폴백 호출 시작`);
-        
-        const { data, error } = await supabase.rpc('get_price_data', {
-          p_interval: interval,
-          p_start_date: startDate,
-          p_end_date: endDate,
-          p_major_categories: null,
-          p_middle_categories: null,
-          p_sub_categories: null,
-          p_specifications: [material], // 단일 자재로 호출
-          p_spec_names: null,
-        });
-
-        if (error) {
-          console.error(`자재 ${material} RPC 오류:`, error);
-          continue; // 개별 자재 오류는 스킵
-        }
-
-        if (data && data.length > 0) {
-          allData.push(...data);
-          console.log(`자재 ${material}: ${data.length}개 데이터 조회 완료`);
-        } else {
-          console.warn(`자재 ${material}: 데이터 없음`);
-        }
-      } catch (materialError) {
-        console.error(`자재 ${material} 처리 중 오류:`, materialError);
-        continue; // 개별 자재 오류는 스킵
-      }
-    }
-  }
-  
-  console.log(`총 ${allData.length}개 데이터 조회 완료`);
-  
-  // 데이터 처리 - RPC 반환 구조에 맞게 수정 (time_bucket, average_price 필드 사용)
-  const processedData = allData.map((item: any) => ({
-    time_bucket: item.time_bucket,      // RPC에서 반환하는 time_bucket 필드
-    average_price: item.average_price,   // RPC에서 반환하는 average_price 필드
-    specification: item.specification,
-    unit: item.unit
-  }));
-  
-  console.log('Processed data before caching:', processedData.length, '개 항목');
-  
-  // 조회 결과를 Redis 캐시에 저장 (24시간 TTL)
-  await setMaterialDataToCache(materials, startDate, endDate, interval, processedData);
-  
-  return processedData;
+  return response.json();
 };
 
 /**
@@ -266,13 +183,17 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
   rightAxisMaterials: string[];
   leftAxisDomain: any[];
   rightAxisDomain: any[];
+  leftAxisTicks: number[];
+  rightAxisTicks: number[];
 } => {
   if (!data || data.length === 0 || materials.length === 0) {
     return {
       leftAxisMaterials: [],
       rightAxisMaterials: [],
       leftAxisDomain: ['dataMin - 100', 'dataMax + 100'],
-      rightAxisDomain: ['dataMin - 100', 'dataMax + 100']
+      rightAxisDomain: ['dataMin - 100', 'dataMax + 100'],
+      leftAxisTicks: [0, 250, 500, 750, 1000],
+      rightAxisTicks: [0, 250, 500, 750, 1000]
     };
   }
 
@@ -282,131 +203,66 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
     ...analyzePriceRange(data, material)
   }));
 
-  // 첫 번째 자재는 무조건 주축(좌측)
-  const leftAxisMaterials = [materialRanges[0].material];
-  const rightAxisMaterials: string[] = [];
+  // 가격 수준에 따른 자재 분류 (5000원 기준)
+  const highPriceMaterials: string[] = [];
+  const lowPriceMaterials: string[] = [];
 
-  let leftAxisRange = materialRanges[0];
-
-  // 두 번째 자재부터 처리
-  for (let i = 1; i < materialRanges.length; i++) {
-    const currentMaterial = materialRanges[i];
-    
-    // 현재 좌축 범위와의 차이 비율 계산
-    const ratioWithLeft = calculateRangeDifferenceRatio(
-      leftAxisRange.range, 
-      currentMaterial.range
-    );
-
-    // 우축이 비어있거나, 좌축과의 차이가 5배 미만이면 좌축에 배치
-    if (rightAxisMaterials.length === 0 && ratioWithLeft < 5) {
-      leftAxisMaterials.push(currentMaterial.material);
-      // 좌축 범위 업데이트 (통합된 범위)
-      leftAxisRange = {
-        material: 'combined',
-        min: Math.min(leftAxisRange.min, currentMaterial.min),
-        max: Math.max(leftAxisRange.max, currentMaterial.max),
-        range: Math.max(leftAxisRange.max, currentMaterial.max) - 
-               Math.min(leftAxisRange.min, currentMaterial.min)
-      };
+  materialRanges.forEach(({ material, max }) => {
+    if (max >= 5000) {
+      highPriceMaterials.push(material);
     } else {
-      // 우축이 있는 경우, 좌축과 우축 중 더 적합한 곳에 배치
-      if (rightAxisMaterials.length > 0) {
-        // 현재 우축 범위 계산
-        const rightAxisRange = rightAxisMaterials.reduce((acc, mat) => {
-          const range = materialRanges.find(r => r.material === mat)!;
-          return {
-            min: Math.min(acc.min, range.min),
-            max: Math.max(acc.max, range.max),
-            range: Math.max(acc.max, range.max) - Math.min(acc.min, range.min)
-          };
-        }, { min: Infinity, max: -Infinity, range: 0 });
-
-        const ratioWithRight = calculateRangeDifferenceRatio(
-          rightAxisRange.range,
-          currentMaterial.range
-        );
-
-        // 좌축과 우축 중 더 적합한 곳에 배치
-        if (ratioWithLeft <= ratioWithRight) {
-          leftAxisMaterials.push(currentMaterial.material);
-          leftAxisRange = {
-            material: 'combined',
-            min: Math.min(leftAxisRange.min, currentMaterial.min),
-            max: Math.max(leftAxisRange.max, currentMaterial.max),
-            range: Math.max(leftAxisRange.max, currentMaterial.max) - 
-                   Math.min(leftAxisRange.min, currentMaterial.min)
-          };
-        } else {
-          rightAxisMaterials.push(currentMaterial.material);
-        }
-      } else {
-        // 우축이 비어있고 좌축과 차이가 10배 이상이면서 
-        // 절대 가격 차이도 1000원 이상인 경우에만 우축에 배치
-        const priceDifference = Math.abs(leftAxisRange.max - currentMaterial.max);
-        const rangeRatio = Math.max(leftAxisRange.range, currentMaterial.range) / 
-                          Math.min(leftAxisRange.range, currentMaterial.range);
-        
-        if (rangeRatio >= 10 && priceDifference >= 1000) {
-          rightAxisMaterials.push(currentMaterial.material);
-        } else {
-          leftAxisMaterials.push(currentMaterial.material);
-          leftAxisRange = {
-            material: 'combined',
-            min: Math.min(leftAxisRange.min, currentMaterial.min),
-            max: Math.max(leftAxisRange.max, currentMaterial.max),
-            range: Math.max(leftAxisRange.max, currentMaterial.max) - 
-                   Math.min(leftAxisRange.min, currentMaterial.min)
-          };
-        }
-      }
+      lowPriceMaterials.push(material);
     }
+  });
+
+  let leftAxisMaterials: string[] = [];
+  let rightAxisMaterials: string[] = [];
+
+  // 고가 자재가 있으면 주축(좌측)에, 저가 자재는 보조축(우측)에 배치
+  if (highPriceMaterials.length > 0 && lowPriceMaterials.length > 0) {
+    leftAxisMaterials = [...highPriceMaterials];
+    rightAxisMaterials = [...lowPriceMaterials];
+  } else {
+    // 모든 자재가 한 그룹에 속할 경우, 모든 자재를 주축에 표시
+    leftAxisMaterials = materials;
+    rightAxisMaterials = [];
+  }
+  
+  // 만약 모든 자재가 5000원 미만인데, 가격 편차가 클 경우 축을 분리
+  if (highPriceMaterials.length === 0 && lowPriceMaterials.length > 1) {
+      const sortedByMax = materialRanges.sort((a, b) => b.max - a.max);
+      const maxPrice = sortedByMax[0].max;
+      const minPrice = sortedByMax[sortedByMax.length - 1].max;
+
+      if (maxPrice / minPrice > 5) { // 5배 이상 차이나면 분리
+          const mainMaterial = sortedByMax[0].material;
+          leftAxisMaterials = [mainMaterial];
+          rightAxisMaterials = materials.filter(m => m !== mainMaterial);
+      }
   }
 
+
   // 각 축의 도메인 계산
-  const leftAxisDomain = calculateYAxisDomain(data, leftAxisMaterials);
-  const rightAxisDomain = rightAxisMaterials.length > 0 
-    ? calculateYAxisDomain(data, rightAxisMaterials)
-    : ['dataMin - 100', 'dataMax + 100'];
+  const [leftDomainMin, leftDomainMax, leftTicks] = calculateYAxisDomain(data, leftAxisMaterials, false);
+  const [rightDomainMin, rightDomainMax, rightTicks] = rightAxisMaterials.length > 0 
+    ? calculateYAxisDomain(data, rightAxisMaterials, true)
+    : [0, 1000, [0, 250, 500, 750, 1000]];
 
   return {
     leftAxisMaterials,
     rightAxisMaterials,
-    leftAxisDomain,
-    rightAxisDomain
+    leftAxisDomain: [leftDomainMin, leftDomainMax],
+    rightAxisDomain: rightAxisMaterials.length > 0 ? [rightDomainMin, rightDomainMax] : ['auto', 'auto'],
+    leftAxisTicks: Array.isArray(leftTicks) ? leftTicks : [leftTicks],
+    rightAxisTicks: rightAxisMaterials.length > 0 ? (Array.isArray(rightTicks) ? rightTicks : [rightTicks]) : []
   };
 };
 
-// Y축 눈금 간격을 계산하는 함수
-const calculateTickInterval = (min: number, max: number, targetTickCount: number = 5): number => {
-  const range = max - min;
-  if (range === 0) return 1;
-  
-  // 기본 간격 계산
-  const rawInterval = range / (targetTickCount - 1);
-  
-  // 10의 거듭제곱으로 정규화
-  const magnitude = Math.pow(10, Math.floor(Math.log10(rawInterval)));
-  const normalizedInterval = rawInterval / magnitude;
-  
-  // 적절한 간격 선택 (1, 2, 5, 10의 배수)
-  let niceInterval;
-  if (normalizedInterval <= 1) {
-    niceInterval = 1;
-  } else if (normalizedInterval <= 2) {
-    niceInterval = 2;
-  } else if (normalizedInterval <= 5) {
-    niceInterval = 5;
-  } else {
-    niceInterval = 10;
-  }
-  
-  return niceInterval * magnitude;
-};
+// Y축 눈금 간격을 계산하는 함수 (삭제됨, calculateSmartYAxisDomain으로 통합)
 
 // 명확한 기준으로 Y축 도메인과 눈금을 계산하는 함수
-const calculateSmartYAxisDomain = (data: any[], materials: string[]): [number, number, number[]] => {
-  if (!data || data.length === 0 || materials.length === 0) {
+const calculateSmartYAxisDomain = (data: any[], materials: string[], isSecondaryAxis: boolean = false): [number, number, number[]] => {
+  if (!data || data.length === 0) {
     return [0, 1000, [0, 250, 500, 750, 1000]];
   }
 
@@ -427,44 +283,90 @@ const calculateSmartYAxisDomain = (data: any[], materials: string[]): [number, n
     return [0, 1000, [0, 250, 500, 750, 1000]];
   }
 
-  // 데이터 범위에 여유 공간 추가 (상하 10% 패딩)
+  // 새로운 Y축 계산 로직
   const range = max - min;
-  const padding = range * 0.1; // 10% 패딩
-  const paddedMin = Math.max(0, min - padding); // 최소값이 0보다 작아지지 않도록 제한
-  const paddedMax = max + padding;
+  
+  // 1. "Nice" 간격 계산
+  const targetTickCount = 5;
+  const rawInterval = range / (targetTickCount - 1);
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawInterval)));
+  const niceFractions = [1, 2, 2.5, 5, 10];
+  let tickInterval = 10 * magnitude; // 기본값
 
-  // 적절한 눈금 간격 계산 (패딩된 범위 기준)
-  const tickInterval = calculateTickInterval(paddedMin, paddedMax, 5);
+  let minError = Infinity;
+  for (const fraction of niceFractions) {
+      const niceInterval = fraction * magnitude;
+      const error = Math.abs(rawInterval - niceInterval);
+      if (error < minError) {
+          minError = error;
+          tickInterval = niceInterval;
+      }
+  }
+
+  // 2. Y축 범위 결정
+  let domainMin: number;
+  let domainMax: number;
+
+  // 데이터 변동폭이 크면 0부터 시작
+  if (min / max < 0.3) {
+      domainMin = 0;
+      domainMax = Math.ceil(max / tickInterval) * tickInterval;
+      // 만약 domainMax가 max를 겨우 포함하는 수준이면 한 단계 위로 올림 (더 엄격한 조건)
+      if (domainMax < max + tickInterval * 0.1) {
+          domainMax += tickInterval;
+      }
+  } else {
+      // 데이터 변동폭이 좁을 경우, min/max에 여백을 추가하여 범위를 재설정
+      const padding = (max - min) * 0.1; // 상하단에 10%씩 여백 추가
+      const paddedMin = min - padding;
+      const paddedMax = max + padding;
+      const paddedRange = paddedMax - paddedMin;
+
+      // 여백이 적용된 범위에 맞춰 다시 "Nice" 간격 계산
+      const rawPaddedInterval = paddedRange > 0 ? paddedRange / (targetTickCount - 1) : tickInterval;
+      const paddedMagnitude = Math.pow(10, Math.floor(Math.log10(rawPaddedInterval)));
+      let paddedMinError = Infinity;
+      for (const fraction of niceFractions) {
+          const niceInterval = fraction * paddedMagnitude;
+          const error = Math.abs(rawPaddedInterval - niceInterval);
+          if (error < paddedMinError) {
+              paddedMinError = error;
+              tickInterval = niceInterval;
+          }
+      }
+
+      domainMin = Math.floor(paddedMin / tickInterval) * tickInterval;
+      domainMax = Math.ceil(paddedMax / tickInterval) * tickInterval;
+  }
   
-  // 도메인 범위를 눈금에 맞춰 조정
-  const domainMin = Math.max(0, Math.floor(paddedMin / tickInterval) * tickInterval); // 최소값이 0보다 작아지지 않도록 제한
-  const domainMax = Math.ceil(paddedMax / tickInterval) * tickInterval;
-  
-  // 눈금 배열 생성
+  // 4개의 균등한 간격으로 재계산
+  const newRange = domainMax - domainMin;
+  tickInterval = newRange / 4;
+
+  // 3. Ticks 생성 (동적)
   const ticks: number[] = [];
-  for (let tick = domainMin; tick <= domainMax; tick += tickInterval) {
-    ticks.push(tick);
+  // 부동소수점 오류를 피하기 위해 정수 연산 시도
+  const factor = 1 / Math.pow(10, Math.max(0, Math.ceil(-Math.log10(tickInterval))));
+  let currentTick = Math.round(domainMin * factor) / factor;
+
+  while (currentTick <= domainMax + tickInterval * 0.001) { // 부동소수점 오차 감안
+    ticks.push(currentTick);
+    currentTick = Math.round((currentTick + tickInterval) * factor) / factor;
   }
-  
-  // 최소 3개, 최대 7개의 눈금 보장
-  if (ticks.length < 3) {
-    const additionalTicks = Math.ceil((3 - ticks.length) / 2);
-    const newMin = Math.max(0, domainMin - (additionalTicks * tickInterval)); // 최소값이 0보다 작아지지 않도록 제한
-    const newMax = domainMax + (additionalTicks * tickInterval);
-    
-    ticks.length = 0;
-    for (let tick = newMin; tick <= newMax; tick += tickInterval) {
-      ticks.push(tick);
-    }
+
+  // 눈금이 하나만 생성되는 경우 (min, max가 거의 같을 때) domainMax를 강제로 한단계 올림
+  if (ticks.length < 2) {
+      domainMax += tickInterval;
+      ticks.push(domainMax);
   }
-  
-  return [ticks[0], ticks[ticks.length - 1], ticks];
+
+  return [domainMin, domainMax, ticks];
 };
 
-// Y축 도메인 계산 함수 (패딩 포함) - 개선된 버전
-const calculateYAxisDomain = (data: any[], materials: string[]) => {
-  const [domainMin, domainMax, ticks] = calculateSmartYAxisDomain(data, materials);
-  return [domainMin, domainMax];
+// Y축 도메인 계산 함수 (패딩 포함)
+const calculateYAxisDomain = (data: any[], materials: string[], isSecondaryAxis: boolean = false) => {
+  const [domainMin, domainMax, ticks] = calculateSmartYAxisDomain(data, materials, isSecondaryAxis);
+  return [domainMin, domainMax, ticks];
 };
 
 // Y축 가격 포맷팅 함수 - 소수점 첫째자리까지 표시
@@ -724,6 +626,8 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
                   tick={{ fontSize: 11, fill: '#6b7280' }}
                   tickFormatter={formatYAxisPrice}
                   domain={axisAssignment.leftAxisDomain}
+                  ticks={axisAssignment.leftAxisTicks}
+                  tickCount={5}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -737,6 +641,8 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
                     tick={{ fontSize: 11, fill: '#6b7280' }}
                     tickFormatter={formatYAxisPrice}
                     domain={axisAssignment.rightAxisDomain}
+                    ticks={axisAssignment.rightAxisTicks}
+                    tickCount={5}
                     axisLine={false}
                     tickLine={false}
                   />

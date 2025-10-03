@@ -1,144 +1,135 @@
-// src/components/materials/MaterialsChart.tsx
-'use client';
-
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
-} from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import useMaterialStore from '@/store/materialStore';
-import { supabase } from '../../../lib/supabaseClient';
-import { formatXAxisLabel, formatWeekLabel } from '@/utils/dateFormatter';
+import { createClient } from '@/utils/supabase/client'; // 표준 클라이언트 import
+import { formatWeekLabel, formatXAxisLabel } from '@/utils/dateFormatter';
 
-// [개선] 자재명을 더 구체적으로 표시하는 함수
-const shortenMaterialName = (name: string, allMaterials: string[] = []): string => {
-    // 구체적인 자재명 생성 로직
-    const createDetailedName = (materialName: string, otherMaterials: string[]): string => {
-        // 기본 키워드 매핑 - 더 구체적인 표현 우선
-        const keywordMap: { [key: string]: string } = {
-            '공진식': '공진식',
-            '자흡식펌프': '자흡식펌프',
-            '자자흡식펌프': '자자흡식펌프',
-            '고강도': '고강도',
-            '아��no다이징': '아��no다이징',
-            '알루미늄': '알루미늄',
-            '복합판넬': '복합판넬',
-            '스테인리스': '스테인리스',
-            '세정제': '세정제',
-            'SUS304': 'SUS304',
-            'SUS316': 'SUS316',
-            'AL6061': 'AL6061',
-            '고장력철근': '고장력철근',
-            'H형강': 'H형강',
-            'COPPER': '구리',
-            'NICKEL': '니켈',
-            'SILVER': '은',
-            'PTFE': 'PTFE',
-            'ABS': 'ABS',
-            'PC': 'PC',
-            'HDPE': 'HDPE'
-        };
+const supabase = createClient(); // Supabase 클라이언트 생성
 
-        // 주요 키워드 찾기 (긴 키워드부터 우선 매칭)
-        let mainKeywords: string[] = [];
-         const sortedKeywords = Object.keys(keywordMap).sort((a, b) => b.length - a.length);
-         
-         for (const keyword of sortedKeywords) {
-            if (materialName.includes(keyword)) {
-                mainKeywords.push(keywordMap[keyword]);
-                break; // 첫 번째 매칭된 키워드만 사용
-            }
-        }
+const shortenMaterialName = (materialName: string, otherMaterials: string[]): string => {
+  const parts = materialName.split(' ');
+  const keywordMap: { [key: string]: string } = {
+    '공진식': '공진식',
+    '자흡식펌프': '자흡식펌프',
+    '자자흡식펌프': '자자흡식펌프',
+    '고강도': '고강도',
+    '아��no다이징': '아��no다이징',
+    '알루미늄': '알루미늄',
+    '복합판넬': '복합판넬',
+    '스테인리스': '스테인리스',
+    '세정제': '세정제',
+    'SUS304': 'SUS304',
+    'SUS316': 'SUS316',
+    'AL6061': 'AL6061',
+    '고장력철근': '고장력철근',
+    'H형강': 'H형강',
+    'COPPER': '구리',
+    'NICKEL': '니켈',
+    'SILVER': '은',
+    'PTFE': 'PTFE',
+    'ABS': 'ABS',
+    'PC': 'PC',
+    'HDPE': 'HDPE'
+  };
 
-        // 주요 키워드가 없으면 첫 번째 단어들 사용
-        if (mainKeywords.length === 0) {
-            const words = materialName.split(/[\s-_,()]+/).filter(w => w.length > 0);
-            mainKeywords = words.slice(0, 2);
-        }
+  // 주요 키워드 찾기 (긴 키워드부터 우선 매칭)
+  let mainKeywords: string[] = [];
+   const sortedKeywords = Object.keys(keywordMap).sort((a, b) => b.length - a.length);
+   
+   for (const keyword of sortedKeywords) {
+      if (materialName.includes(keyword)) {
+          mainKeywords.push(keywordMap[keyword]);
+          break; // 첫 번째 매칭된 키워드만 사용
+      }
+  }
 
-        // 기본 이름 생성
-        let displayName = mainKeywords.join(' ');
-        
-        // 재질 정보 추가 (SUS304, SUS316 등)
-        const materialMatch = materialName.match(/(SUS\d+|AL\d+|SS\d+)/i);
-        if (materialMatch && !displayName.includes(materialMatch[1])) {
-            displayName += `(${materialMatch[1]})`;
-        }
-        
-        // 구경/크기 정보 추가
-        const sizeMatch = materialName.match(/구경[^0-9]*(\d+(?:\.\d+)?[A-Za-z]*)/i) || 
-                         materialName.match(/(\d+(?:\.\d+)?(?:mm|A|㎜))/i);
-        if (sizeMatch) {
-            displayName += ` ${sizeMatch[1]}`;
-        }
-        
-        // 중복 체크 및 추가 구분자
-        const duplicates = otherMaterials.filter(other => {
-            const otherBase = createBaseName(other);
-            const currentBase = createBaseName(materialName);
-            return otherBase === currentBase && other !== materialName;
-        });
+  // 주요 키워드가 없으면 첫 번째 단어들 사용
+  if (mainKeywords.length === 0) {
+      const words = materialName.split(/[\s-_,()]+/).filter(w => w.length > 0);
+      mainKeywords = words.slice(0, 2);
+  }
 
-        // 중복이 있으면 추가 구분자 적용
-        if (duplicates.length > 0) {
-            // BF, 펌프 타입 등 추가 정보
-            const typeMatch = materialName.match(/\(([^)]+)\)/g);
-            if (typeMatch) {
-                const types = typeMatch.map(match => match.replace(/[()]/g, ''));
-                const uniqueTypes = types.filter(type => 
-                    !displayName.includes(type) && 
-                    !['SUS304', 'SUS316', 'AL6061'].includes(type)
-                );
-                if (uniqueTypes.length > 0) {
-                    displayName += ` ${uniqueTypes[0]}`;
-                }
-            }
-        }
+  // 기본 이름 생성
+  let displayName = mainKeywords.join(' ');
+  
+  // 재질 정보 추출 (SUS304, SUS316 등)
+  const materialMatch = materialName.match(/(SUS\d+|AL\d+|SS\d+)/i);
+  if (materialMatch && !displayName.includes(materialMatch[1])) {
+      displayName += `(${materialMatch[1]})`;
+  }
+  
+  // 구경/크기 정보 추출
+  const sizeMatch = materialName.match(/구경[^0-9]*(\d+(?:\.\d+)?[A-Za-z]*)/i) || 
+                   materialName.match(/(\d+(?:\.\d+)?(?:mm|A|㎜))/i);
+  if (sizeMatch) {
+      displayName += ` ${sizeMatch[1]}`;
+  }
+  
+  // 중복 체크 및 추가 구분자
+  const duplicates = otherMaterials.filter(other => {
+      const otherBase = createBaseName(other);
+      const currentBase = createBaseName(materialName);
+      return otherBase === currentBase && other !== materialName;
+  });
 
-        return displayName.length > 30 ? displayName.substring(0, 30) + '...' : displayName;
-    };
+  // 중복이 있으면 추가 구분자 적용
+  if (duplicates.length > 0) {
+      // BF, 펌프 타입 등 추가 정보
+      const typeMatch = materialName.match(/\(([^)]+)\)/g);
+      if (typeMatch) {
+          const types = typeMatch.map(match => match.replace(/[()]/g, ''));
+          const uniqueTypes = types.filter(type => 
+              !displayName.includes(type) && 
+              !['SUS304', 'SUS316', 'AL6061'].includes(type)
+          );
+          if (uniqueTypes.length > 0) {
+              displayName += ` ${uniqueTypes[0]}`;
+          }
+      }
+  }
 
-    const createBaseName = (name: string): string => {
-        const keywordMap: { [key: string]: string } = {
-            '공진식': '공진식',
-            '자흡식펌프': '자흡식펌프',
-            '자자흡식펌프': '자자흡식펌프',
-            '고강도': '고강도',
-            '아��no다이징': '아��no다이징',
-            '알루미늄': '알루미늄',
-            '복합판넬': '복합판넬',
-            '스테인리스': '스테인리스',
-            'SUS304': 'SUS304',
-            'SUS316': 'SUS316'
-        };
+  return displayName.length > 30 ? displayName.substring(0, 30) + '...' : displayName;
+};
 
-        let keywords: string[] = [];
-        const sortedKeywords = Object.keys(keywordMap).sort((a, b) => b.length - a.length);
-        
-        for (const keyword of sortedKeywords) {
-            if (name.includes(keyword)) {
-                keywords.push(keywordMap[keyword]);
-                break;
-            }
-        }
+const createBaseName = (name: string): string => {
+  const keywordMap: { [key: string]: string } = {
+      '공진식': '공진식',
+      '자흡식펌프': '자흡식펌프',
+      '자자흡식펌프': '자자흡식펌프',
+      '고강도': '고강도',
+      '아��no다이징': '아��no다이징',
+      '알루미늄': '알루미늄',
+      '복합판넬': '복합판넬',
+      '스테인리스': '스테인리스',
+      'SUS304': 'SUS304',
+      'SUS316': 'SUS316'
+  };
 
-        if (keywords.length === 0) {
-            const words = name.split(/[\s-_,()]+/).filter(w => w.length > 0);
-            keywords = words.slice(0, 1);
-        }
+  let keywords: string[] = [];
+  const sortedKeywords = Object.keys(keywordMap).sort((a, b) => b.length - a.length);
+  
+  for (const keyword of sortedKeywords) {
+      if (name.includes(keyword)) {
+          keywords.push(keywordMap[keyword]);
+          break;
+      }
+  }
 
-        return keywords.join(' ');
-    };
+  if (keywords.length === 0) {
+      const words = name.split(/[\s-_,()]+/).filter(w => w.length > 0);
+      keywords = words.slice(0, 1);
+  }
 
-    return createDetailedName(name, allMaterials);
+  return keywords.join(' ');
 };
 
 // [유지] 숫자에 천 단위 구분자 추가하는 함수
-export const formatNumber = (value: number): string => {
+  export const formatNumber = (value: number): string => {
   return new Intl.NumberFormat('ko-KR').format(value);
 };
 
@@ -501,13 +492,13 @@ const calculateSmartYAxisDomain = (data: any[], materials: string[]): [number, n
   return [ticks[0], ticks[ticks.length - 1], ticks];
 };
 
-// Y축 도메인 계산 함수 (패딩 포함) - 개선된 버전
+// Y축 도메인 계산 함수 (패딩 포함)
 const calculateYAxisDomain = (data: any[], materials: string[]) => {
   const [domainMin, domainMax, ticks] = calculateFixedYAxisDomain(data, materials);
   return { domain: [domainMin, domainMax], ticks };
 };
 
-// [수정] 자재 가격 데이터 조회 함수 - Redis 캐시 우선 사용
+// [수정] 자재 가격 데이터 조회 함수 - API 라우트 호출
 const fetchPriceData = async (
   materials: string[],
   startDate: string,
@@ -516,105 +507,21 @@ const fetchPriceData = async (
 ) => {
   if (materials.length === 0) return [];
 
-  // Redis 캐시에서 먼저 조회
-  const { getMaterialDataFromCache, setMaterialDataToCache } = await import('../../lib/redis-cache');
-  
-  const cachedData = await getMaterialDataFromCache(
-    materials, startDate, endDate, interval
-  );
-  
-  if (cachedData) {
-    console.log('캐시에서 자재 데이터 조회 성공');
-    return cachedData;
-  }
-  
-  // 캐시에 없으면 Supabase에서 조회
-  console.log('캐시 MISS - Supabase에서 자재 데이터 조회');
+  const response = await fetch('/api/materials/prices', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ materials, startDate, endDate, interval }),
+    credentials: 'include', // 쿠키를 포함하도록 설정
+  });
 
-  try {
-    // 타임아웃 처리를 위한 Promise.race 사용
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Request timeout after 30 seconds')), 30000);
-    });
-
-    const rpcPromise = supabase.rpc('get_price_data', {
-      p_start_date: startDate,
-      p_end_date: endDate,
-      p_interval: interval === 'monthly' ? 'month' : interval === 'weekly' ? 'week' : interval === 'yearly' ? 'year' : interval,
-      p_major_categories: null,
-      p_middle_categories: null,
-      p_sub_categories: null,
-      p_specifications: materials,
-      p_spec_names: null,
-    });
-
-    const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as any;
-
-    if (error) {
-      console.error('Error fetching price data:');
-      console.error('Error object:', error);
-      console.error('Error type:', typeof error);
-      console.error('Error keys:', Object.keys(error));
-      console.error('Error message:', error?.message);
-      console.error('Error details:', error?.details);
-      console.error('Error hint:', error?.hint);
-      console.error('Error code:', error?.code);
-      console.error('Full error JSON:', JSON.stringify(error, null, 2));
-      
-      const errorMessage = error?.message || error?.details || error?.hint || 
-                          (typeof error === 'string' ? error : 'Unknown error');
-      
-      // 타임아웃 에러인 경우 특별 처리
-      if (error?.code === '57014' || errorMessage.includes('timeout')) {
-        console.warn('Query timeout detected. Consider reducing date range or using fewer materials.');
-        throw new Error('데이터 조회 시간이 초과되었습니다. 날짜 범위를 줄이거나 자재 수를 줄여보세요.');
-      }
-      
-      throw new Error(`Supabase RPC Error: ${errorMessage}`);
-    }
-    
-    console.log('RPC 응답 데이터:', {
-      dataType: typeof data,
-      isArray: Array.isArray(data),
-      dataLength: data?.length || 0,
-      firstItem: data?.[0],
-      hasGetPriceData: data?.[0]?.get_price_data
-    });
-    
-    // RPC 함수가 {get_price_data: [...]} 형태로 반환하는 경우 처리
-    let processedData = data;
-    if (data && data.length > 0 && data[0].get_price_data) {
-      processedData = data[0].get_price_data;
-      console.log('get_price_data 필드에서 데이터 추출:', {
-        extractedLength: processedData.length,
-        firstExtractedItem: processedData[0]
-      });
-    }
-    
-    // 조회 결과를 캐시에 저장
-    if (processedData && processedData.length > 0) {
-      await setMaterialDataToCache(materials, startDate, endDate, interval, processedData);
-    }
-    
-    return processedData;
-  } catch (err: any) {
-    console.error('Error fetching price data:', err);
-    
-    // 타임아웃 에러 처리
-    if (err.message === 'Request timeout after 30 seconds') {
-      console.warn('Client-side timeout reached');
-      throw new Error('요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.');
-    }
-    
-    // 기타 에러는 빈 배열 반환하여 UI가 깨지지 않도록 처리
-    if (err.message && err.message.includes('데이터 조회 시간이 초과')) {
-      throw err; // 사용자 친화적 메시지는 그대로 전달
-    }
-    
-    return [];
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to fetch price data');
   }
 
-  // 조회 결과를 캐시에 저장 - try-catch 블록 내부로 이동했으므로 이 부분은 제거
+  return response.json();
 };
 
 // [수정] 차트 데이터 변환 함수 - RPC 응답 구조 처리 및 배열 타입 보장, ton→kg 변환 포함
@@ -758,9 +665,9 @@ const formatYAxisPrice = (value: number) => {
 
 // [수정] 커스텀 범례 컴포넌트 - 실제 축 배치에 따른 범례 배치 및 단위 표시
 const CustomizedLegend = (props: any) => {
-  const { payload, visibleMaterials, axisAssignment, unitMap } = props;
+  const { payload, onVisibilityChange, hiddenMaterials, axisAssignment, unitMap } = props;
 
-  if (!payload || !visibleMaterials || visibleMaterials.length === 0 || !axisAssignment) return null;
+  if (!payload || payload.length === 0 || !axisAssignment) return null;
 
   // 실제 축 배치에 따라 범례 아이템을 좌/우로 분리
   const leftPayload = payload.filter((p: any) => 
@@ -770,44 +677,56 @@ const CustomizedLegend = (props: any) => {
     axisAssignment.rightAxisMaterials.includes(p.dataKey)
   );
 
+  const renderLegendItems = (items: any[], alignment: 'start' | 'end') => (
+    <div className={`flex flex-col items-${alignment} bg-white/70 p-1 rounded`}>
+      {items.map((entry: any, index: number) => {
+        const materialName = entry.dataKey;
+        const materialUnit = unitMap?.get(materialName) || 'kg';
+        const isHidden = hiddenMaterials.has(materialName);
+
+        return (
+          <div 
+            key={`${alignment}-${materialName}-${index}`} 
+            className={`flex items-center space-x-1 mb-1 cursor-pointer transition-opacity ${isHidden ? 'opacity-50' : 'opacity-100'}`}
+            onClick={() => onVisibilityChange(materialName)}
+          >
+            <div style={{ width: 8, height: 8, backgroundColor: entry.color }} />
+            <span className="text-xs">
+              {shortenMaterialName(entry.value as string, payload.map((p: { dataKey: string }) => p.dataKey))} (원/{materialUnit})
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
-    <div className="flex justify-between items-start px-2 text-xs pointer-events-none">
-      <div className="flex flex-col items-start bg-white/70 p-1 rounded">
-        {leftPayload.map((entry: any, index: number) => {
-          const materialUnit = unitMap?.get(entry.dataKey) || 'kg';
-          return (
-            <div key={`left-${entry.dataKey}-${index}`} className="flex items-center space-x-1 mb-1">
-              <div style={{ width: 8, height: 8, backgroundColor: entry.color }} />
-              <span className="text-xs">
-                {shortenMaterialName(entry.value as string, visibleMaterials)} (원/{materialUnit})
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      <div className="flex flex-col items-end bg-white/70 p-1 rounded">
-        {rightPayload.map((entry: any, index: number) => {
-          const materialUnit = unitMap?.get(entry.dataKey) || 'kg';
-          return (
-            <div key={`right-${entry.dataKey}-${index}`} className="flex items-center space-x-1 mb-1">
-              <div style={{ width: 8, height: 8, backgroundColor: entry.color }} />
-              <span className="text-xs">
-                {shortenMaterialName(entry.value as string, visibleMaterials)} (원/{materialUnit})
-              </span>
-            </div>
-          );
-        })}
-      </div>
+    <div className="flex justify-between items-start px-2 text-xs">
+      {renderLegendItems(leftPayload, 'start')}
+      {renderLegendItems(rightPayload, 'end')}
     </div>
   );
 };
 
-
 const MaterialsChart: React.FC = () => {
   const {
     interval, setInterval, startDate, endDate, setDateRange,
-    selectedMaterialsForChart, hiddenMaterials,
+    selectedMaterialsForChart,
   } = useMaterialStore();
+
+  const [hiddenMaterials, setHiddenMaterials] = useState(new Set<string>());
+
+  const handleLegendVisibilityChange = (material: string) => {
+    setHiddenMaterials(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(material)) {
+        newSet.delete(material);
+      } else {
+        newSet.add(material);
+      }
+      return newSet;
+    });
+  };
 
   const [shouldRotateLabels, setShouldRotateLabels] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -943,12 +862,12 @@ const MaterialsChart: React.FC = () => {
 
   // 개선된 Y축 도메인 계산 (눈금 포함)
   const leftAxisConfig = useMemo(() => {
-    const [domainMin, domainMax, ticks] = calculateFixedYAxisDomain(chartData, axisAssignment.leftAxisMaterials);
+    const [domainMin, domainMax, ticks] = calculateSmartYAxisDomain(chartData, axisAssignment.leftAxisMaterials);
     return { domain: [domainMin, domainMax], ticks };
   }, [chartData, axisAssignment.leftAxisMaterials]);
 
   const rightAxisConfig = useMemo(() => {
-    const [domainMin, domainMax, ticks] = calculateFixedYAxisDomain(chartData, axisAssignment.rightAxisMaterials);
+    const [domainMin, domainMax, ticks] = calculateSmartYAxisDomain(chartData, axisAssignment.rightAxisMaterials);
     return { domain: [domainMin, domainMax], ticks };
   }, [chartData, axisAssignment.rightAxisMaterials]);
   
@@ -1085,6 +1004,7 @@ const MaterialsChart: React.FC = () => {
                     axisLine={true} 
                     tick={{ fill: '#6b7280', fontWeight: 500 }} 
                     domain={rightAxisConfig.domain}
+                    ticks={rightAxisConfig.ticks}
                     width={50}
                     hide={axisAssignment.rightAxisMaterials.length === 0} // 우측 축에 표시할 자재가 없을 때만 숨김
                   />
@@ -1096,7 +1016,7 @@ const MaterialsChart: React.FC = () => {
                     labelStyle={{ color: '#374151', fontWeight: 600 }}
                     formatter={(value: number, name: string) => {
                       const materialUnit = unitInfo.unitMap.get(name) || 'kg';
-                      return [formatTooltipValue(value, materialUnit), shortenMaterialName(name)];
+                      return [formatTooltipValue(value, materialUnit), shortenMaterialName(name, visibleMaterials)];
                     }}
                     labelFormatter={(label) => {
                       // ISO 주간 형식(2023-W36)을 한국어 형식(23년9월1주)으로 변환
@@ -1108,9 +1028,7 @@ const MaterialsChart: React.FC = () => {
                   />
 
                   {visibleMaterials.map((material, index) => {
-                    // 스마트 배치에 따라 yAxisId 결정
                     const yAxisId = axisAssignment.leftAxisMaterials.includes(material) ? 'left' : 'right';
-                    
                     return (
                       <Line
                         key={material}
@@ -1119,39 +1037,22 @@ const MaterialsChart: React.FC = () => {
                         dataKey={material}
                         stroke={COLORS[index % COLORS.length]}
                         strokeWidth={3}
-                        dot={{ 
-                          fill: COLORS[index % COLORS.length], 
-                          strokeWidth: 2, 
-                          r: 4,
-                          stroke: 'white'
-                        }}
-                        activeDot={{ 
-                          r: 6, 
-                          stroke: COLORS[index % COLORS.length],
-                          strokeWidth: 2,
-                          fill: 'white'
-                        }}
-                        connectNulls // [핵심] 데이터가 null인 부분을 이어줍니다.
+                        dot={{ fill: COLORS[index % COLORS.length], strokeWidth: 2, r: 4, stroke: 'white' }}
+                        activeDot={{ r: 6, stroke: COLORS[index % COLORS.length], strokeWidth: 2, fill: 'white' }}
+                        connectNulls
                       />
                     );
                   })}
                 </LineChart>
-               </ResponsiveContainer>
-               {visibleMaterials.length > 0 && (
-                 <div style={{ marginTop: '0px', height: `${calculateLegendHeight}px` }}>
-                   <CustomizedLegend 
-                     payload={chartData.length > 0 ? visibleMaterials.map((material, index) => ({ 
-                       value: material, 
-                       color: COLORS[index % COLORS.length], 
-                       dataKey: material 
-                     })) : []} 
-                     visibleMaterials={visibleMaterials}
-                     axisAssignment={axisAssignment}
-                     unitMap={unitInfo.unitMap}
-                   />
-                 </div>
-               )}
-             </>
+              </ResponsiveContainer>
+              <CustomizedLegend 
+                materials={visibleMaterials}
+                colors={COLORS}
+                onVisibilityChange={handleLegendVisibilityChange}
+                hiddenMaterials={hiddenMaterials}
+                axisAssignment={axisAssignment}
+              />
+            </>
           )}
         </div>
       </CardContent>

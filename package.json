@@ -2,6 +2,7 @@
   "name": "materials-dashboard",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "npm run dev:frontend",
     "dev:kill3000": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { try { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } catch {} }; exit 0\"",
@@ -50,6 +51,7 @@
     "@tiptap/starter-kit": "^3.4.2",
     "@types/fabric": "^5.3.10",
     "@types/three": "^0.179.0",
+    "@upstash/redis": "^1.35.4",
     "axios": "^1.11.0",
     "bootstrap": "^5.3.8",
     "chart.js": "^4.5.0",
