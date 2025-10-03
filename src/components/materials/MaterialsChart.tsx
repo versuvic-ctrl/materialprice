@@ -217,7 +217,8 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
     const currentMaterial = materialRanges[i];
     
     // 현재 좌축 범위와의 차이 비율 계산
-    const ratioWithLeft = calculateRangeDifferenceRatio(
+    // 현재 좌축 범위와의 차이 비율 계산
+    calculateRangeDifferenceRatio(
       leftAxisRange.range, 
       currentMaterial.range
     );
@@ -327,7 +328,7 @@ const calculateTickInterval = (min: number, max: number, targetTickCount: number
 };
 
 // 사용자 요구사항에 맞춘 새로운 Y축 도메인과 눈금 계산 함수
-const calculateFixedYAxisDomain = (data: any[], materials: string[], isSecondaryAxis: boolean = false): [number, number, number[]] => {
+const calculateFixedYAxisDomain = (data: any[], materials: string[]): [number, number, number[]] => {
   if (!data || data.length === 0) {
     return [0, 1000, [0, 250, 500, 750, 1000]];
   }
@@ -727,7 +728,7 @@ const MaterialsChart: React.FC = () => {
   // 스마트 Y축 배치 계산
   const axisAssignment = useMemo(() => {
     return calculateSmartAxisAssignment(chartData, visibleMaterials);
-  }, []);  // chartData와 visibleMaterials는 불필요한 의존성이므로 제거
+  }, [chartData, visibleMaterials]);
 
   // 범례 높이 계산 (자재 수에 따른 동적 계산)
   const calculateLegendHeight = useMemo(() => {
@@ -807,12 +808,12 @@ const MaterialsChart: React.FC = () => {
 
   // 개선된 Y축 도메인 계산 (5개 눈금으로 고정)
   const leftAxisConfig = useMemo(() => {
-    const [domainMin, domainMax, ticks] = calculateFixedYAxisDomain(chartData, axisAssignment.leftAxisMaterials, false);
+    const [domainMin, domainMax, ticks] = calculateFixedYAxisDomain(chartData, axisAssignment.leftAxisMaterials);
     return { domain: [domainMin, domainMax], ticks };
   }, [chartData, axisAssignment.leftAxisMaterials]);
 
   const rightAxisConfig = useMemo(() => {
-    const [domainMin, domainMax, ticks] = calculateFixedYAxisDomain(chartData, axisAssignment.rightAxisMaterials, true);
+    const [domainMin, domainMax, ticks] = calculateFixedYAxisDomain(chartData, axisAssignment.rightAxisMaterials);
     return { domain: [domainMin, domainMax], ticks };
   }, [chartData, axisAssignment.rightAxisMaterials]);
   
