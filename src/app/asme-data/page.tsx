@@ -31,7 +31,6 @@ import Layout from '@/components/layout/Layout';
 import { useState, useEffect } from 'react';
 import { 
   MagnifyingGlassIcon, 
-  FunnelIcon, 
   DocumentArrowDownIcon,
   ClipboardDocumentListIcon,
   Cog6ToothIcon
@@ -218,7 +217,11 @@ const asmeMaterials: ASMEMaterial[] = [
 const categories = ['전체', '압력용기', '플랜지', '피팅', '밸브', '배관', '탱크'];
 
 // 카테고리별 세부 분류
-const subcategories = {
+// 카테고리 및 서브카테고리 타입 정의
+type CategoryType = '압력용기' | '플랜지' | '피팅' | '밸브' | '배관' | '탱크';
+
+// 서브카테고리 타입 정의
+const subcategories: Record<CategoryType, string[]> = {
   '압력용기': ['헤드', '동체', '노즐'],                    // 압력용기 구성요소
   '플랜지': ['Weld Neck', 'Slip On', 'Blind', 'Socket Weld'], // 플랜지 타입
   '피팅': ['엘보', '티', '리듀서', '캡'],                   // 배관 피팅
@@ -367,7 +370,7 @@ export default function ASMEDataPage() {
         </div>
 
         {/* Subcategory Filter */}
-        {selectedCategory !== '전체' && subcategories[selectedCategory as keyof typeof subcategories] && (
+        {selectedCategory !== '전체' && selectedCategory in subcategories && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               세부 카테고리
@@ -383,7 +386,7 @@ export default function ASMEDataPage() {
               >
                 전체
               </button>
-              {subcategories[selectedCategory as keyof typeof subcategories].map((sub) => (
+              {subcategories[selectedCategory as CategoryType]?.map((sub) => (
                 <button
                   key={sub}
                   onClick={() => setSelectedSubcategory(sub)}

@@ -79,20 +79,49 @@ const fetchPriceData = async (
 };
 
 /**
+ * 주간 번호 계산 함수 (MaterialsChart.tsx에서 가져옴)
+ */
+const getWeekNumber = (year: number, month: number, weekOfMonth: number): number => {
+  const firstDayOfMonth = new Date(year, month, 1);
+  
+  // 해당 월의 첫 번째 주의 시작일 계산
+  const firstMondayOfMonth = new Date(firstDayOfMonth);
+  const dayOfWeek = firstDayOfMonth.getDay();
+  const daysToMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+  firstMondayOfMonth.setDate(firstDayOfMonth.getDate() + daysToMonday);
+  
+  // 해당 주차의 월요일 날짜 계산
+  const targetMonday = new Date(firstMondayOfMonth);
+  targetMonday.setDate(firstMondayOfMonth.getDate() + (weekOfMonth - 1) * 7);
+  
+  // ISO 주간 번호 계산
+  const jan4 = new Date(year, 0, 4);
+  const jan4Day = jan4.getDay() || 7;
+  const firstMondayOfYear = new Date(jan4.getTime() - (jan4Day - 1) * 24 * 60 * 60 * 1000);
+  
+  const weekNumber = Math.floor((targetMonday.getTime() - firstMondayOfYear.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  
+  return Math.max(1, Math.min(53, weekNumber));
+};
+
+/**
  * DB에서 받은 데이터를 Recharts가 사용할 수 있는 형태로 변환합니다.
  * DB의 긴 specification 이름을 UI에 표시될 displayName으로 매핑합니다.
  * @param data - Supabase RPC로부터 받은 원본 데이터 배열
  * @param materialsMap - {id, displayName} 객체 배열
+ * @param interval - 데이터 집계 간격 (주간/월간/연간)
  * @returns Recharts에 적합한 데이터 배열
  */
 const transformDataForChart = (
   data: any[],
-  materialsMap: { id: string; displayName: string }[]
+  materialsMap: { id: string; displayName: string }[],
+  interval: 'weekly' | 'monthly' | 'yearly'
 ) => {
   if (!data || data.length === 0) return [];
 
   // id(긴 이름)를 displayName(짧은 이름)으로 빠르게 찾기 위한 맵 생성
   const displayNameMap = new Map(materialsMap.map(m => [m.id, m.displayName]));
+  const visibleMaterials = materialsMap.map(m => m.displayName);
 
   const groupedData = data.reduce((acc, item) => {
     const { time_bucket, specification, average_price, unit } = item;
@@ -129,7 +158,69 @@ const transformDataForChart = (
     return acc;
   }, {});
 
-  return Object.values(groupedData);
+  // Object.values() 결과를 명시적으로 배열로 변환
+  let resultArray = Object.values(groupedData);
+  
+  // 주간 모드에서 더 조밀한 데이터 포인트 생성
+  if (interval === 'weekly' && resultArray.length > 0) {
+    const expandedData: any[] = [];
+    
+    // 날짜순으로 정렬
+    const sortedData = resultArray.sort((a: any, b: any) => a.time_bucket.localeCompare(b.time_bucket));
+    
+    for (let i = 0; i < sortedData.length; i++) {
+      const currentData = sortedData[i];
+      const currentDate = new Date((currentData as { time_bucket: string }).time_bucket);
+      
+      // 현재 월의 주차별 데이터 생성 (4-5개 주차)
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      
+      // 해당 월의 첫 번째 날과 마지막 날
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      
+      // 해당 월의 주차 수 계산 (대략 4-5주)
+      const weeksInMonth = Math.ceil((lastDay.getDate() + firstDay.getDay()) / 7);
+      
+      // 각 주차별 데이터 생성
+      for (let week = 1; week <= weeksInMonth; week++) {
+        const weekData: any = {};
+        
+        // ISO 주간 형식으로 time_bucket 생성 (예: "2024-W05")
+        const weekNumber = getWeekNumber(year, month, week);
+        weekData.time_bucket = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
+        
+        // 모든 자재에 대해 동일한 가격 데이터 복사
+        visibleMaterials.forEach(material => {
+          if ((currentData as Record<string, number>)[material] !== undefined) {
+            weekData[material] = (currentData as Record<string, number>)[material];
+          } else {
+            weekData[material] = null;
+          }
+        });
+        
+        expandedData.push(weekData);
+      }
+    }
+    
+    resultArray = expandedData;
+  } else {
+    // 모든 자재에 대해 null 값 채우기 (월간/연간 모드)
+    resultArray = resultArray.map((group: any) => {
+      visibleMaterials.forEach(material => {
+        if (!(material in group)) {
+          group[material] = null; // 데이터 없는 부분은 null로 채워 'connectNulls'가 잘 동작하도록 함
+        }
+      });
+      return group;
+    });
+  }
+  
+  // 날짜순으로 정렬
+  const sortedResult = resultArray.sort((a, b) => (a as { time_bucket: string }).time_bucket.localeCompare((b as { time_bucket: string }).time_bucket));
+  
+  return sortedResult;
 };
 
 // 차트 라인 색상 팔레트 (최대 8개 자재까지 지원)
@@ -436,8 +527,8 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
       console.log('DashboardMiniChart: rawData가 undefined 또는 null입니다.');
       return [];
     }
-    return transformDataForChart(rawData, materials);
-  }, [rawData, materials]);
+    return transformDataForChart(rawData, materials, interval);
+  }, [rawData, materials, interval]);
 
   // 스마트 축 배치 계산
   const axisAssignment = useMemo(() => {
@@ -567,7 +658,7 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <div className="h-64 w-full relative">
+        <div className="h-48 sm:h-64 w-full relative">
           {isLoading ? (
             <Skeleton className="h-full w-full" />
           ) : isError ? (
@@ -580,7 +671,7 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 2, right: 2, left: 1, bottom: 2 }}>
+              <LineChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="2 2" strokeOpacity={0.5} vertical={true} />
                 <XAxis 
                   dataKey="time_bucket" 
@@ -622,8 +713,8 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
                 <YAxis
                   yAxisId="left"
                   orientation="left"
-                  width={80}
-                  tick={{ fontSize: 11, fill: '#6b7280' }}
+                  width={60}
+                  tick={{ fontSize: 10, fill: '#6b7280' }}
                   tickFormatter={formatYAxisPrice}
                   domain={axisAssignment.leftAxisDomain}
                   ticks={axisAssignment.leftAxisTicks}
@@ -637,8 +728,8 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
                   <YAxis
                     yAxisId="right"
                     orientation="right"
-                    width={80}
-                    tick={{ fontSize: 11, fill: '#6b7280' }}
+                    width={60}
+                    tick={{ fontSize: 10, fill: '#6b7280' }}
                     tickFormatter={formatYAxisPrice}
                     domain={axisAssignment.rightAxisDomain}
                     ticks={axisAssignment.rightAxisTicks}
@@ -652,6 +743,9 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
                   wrapperClassName="text-xs"
                   formatter={(value: number, name: string) => {
                     return [formatTooltipValue(value), name];
+                  }}
+                  labelFormatter={(label: string) => {
+                    return formatXAxisLabel(label, interval);
                   }}
                 />
                 
@@ -703,48 +797,52 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
         </div>
         
         {/* 커스텀 범례 - 좌우 분리 배치 */}
-        {materials.length > 0 && (
-          <div className="mt-1 flex justify-between items-start">
-            {/* 좌측 범례 (주축) */}
-            <div className="flex-1">
-              {axisAssignment.leftAxisMaterials.length > 0 && (
-                <div className="flex gap-3">
-                  {axisAssignment.leftAxisMaterials.map((materialName) => {
-                    const materialIndex = materials.findIndex(m => m.displayName === materialName);
-                    return (
-                      <div key={materialName} className="flex items-center space-x-2">
-                        <div 
-                          className="w-3 h-0.5 rounded"
-                          style={{ backgroundColor: COLORS[materialIndex % COLORS.length] }}
-                        />
-                        <span className="text-xs text-gray-700 whitespace-nowrap">{materialName}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            
-            {/* 우측 범례 (보조축) */}
-            <div className="flex-1 flex justify-end">
-              {axisAssignment.rightAxisMaterials.length > 0 && (
-                <div className="flex gap-3 justify-end">
-                  {axisAssignment.rightAxisMaterials.map((materialName) => {
-                    const materialIndex = materials.findIndex(m => m.displayName === materialName);
-                    return (
-                      <div key={materialName} className="flex items-center space-x-2">
-                        <div 
-                          className="w-3 h-0.5 rounded"
-                          style={{ backgroundColor: COLORS[materialIndex % COLORS.length] }}
-                        />
-                        <span className="text-xs text-gray-700 whitespace-nowrap">{materialName}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
+         {materials.length > 0 && (
+           <div className="mt-1 flex justify-between items-start">
+             {/* 좌측 범례 (주축) */}
+             <div className="flex-1">
+               {axisAssignment.leftAxisMaterials.length > 0 && (
+                 <div className="flex flex-wrap gap-1 sm:gap-2">
+                   {axisAssignment.leftAxisMaterials.map((materialName) => {
+                     const materialIndex = materials.findIndex(m => m.displayName === materialName);
+                     return (
+                       <div key={materialName} className="flex items-center gap-1 min-w-0 flex-shrink">
+                         <div 
+                           className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded flex-shrink-0"
+                           style={{ backgroundColor: COLORS[materialIndex % COLORS.length] }}
+                         />
+                         <span className="text-[10px] sm:text-xs text-gray-700 leading-tight whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px] sm:max-w-none">
+                           {materialName}
+                         </span>
+                       </div>
+                     );
+                   })}
+                 </div>
+               )}
+             </div>
+             
+             {/* 우측 범례 (보조축) */}
+             <div className="flex-1 flex justify-end">
+               {axisAssignment.rightAxisMaterials.length > 0 && (
+                 <div className="flex flex-wrap gap-1 sm:gap-2 justify-end">
+                   {axisAssignment.rightAxisMaterials.map((materialName) => {
+                     const materialIndex = materials.findIndex(m => m.displayName === materialName);
+                     return (
+                       <div key={materialName} className="flex items-center gap-1 min-w-0 flex-shrink">
+                         <div 
+                           className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded flex-shrink-0"
+                           style={{ backgroundColor: COLORS[materialIndex % COLORS.length] }}
+                         />
+                         <span className="text-[10px] sm:text-xs text-gray-700 leading-tight whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px] sm:max-w-none">
+                           {materialName}
+                         </span>
+                       </div>
+                     );
+                   })}
+                 </div>
+               )}
+             </div>
+           </div>
         )}
         
         {/* 가격 정보 테이블 */}

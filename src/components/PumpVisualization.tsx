@@ -318,8 +318,10 @@ const PumpVisualization: React.FC<PumpVisualizationProps> = ({
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
       }
-      if (mountRef.current && renderer.domElement) {
-        mountRef.current.removeChild(renderer.domElement);
+      // mountRef.current를 변수에 저장하여 cleanup에서 사용
+      const currentMount = mountRef.current;
+      if (currentMount && renderer.domElement) {
+        currentMount.removeChild(renderer.domElement);
       }
       if (performanceDiv.parentNode) {
         performanceDiv.parentNode.removeChild(performanceDiv);

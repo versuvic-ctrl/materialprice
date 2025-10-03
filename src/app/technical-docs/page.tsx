@@ -4,7 +4,7 @@ import React,
 { useState, useMemo, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChevronRightIcon, DocumentPlusIcon, MagnifyingGlassIcon, PencilSquareIcon, TrashIcon, LockClosedIcon } from '@heroicons/react/24/outline';
@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
 // --- Supabase 클라이언트 및 타입 정의 (변경 없음) ---
+const supabase = createClient();
 interface Article { id: string; created_at: string; title: string; category: string; content: string; tags: string[]; }
 
 // --- 데이터 페칭 및 뮤테이션 훅 (변경 없음) ---

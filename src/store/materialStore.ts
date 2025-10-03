@@ -41,7 +41,7 @@ const useMaterialStore = create<MaterialState>((set) => ({
   selectedLevel5: '',
   
   interval: 'monthly', // 기본값 월간
-  startDate: format(subYears(new Date(), 2), 'yyyy-MM-dd'), // 2년 전
+  startDate: format(new Date(subYears(new Date(), 2).getFullYear(), subYears(new Date(), 2).getMonth(), 1), 'yyyy-MM-dd'), // 2년 전 해당 월의 1일
   endDate: format(new Date(), 'yyyy-MM-dd'), // 오늘
   
   selectedMaterialsForChart: [],

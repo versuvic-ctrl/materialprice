@@ -727,7 +727,7 @@ const MaterialsChart: React.FC = () => {
   // 스마트 Y축 배치 계산
   const axisAssignment = useMemo(() => {
     return calculateSmartAxisAssignment(chartData, visibleMaterials);
-  }, [chartData, visibleMaterials]);
+  }, []);  // chartData와 visibleMaterials는 불필요한 의존성이므로 제거
 
   // 범례 높이 계산 (자재 수에 따른 동적 계산)
   const calculateLegendHeight = useMemo(() => {

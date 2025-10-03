@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/server';
 
 // GET /api/materials-by-category?level=1|2|3&categoryName=...
 // Returns: [{ specification: string }, ...]
@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
 
   try {
     console.log(`Fetching materials for level ${level}, category: ${categoryName}`);
+    
+    const supabase = await createClient();
     
     // Create a timeout promise
     const timeoutPromise = new Promise((_, reject) => {

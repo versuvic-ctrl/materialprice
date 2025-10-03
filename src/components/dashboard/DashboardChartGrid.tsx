@@ -105,7 +105,7 @@ export default function DashboardChartGrid() {
       </Card>
 
       {/* 차트 그리드 영역 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:landscape:grid-cols-2 md:landscape:grid-cols-2 lg:grid-cols-2 gap-3">
         {DASHBOARD_CHARTS_CONFIG.map((chartConfig) => (
           <DashboardMiniChart
             key={chartConfig.title}

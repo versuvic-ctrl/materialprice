@@ -31,7 +31,6 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { BarChart3 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client'; // [수정]

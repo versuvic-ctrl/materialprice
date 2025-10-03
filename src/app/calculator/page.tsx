@@ -23,8 +23,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Calculator, ArrowLeft, Loader2 } from 'lucide-react';
-import Link from 'next/link';
+import { Calculator, Loader2 } from 'lucide-react';
 import { calculateTankVolumeExport, calculateNPSHExport, calculateAffinityExport, CalculationResult } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import Layout from '@/components/layout/Layout';
