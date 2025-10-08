@@ -22,7 +22,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from '@tanstack/react-query';
-import MarketIndicators from "./dashboard/MarketIndicators";
+import MarketIndicators from "./MarketIndicators";
 
 // 카테고리별 자재 구성 정보
 const CATEGORY_MATERIALS = {

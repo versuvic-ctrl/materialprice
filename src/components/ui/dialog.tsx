@@ -117,15 +117,15 @@ const DialogFooter = React.forwardRef<
 DialogFooter.displayName = "DialogFooter"
 
 const DialogTrigger = React.forwardRef<
-  HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  HTMLButtonElement | HTMLDivElement,
+  (React.ButtonHTMLAttributes<HTMLButtonElement> | React.HTMLAttributes<HTMLDivElement>) & {
     asChild?: boolean
   }
 >(({ asChild = false, ...props }, ref) => {
   if (asChild) {
-    return <div {...props} ref={ref as any} />
+    return <div {...(props as React.HTMLAttributes<HTMLDivElement>)} ref={ref as React.Ref<HTMLDivElement>} />
   }
-  return <button ref={ref} {...props} />
+  return <button ref={ref as React.Ref<HTMLButtonElement>} {...(props as React.ButtonHTMLAttributes<HTMLButtonElement>)} />
 })
 DialogTrigger.displayName = "DialogTrigger"
 

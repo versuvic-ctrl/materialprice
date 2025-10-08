@@ -5,15 +5,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   HomeIcon,
-  DocumentTextIcon,
   CalculatorIcon,
-  Cog6ToothIcon,
   ChartBarIcon,
   UserIcon,
   XMarkIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  PencilSquareIcon,
   ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
 
@@ -34,46 +31,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       description: '자재 가격 현황'
     },
     {
-      name: '기술 자료',
-      href: '/technical-docs',
-      icon: DocumentTextIcon,
-      description: '엔지니어링 자료'
+      name: '자재 가격',
+      href: '/materials',
+      icon: ChartBarIcon,
+      description: '자재 가격 조회'
     },
     {
-      name: 'ASME 자재',
-      href: '/asme-data',
+      name: '자재 비교',
+      href: '/materials/comparison',
       icon: ClipboardDocumentListIcon,
-      description: 'ASME 표준 자재 데이터'
+      description: '자재 속성 비교'
     },
     {
-      name: '계산기',
+      name: '엔지니어링 계산기',
       href: '/calculator',
       icon: CalculatorIcon,
       description: '엔지니어링 계산'
-    },
-    {
-      name: 'ISO 드로잉',
-      href: '/iso-drawing',
-      icon: PencilSquareIcon,
-      description: '배관 및 설비 도면'
-    },
-    {
-      name: 'ISO 배관 편집기',
-      href: '/iso-piping-editor',
-      icon: PencilSquareIcon,
-      description: 'ISO 배관 도면 편집'
-    },
-    {
-      name: '자재 상세',
-      href: '/materials',
-      icon: ChartBarIcon,
-      description: '자재 가격 상세'
-    },
-    {
-      name: '설정',
-      href: '/settings',
-      icon: Cog6ToothIcon,
-      description: '시스템 설정'
     }
   ];
 

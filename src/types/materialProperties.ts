@@ -59,12 +59,12 @@ export interface MaterialCategory {
 
 // 전체 재료 데이터베이스 구조
 export interface MaterialDatabase {
-  aluminum?: MaterialCategory;      // 알루미늄 합금
-  carbonsteel?: MaterialCategory;   // 탄소강
-  lowalloy?: MaterialCategory;      // 저합금강
-  stainless?: MaterialCategory;     // 스테인리스강
-  nickel?: MaterialCategory;        // 니켈 합금
-  [category: string]: MaterialCategory | undefined;
+  aluminum?: MaterialSelection[];      // 알루미늄 합금
+  carbonsteel?: MaterialSelection[];   // 탄소강
+  lowalloy?: MaterialSelection[];      // 저합금강
+  stainless?: MaterialSelection[];     // 스테인리스강
+  nickel?: MaterialSelection[];        // 니켈 합금
+  [category: string]: MaterialSelection[] | undefined;
 }
 
 // 재료 선택을 위한 인터페이스

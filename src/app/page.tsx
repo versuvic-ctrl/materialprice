@@ -21,7 +21,7 @@ import Layout from '@/components/layout/Layout';
 // [제거] import DashboardCharts from '@/components/dashboard/DashboardCharts';
 import ReferenceSection from '@/components/dashboard/ReferenceSection';
 import CalculatorPreview from '@/components/dashboard/CalculatorPreview';
-import DashboardClient from '@/components/DashboardClient';
+import DashboardClient from '@/components/dashboard/DashboardClient';
 import DashboardChartGrid from '@/components/dashboard/DashboardChartGrid'; // [추가] 새로 만든 차트 그리드 컴포넌트를 import 합니다.
 import CronInitializer from '@/components/CronInitializer';
 

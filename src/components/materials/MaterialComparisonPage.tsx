@@ -97,7 +97,11 @@ const propertyKoreanNames: { [key: string]: { korean: string; description: strin
   'Embodied Carbon': { korean: '내재탄소', description: '재료 생산 과정에서 배출되는 탄소량' },
   'Embodied Energy': { korean: '내재에너지', description: '재료 생산 과정에서 소비되는 에너지량' },
   'Embodied Water': { korean: '내재수자원', description: '재료 생산 과정에서 사용되는 물의 양' },
-  'Maximum Temperature: Mechanical': { korean: '최대사용온도 (기계적)', description: '기계적 성질을 유지할 수 있는 최대 온도' }
+  'Maximum Temperature: Mechanical': { korean: '최대사용온도 (기계적)', description: '기계적 성질을 유지할 수 있는 최대 온도' },
+  'Shear Strength': { korean: '전단강도', description: '재료가 전단 하중에 견딜 수 있는 능력' },
+  'Maximum Temperature: Decomposition': { korean: '최대 분해 온도', description: '재료가 분해되기 시작하는 최대 온도' },
+  'Vicat Softening Temperature': { korean: '비카트 연화 온도', description: '열가소성 플라스틱의 연화점' },
+  'Curie Temperature': { korean: '큐리 온도', description: '강자성체가 상자성체로 변하는 온도' }
 };
 
 // 원소의 한국어 이름 매핑
@@ -125,6 +129,7 @@ const elementKoreanNames: { [key: string]: string } = {
   'Mg': '마그네슘',
   'Zn': '아연',
   'Pb': '납',
+  'Bi': '비스무트',
   'Sn': '주석',
   'Zr': '지르코늄',
   'Ta': '탄탈럼',
@@ -179,7 +184,8 @@ const elementKoreanNames: { [key: string]: string } = {
   'Fm': '페르뮴',
   'Md': '멘델레븀',
   'No': '노벨륨',
-  'Lr': '로렌슘'
+  'Lr': '로렌슘',
+  'res.': '잔량'
 };
 
 // 단위 표시 함수
@@ -213,30 +219,61 @@ const formatRangeValue = (value: string): string => {
 // 물성 순서 정의 (기계적 → 열적 → 전기적)
 const propertyOrder: { [key: string]: number } = {
   // 1) 기계적 물성 (Mechanical Properties)
-  '밀도 (Density)': 1,
-  '강도-무게 비율 (Strength to Weight Ratio)': 2,
-  '인장 강도: 항복 (Tensile Strength: Yield)': 3,
-  '인장 강도: 극한 (Ultimate Tensile Strength)': 4,
-  '전단 강도 (Shear Strength)': 5,
-  '브리넬 경도 (Brinell Hardness)': 6,
-  '파단 신율 (Elongation at Break)': 7,
-  '파괴 일량 (Ultimate Resilience)': 8,
-  '전단 탄성 계수 (Shear Modulus)': 9,
-  '회복 탄성 계수 (Modulus of Resilience)': 10,
-  '충격 강도: V-노치 샤르피 (Impact Strength: V-Notched Charpy)': 11,
+  'Density': 1,
+  'Strength to Weight Ratio': 2,
+  'Tensile Strength: Yield (Proof)': 3,
+  'Tensile Strength: Ultimate (UTS)': 4,
+  'Yield Strength': 5,
+  'Ultimate Strength': 6,
+  'Brinell Hardness': 7,
+  'Rockwell C Hardness': 8,
+  'Elongation at Break': 9,
+  'Elongation': 10,
+  'Reduction in Area': 11,
+  'Elastic (Young\'s, Tensile) Modulus': 12,
+  'Modulus of Elasticity': 13,
+  'Shear Modulus': 14,
+  'Poisson\'s Ratio': 15,
+  'Fatigue Strength': 16,
+  'Unit Rupture Work (Ultimate Resilience)': 17,
+  'Modulus of Resilience (Unit Resilience)': 18,
+  'Impact Strength: Notched Izod': 19,
+  'Compressive (Crushing) Strength': 20,
+  'Flexural Strength': 21,
+  'Flexural Modulus': 22,
 
   // 2) 열적 물성 (Thermal Properties)
-  '열전도도 (Thermal Conductivity)': 12,
-  '열확산도 (Thermal Diffusivity)': 13,
-  '열팽창 (Thermal Expansion)': 14,
-  '큐리 온도 (Curie Temperature)': 15,
-  '비열 용량 (Specific Heat Capacity)': 16,
-  '용융 시작 (고상선) (Melting Onset (Solidus))': 17,
+  'Thermal Conductivity': 23,
+  'Thermal Diffusivity': 24,
+  'Coefficient of Thermal Expansion': 25,
+  'Thermal Expansion': 26,
+  'Specific Heat Capacity': 27,
+  'Melting Onset (Solidus)': 28,
+  'Melting Completion (Liquidus)': 29,
+  'Latent Heat of Fusion': 30,
+  'Maximum Service Temperature': 31,
+  'Maximum Temperature: Mechanical': 32,
+  'Glass Transition Temperature': 33,
+  'Heat Deflection Temperature At 1.82 MPa (264 psi)': 34,
+  'Heat Deflection Temperature At 455 kPa (66 psi)': 35,
 
   // 3) 전기적 물성 (Electrical Properties)
-  '전기 전도도 (Electrical Conductivity)': 18,
-  '전기 저항률 (Electrical Resistivity Order of Magnitude)': 19,
-  '칼로멜 전위 (Calomel Potential)': 20
+  'Electrical Conductivity': 36,
+  'Electrical Conductivity: Equal Volume': 37,
+  'Electrical Conductivity: Equal Weight (Specific)': 38,
+  'Electrical Resistivity Order of Magnitude': 39,
+  'Dielectric Constant (Relative Permittivity) At 1 Hz': 40,
+  'Dielectric Constant (Relative Permittivity) At 1 MHz': 41,
+  'Dielectric Strength (Breakdown Potential)': 42,
+
+  // 4) 기타 물성
+  'Calomel Potential': 43,
+  'Embodied Carbon': 44,
+  'Embodied Energy': 45,
+  'Embodied Water': 46,
+  'Limiting Oxygen Index (LOI)': 47,
+  'Water Absorption After 24 Hours': 48,
+  'Water Absorption At Saturation': 49
 };
 
 // 물성 정렬 함수
@@ -267,7 +304,8 @@ const elementOrder: { [key: string]: number } = {
   'P': 15,
   'S': 16,
   'N': 17,
-  'O': 18
+  'O': 18,
+  'res.': 1000
 };
 
 // 성분조성 정렬 함수
@@ -350,25 +388,30 @@ export default function MaterialComparisonPage() {
   })() : [];
   
   // 재료 목록 추출
-  const availableMaterials: NewMaterialData[] = selectedMajor && selectedMiddle ? (() => {
+  const availableMaterials: NewMaterialData[] = (() => {
+    if (!selectedMajor || !selectedMiddle) return [];
+    
     const middleData = allData[selectedMajor]?.[selectedMiddle];
     if (!middleData) return [];
     
-    // 3-level 구조
-    if ('materials' in middleData) {
+    // 3-level 구조 - materials 속성이 있는 경우
+    if ('materials' in middleData && Array.isArray(middleData.materials)) {
       return middleData.materials;
     }
     
     // 4-level 구조
     if (selectedSub) {
-      const subData = middleData[selectedSub];
+      const subData = (middleData as any)[selectedSub];
       if (Array.isArray(subData)) {
         return subData;
+      }
+      if (subData && typeof subData === 'object' && 'materials' in subData && Array.isArray(subData.materials)) {
+        return subData.materials;
       }
     }
     
     return [];
-  })() : [];
+  })();
 
   // 재료 추가
   const handleAddMaterial = () => {
@@ -727,9 +770,6 @@ export default function MaterialComparisonPage() {
                                <td className="py-1.5 px-3">
                                  <div className="text-sm font-medium text-gray-900 leading-tight">
                                    {koreanInfo?.korean ? `${koreanInfo.korean} (${propertyKey})` : propertyKey}
-                                 </div>
-                                 <div className="text-sm text-gray-500 leading-tight truncate" title={propertyKey}>
-                                   {propertyKey}
                                  </div>
                                </td>
                                <td className="py-1.5 px-3">

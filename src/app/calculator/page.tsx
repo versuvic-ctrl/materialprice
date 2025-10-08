@@ -30,7 +30,7 @@ import Layout from '@/components/layout/Layout';
 
 // Tank 3D 시각화 컴포넌트 (동적 로딩)
 // SSR 비활성화로 클라이언트에서만 렌더링
-const TankVisualization = dynamic(() => import('@/components/TankVisualization'), {
+const TankVisualization = dynamic(() => import('@/components/calculator/TankVisualization'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-full">
@@ -41,7 +41,7 @@ const TankVisualization = dynamic(() => import('@/components/TankVisualization')
 
 // Pump 3D 시각화 컴포넌트 (동적 로딩)
 // SSR 비활성화로 클라이언트에서만 렌더링
-const PumpVisualization = dynamic(() => import('@/components/PumpVisualization'), {
+const PumpVisualization = dynamic(() => import('@/components/calculator/PumpVisualization'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-full">

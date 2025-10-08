@@ -39,7 +39,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import useMaterialStore from '@/store/materialStore';
-import PriceTable, { MaterialPriceData } from './PriceTable';
+import PriceTable, { MaterialPriceData } from '../materials/PriceTable';
 import { formatXAxisLabel } from '@/utils/dateFormatter';
 // convertToKgUnit 및 calculatePriceChange import 제거
 

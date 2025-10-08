@@ -51,7 +51,7 @@ const navigation = [
   { name: '자재 가격', href: '/materials', icon: ChartBarIcon },
   { name: '자재 비교', href: '/materials/comparison', icon: DocumentTextIcon },
   { name: '엔지니어링 계산기', href: '/calculator', icon: CalculatorIcon },
-  { name: '기술자료', href: '/technical-docs', icon: DocumentTextIcon },
+  { name: '기술자료', href: '/technical-data', icon: DocumentTextIcon },
   { name: '관리자', href: '/admin', icon: ShieldCheckIcon },
   { name: '설정', href: '/settings', icon: Cog6ToothIcon },
 ];
@@ -96,6 +96,7 @@ export default function Layout({ children, title }: LayoutProps) {
             <button
               onClick={() => setSidebarOpen(false)}
               className="text-gray-400 hover:text-gray-600"
+              aria-label="Close sidebar"
             >
               <XMarkIcon className="h-6 w-6" />
             </button>
@@ -157,6 +158,7 @@ export default function Layout({ children, title }: LayoutProps) {
           <button
             onClick={toggleSidebar}
             className="absolute -right-3 top-16 z-10 flex h-8 w-5 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm hover:bg-gray-50 transition-colors"
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {sidebarCollapsed ? (
               <ChevronRightIcon className="h-4 w-4 text-gray-600" />
