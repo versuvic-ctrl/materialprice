@@ -49,6 +49,7 @@ interface LayoutProps {
 const navigation = [
   { name: '대시보드', href: '/', icon: HomeIcon },
   { name: '자재 가격', href: '/materials', icon: ChartBarIcon },
+  { name: '자재 비교', href: '/materials/comparison', icon: DocumentTextIcon },
   { name: '엔지니어링 계산기', href: '/calculator', icon: CalculatorIcon },
   { name: '기술자료', href: '/technical-docs', icon: DocumentTextIcon },
   { name: '관리자', href: '/admin', icon: ShieldCheckIcon },
@@ -272,7 +273,7 @@ export default function Layout({ children, title }: LayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main className="flex-1 px-4 py-3 sm:px-6 lg:px-8">
           {children}
         </main>
       </div>

@@ -237,8 +237,7 @@ export async function getSupabaseMaterials(): Promise<SupabaseMaterial[]> {
  * 자재 가격 이력 조회 (모의 데이터)
  */
 export async function getMaterialHistory(
-  material: string,
-  period: string = '30d'
+  material: string
 ): Promise<MaterialHistory[]> {
   // 실제 구현에서는 Supabase나 외부 API에서 데이터를 가져옴
   // 현재는 모의 데이터 반환
@@ -291,5 +290,5 @@ export const calculateAffinityExport = (input: AffinityCalculationInput) =>
 export const getSupabaseMaterialsExport = () => apiClient.getSupabaseMaterials();
 
 /** 자재 가격 이력 조회 */
-export const getMaterialHistoryExport = (material: string, period?: string) => 
-  apiClient.getMaterialHistory(material, period || '30d');
+export const getMaterialHistoryExport = (material: string) => 
+  apiClient.getMaterialHistory(material);

@@ -289,7 +289,10 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
   // 각 축의 도메인 계산
   const leftAxisDomain = calculateYAxisDomain(data, leftAxisMaterials);
   const rightAxisDomain = rightAxisMaterials.length > 0 
-    ? calculateYAxisDomain(data, rightAxisMaterials)
+    ? (() => {
+        const [domainMin, domainMax, ticks] = calculateRightAxisDomain(data, rightAxisMaterials);
+        return { domain: [domainMin, domainMax], ticks };
+      })()
     : { domain: ['dataMin - 100', 'dataMax + 100'], ticks: [] };
 
   return {
@@ -327,7 +330,7 @@ const calculateTickInterval = (min: number, max: number, targetTickCount: number
   return niceInterval * magnitude;
 };
 
-// 사용자 요구사항에 맞춘 새로운 Y축 도메인과 눈금 계산 함수
+// 사용자 요구사항에 맞춘 새로운 Y축 도메인과 눈금 계산 함수 - 범위를 4로 나누어 5개 눈금 생성
 const calculateFixedYAxisDomain = (data: any[], materials: string[]): [number, number, number[]] => {
   if (!data || data.length === 0) {
     return [0, 1000, [0, 250, 500, 750, 1000]];
@@ -351,39 +354,50 @@ const calculateFixedYAxisDomain = (data: any[], materials: string[]): [number, n
     return [0, 1000, [0, 250, 500, 750, 1000]];
   }
 
-  // 1. 상단과 하단에 적절한 마진 추가
+  // 데이터 범위에 약간의 여유 공간 추가 (상하 5%)
   const range = max - min;
-  const marginPercent = 0.15; // 15% 마진
-  const margin = range * marginPercent;
+  const padding = range * 0.05;
+  let paddedMin = Math.max(0, min - padding);
+  let paddedMax = max + padding;
+
+  // 범위가 0인 경우 (모든 값이 동일한 경우) 기본 범위 설정
+  if (paddedMax === paddedMin) {
+    const baseValue = paddedMin;
+    paddedMin = Math.max(0, baseValue - 200);
+    paddedMax = baseValue + 200;
+  }
+
+  // 전체 범위를 4로 나누어 5개의 눈금 생성
+  const totalRange = paddedMax - paddedMin;
+  const tickInterval = totalRange / 4;
+
+  // 눈금 값들을 적절히 반올림하여 깔끔한 숫자로 만들기
+  const magnitude = Math.pow(10, Math.floor(Math.log10(tickInterval)));
+  const normalizedInterval = tickInterval / magnitude;
   
-  let domainMin = Math.max(0, min - margin);
-  let domainMax = max + margin;
-
-  // 2. 범위 가격 차이를 4로 나누어 5개 눈금 생성
-  const adjustedRange = domainMax - domainMin;
-  let tickInterval = adjustedRange / 4;
-
-  // 3. 최소 50원 단위 보장 및 적절한 단위로 조정
-  const minTickInterval = 50;
-  if (tickInterval < minTickInterval) {
-    tickInterval = minTickInterval;
-    // 눈금 간격이 최소값으로 조정되면 도메인도 다시 계산
-    domainMax = domainMin + (tickInterval * 4);
+  let niceInterval;
+  if (normalizedInterval <= 1) {
+    niceInterval = 1;
+  } else if (normalizedInterval <= 2) {
+    niceInterval = 2;
+  } else if (normalizedInterval <= 5) {
+    niceInterval = 5;
   } else {
-    // 50원, 100원, 200원, 500원 등의 적절한 단위로 반올림
-    const niceIntervals = [50, 100, 150, 200, 250, 500, 1000, 2000, 2500, 5000];
-    tickInterval = niceIntervals.find(interval => interval >= tickInterval) || Math.ceil(tickInterval / 100) * 100;
-    
-    // 조정된 눈금 간격에 맞춰 도메인 재계산
-    domainMin = Math.floor(domainMin / tickInterval) * tickInterval;
-    domainMax = domainMin + (tickInterval * 4);
+    niceInterval = 10;
+  }
+  
+  const finalInterval = niceInterval * magnitude;
+
+  // 시작점을 깔끔한 숫자로 조정
+  const domainMin = Math.max(0, Math.floor(paddedMin / finalInterval) * finalInterval);
+  
+  // 정확히 5개의 눈금 생성
+  const ticks: number[] = [];
+  for (let i = 0; i < 5; i++) {
+    ticks.push(domainMin + (finalInterval * i));
   }
 
-  // 4. 5개의 눈금 생성 (domainMin부터 domainMax까지 균등 간격)
-  const ticks: number[] = [];
-  for (let i = 0; i <= 4; i++) {
-    ticks.push(domainMin + (tickInterval * i));
-  }
+  const domainMax = ticks[4]; // 마지막 눈금이 최대값
 
   return [domainMin, domainMax, ticks];
 };
@@ -445,9 +459,93 @@ const calculateSmartYAxisDomain = (data: any[], materials: string[]): [number, n
   return [ticks[0], ticks[ticks.length - 1], ticks];
 };
 
-// Y축 도메인 계산 함수 (패딩 포함)
+// 올림 처리 로직 함수
+const roundUpValue = (value: number): number => {
+  if (value >= 100000) {
+    // 100,000원 이상은 만원 단위에서 올림
+    return Math.ceil(value / 10000) * 10000;
+  } else if (value >= 10000) {
+    // 10,000원 이상은 천원 단위에서 올림
+    return Math.ceil(value / 1000) * 1000;
+  } else if (value >= 1000) {
+    // 1,000원 이상은 백원 단위에서 올림
+    return Math.ceil(value / 100) * 100;
+  } else {
+    // 1,000원 미만은 십원 단위에서 올림
+    return Math.ceil(value / 10) * 10;
+  }
+};
+
+// 내림 처리 로직 함수
+const roundDownValue = (value: number): number => {
+  if (value >= 100000) {
+    // 100,000원 이상은 만원 단위에서 내림
+    return Math.floor(value / 10000) * 10000;
+  } else if (value >= 10000) {
+    // 10,000원 이상은 천원 단위에서 내림
+    return Math.floor(value / 1000) * 1000;
+  } else if (value >= 1000) {
+    // 1,000원 이상은 백원 단위에서 내림
+    return Math.floor(value / 100) * 100;
+  } else {
+    // 1,000원 미만은 십원 단위에서 내림
+    return Math.floor(value / 10) * 10;
+  }
+};
+
+// 새로운 축 범위 계산 함수 - 최대값과 최소값 모두 고려
+const calculateOptimizedAxisDomain = (data: any[], materials: string[]): [number, number, number[]] => {
+  if (!data || data.length === 0 || materials.length === 0) {
+    return [0, 1000, [0, 250, 500, 750, 1000]];
+  }
+
+  let min = Infinity;
+  let max = -Infinity;
+
+  // 자재들의 실제 가격 범위 분석
+  data.forEach(item => {
+    materials.forEach(material => {
+      const value = item[material];
+      if (value !== null && value !== undefined && !isNaN(value)) {
+        min = Math.min(min, value);
+        max = Math.max(max, value);
+      }
+    });
+  });
+
+  if (min === Infinity || max === -Infinity) {
+    return [0, 1000, [0, 250, 500, 750, 1000]];
+  }
+
+  // 최대값에 25% 마진 적용 후 올림
+  const maxWithMargin = max * 1.25;
+  const roundedMax = roundUpValue(maxWithMargin);
+
+  // 최소값에 25% 마진 적용 후 내림 (0.75를 곱함)
+  const minWithMargin = min * 0.75;
+  const roundedMin = Math.max(0, roundDownValue(minWithMargin)); // 0보다 작아지지 않도록
+
+  // 범위 계산 후 4로 나누어 5개의 눈금 생성
+  const range = roundedMax - roundedMin;
+  const tickInterval = range / 4;
+
+  // 정확히 5개의 눈금 생성
+  const ticks: number[] = [];
+  for (let i = 0; i < 5; i++) {
+    ticks.push(roundedMin + (tickInterval * i));
+  }
+
+  return [roundedMin, roundedMax, ticks];
+};
+
+// 우축 전용 도메인 계산 함수 - 새로운 로직 적용
+const calculateRightAxisDomain = (data: any[], materials: string[]): [number, number, number[]] => {
+  return calculateOptimizedAxisDomain(data, materials);
+};
+
+// Y축 도메인 계산 함수 (새로운 최적화된 로직 적용)
 const calculateYAxisDomain = (data: any[], materials: string[]) => {
-  const [domainMin, domainMax, ticks] = calculateFixedYAxisDomain(data, materials);
+  const [domainMin, domainMax, ticks] = calculateOptimizedAxisDomain(data, materials);
   return { domain: [domainMin, domainMax], ticks };
 };
 
@@ -460,21 +558,36 @@ const fetchPriceData = async (
 ) => {
   if (materials.length === 0) return [];
 
-  const response = await fetch('/api/materials/prices', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ materials, startDate, endDate, interval }),
-    credentials: 'include', // 쿠키를 포함하도록 설정
-  });
+  // 타임아웃 설정 (25초)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25000);
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to fetch price data');
+  try {
+    const response = await fetch('/api/materials/prices', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ materials, startDate, endDate, interval }),
+      credentials: 'include',
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'API 요청 실패' }));
+      throw new Error(errorData.error || 'Failed to fetch price data');
+    }
+
+    return response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.');
+    }
+    throw error;
   }
-
-  return response.json();
 };
 
 // [수정] 차트 데이터 변환 함수 - RPC 응답 구조 처리 및 배열 타입 보장, ton→kg 변환 포함
@@ -630,33 +743,45 @@ const CustomizedLegend = (props: any) => {
     axisAssignment.rightAxisMaterials.includes(p.dataKey)
   );
 
-  const renderLegendItems = (items: any[], alignment: 'start' | 'end') => (
-    <div className={`flex flex-row flex-wrap items-${alignment} bg-white/70 p-1 rounded space-x-2`}>
-      {items.map((entry: any, index: number) => {
-        const materialName = entry.dataKey;
-        const materialUnit = unitMap?.get(materialName) || 'kg';
-        const isHidden = hiddenMaterials.has(materialName);
+  const renderLegendItems = (items: any[], title: string) => (
+    <div className="flex-1 min-w-0">
+      {items.length > 0 && (
+        <>
+          <div className="text-xs font-medium text-gray-600 mb-2">{title}</div>
+          <div className="flex flex-wrap gap-2 overflow-hidden">
+            {items.map((entry: any, index: number) => {
+              const materialName = entry.dataKey;
+              const materialUnit = unitMap?.get(materialName) || 'kg';
+              const isHidden = hiddenMaterials.has(materialName);
 
-        return (
-          <div 
-            key={`${alignment}-${materialName}-${index}`} 
-            className={`flex items-center space-x-1 mb-1 cursor-pointer transition-opacity ${isHidden ? 'opacity-50' : 'opacity-100'}`}
-            onClick={() => onVisibilityChange(materialName)}
-          >
-            <div style={{ width: 8, height: 8, backgroundColor: entry.color }} />
-            <span className="text-xs">
-              {shortenMaterialName(entry.value as string, payload.map((p: { dataKey: string }) => p.dataKey))} (원/{materialUnit})
-            </span>
+              return (
+                <div 
+                  key={`${title}-${materialName}-${index}`} 
+                  className={`flex items-center space-x-1 cursor-pointer transition-opacity min-w-0 flex-shrink-0 ${isHidden ? 'opacity-50' : 'opacity-100'}`}
+                  onClick={() => onVisibilityChange(materialName)}
+                >
+                  <div 
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: entry.color }}
+                  />
+                  <span className="text-xs text-gray-700 truncate max-w-[120px]" title={`${shortenMaterialName(entry.value as string, payload.map((p: { dataKey: string }) => p.dataKey))} (원/${materialUnit})`}>
+                    {shortenMaterialName(entry.value as string, payload.map((p: { dataKey: string }) => p.dataKey))} (원/{materialUnit})
+                  </span>
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
+        </>
+      )}
     </div>
   );
 
   return (
-    <div className="flex justify-between items-start px-2 text-xs">
-      {renderLegendItems(leftPayload, 'start')}
-      {renderLegendItems(rightPayload, 'end')}
+    <div className="mt-4 px-3 py-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+      <div className="flex gap-6">
+        {renderLegendItems(leftPayload, '주축 (왼쪽)')}
+        {renderLegendItems(rightPayload, '보조축 (오른쪽)')}
+      </div>
     </div>
   );
 };
@@ -755,7 +880,7 @@ const MaterialsChart: React.FC = () => {
     
     // 실제 차트 높이 (범례 높이를 빼지 않음)
     return Math.max(minHeight, Math.min(maxHeight, baseHeight));
-  }, [chartData, visibleMaterials]);
+  }, []);
 
   // X축 라벨 간격 계산 (월 단위로 표시)
   const xAxisInterval = useMemo(() => {
@@ -806,24 +931,27 @@ const MaterialsChart: React.FC = () => {
     return () => window.removeEventListener('resize', checkLabelOverlap);
   }, [chartData, interval]);
 
-  // 개선된 Y축 도메인 계산 (5개 눈금으로 고정)
+  // 최적화된 Y축 도메인 계산 (사용자 요구사항에 맞춘 동적 범위)
   const leftAxisConfig = useMemo(() => {
-    const [domainMin, domainMax, ticks] = calculateFixedYAxisDomain(chartData, axisAssignment.leftAxisMaterials);
+    const [domainMin, domainMax, ticks] = calculateOptimizedAxisDomain(chartData, axisAssignment.leftAxisMaterials);
     return { domain: [domainMin, domainMax], ticks };
   }, [chartData, axisAssignment.leftAxisMaterials]);
 
   const rightAxisConfig = useMemo(() => {
-    const [domainMin, domainMax, ticks] = calculateFixedYAxisDomain(chartData, axisAssignment.rightAxisMaterials);
+    const [domainMin, domainMax, ticks] = calculateOptimizedAxisDomain(chartData, axisAssignment.rightAxisMaterials);
     return { domain: [domainMin, domainMax], ticks };
   }, [chartData, axisAssignment.rightAxisMaterials]);
   
-  // 격자선용 Y축 포인트 계산 (중간 값들만)
+  // 격자선용 Y축 포인트 계산 (Y축 실제 ticks 기준)
   const gridHorizontalPoints = useMemo(() => {
-    if (!leftAxisConfig.ticks || leftAxisConfig.ticks.length <= 2) return [];
-    // 맨 위(마지막)와 맨 아래(첫번째) 값을 제외한 중간 값들 반환
-    const points = leftAxisConfig.ticks.slice(1, -1);
-    console.log('gridHorizontalPoints:', points, 'leftAxisConfig.ticks:', leftAxisConfig.ticks);
-    return points;
+    // Y축의 실제 5개 눈금(ticks)에서 첫 번째와 마지막을 제외한 중간 3개 사용
+    if (!leftAxisConfig.ticks || leftAxisConfig.ticks.length < 3) return [];
+    
+    // 첫 번째(최소값)와 마지막(최대값) 제외하고 중간 눈금들만 사용
+    const middleTicks = leftAxisConfig.ticks.slice(1, -1);
+    
+    console.log('gridHorizontalPoints (실제ticks기준):', middleTicks, 'allTicks:', leftAxisConfig.ticks);
+    return middleTicks;
   }, [leftAxisConfig.ticks]);
 
 
@@ -856,20 +984,17 @@ const MaterialsChart: React.FC = () => {
     return maxItems * 18 + 8; // 각 아이템당 18px + 최소 패딩 8px
   }, [visibleMaterials, axisAssignment]);
 
-  // 차트 높이 계산 (범례 공간 확보)
-  const chartHeight = useMemo(() => {
-    return 340 + legendHeight; // 기본 340px + 범례 높이
-  }, [legendHeight]);
+
 
   return (
     <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-      <CardHeader className="p-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+      <CardHeader className="p-2 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
         <CardTitle className="text-xl font-bold text-gray-900 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
-            실시간 자재 가격 비교 분석
+            <div className="w-1 h-5 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
+            자재 가격 변동
             {selectedMaterialsForChart.length > 0 && (
-              <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
+              <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
                 {visibleMaterials.length}개 표시
               </span>
             )}
@@ -973,7 +1098,7 @@ const MaterialsChart: React.FC = () => {
                     }}
                   />
 
-                  {visibleMaterials.map((material, index) => {
+                  {visibleMaterials.map((material, _index) => {
                     const yAxisId = axisAssignment.leftAxisMaterials.includes(material) ? 'left' : 'right';
                     const materialIndex = selectedMaterialsForChart.findIndex(m => m === material);
                     return (
@@ -1027,7 +1152,7 @@ const MaterialsChart: React.FC = () => {
                   {/* 우측 범례 (보조축) */}
                   <div className="flex-1 flex justify-end">
                     {axisAssignment.rightAxisMaterials.length > 0 && (
-                      <div className="flex flex-wrap gap-3 justify-end">
+                      <div className="flex gap-3 justify-end overflow-hidden">
                         {axisAssignment.rightAxisMaterials.map((materialName) => {
                           const materialIndex = selectedMaterialsForChart.findIndex(m => m === materialName);
                           const isHidden = hiddenMaterials.has(materialName);

@@ -81,7 +81,7 @@ export default function DashboardChartGrid() {
     <div className="space-y-4">
       {/* 공통 컨트롤 영역 */}
       <Card>
-        <CardContent className="p-3 flex flex-wrap items-center justify-end gap-3">
+        <CardContent className="p-2 flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-2">
             <Label htmlFor="interval-dashboard" className="text-sm font-medium">조회 간격</Label>
             <Select value={interval} onValueChange={(value: any) => setInterval(value)}>
@@ -105,7 +105,7 @@ export default function DashboardChartGrid() {
       </Card>
 
       {/* 차트 그리드 영역 */}
-      <div className="grid grid-cols-1 sm:landscape:grid-cols-2 md:landscape:grid-cols-2 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:landscape:grid-cols-2 md:landscape:grid-cols-2 lg:grid-cols-2 gap-4">
         {DASHBOARD_CHARTS_CONFIG.map((chartConfig) => (
           <DashboardMiniChart
             key={chartConfig.title}

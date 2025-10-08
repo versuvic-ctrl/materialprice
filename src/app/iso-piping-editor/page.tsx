@@ -2,21 +2,15 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   Plus,
-  Minus,
-  Trash2,
   Download,
-  Undo2,
-  Redo2,
   Box,
   Layers,
   Settings,
   Grid,
   Beaker,
-  Flame,
   Wrench,
   Bolt,
   X,

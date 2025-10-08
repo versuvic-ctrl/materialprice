@@ -61,21 +61,36 @@ const fetchPriceData = async (
 ) => {
   if (!materials || materials.length === 0) return [];
 
-  const response = await fetch('/api/materials/prices', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include', // 인증 쿠키 전송을 위해 추가
-    body: JSON.stringify({ materials, startDate, endDate, interval }),
-  });
+  // 타임아웃 설정 (25초)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: '알 수 없는 API 오류' }));
-    throw new Error(errorData.message || `API 요청 실패: ${response.statusText}`);
+  try {
+    const response = await fetch('/api/materials/prices', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      signal: controller.signal,
+      body: JSON.stringify({ materials, startDate, endDate, interval }),
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: '알 수 없는 API 오류' }));
+      throw new Error(errorData.message || `API 요청 실패: ${response.statusText}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.');
+    }
+    throw error;
   }
-
-  return response.json();
 };
 
 /**
@@ -563,9 +578,13 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
       // 톤 단위 감지 및 변환 (자재명도 고려)
       const isLargeUnit = isLargeWeightUnit(actualUnit, material.id);
       
-      // 디버깅 로그 (PP, HDPE 자재의 경우)
-      if (material.displayName.includes('PP') || material.displayName.includes('HDPE')) {
+      // 디버깅 로그 (PP, HDPE, 시멘트 자재의 경우)
+      if (material.displayName.includes('PP') || material.displayName.includes('HDPE') || material.displayName.includes('시멘트')) {
         console.log(`테이블 ${material.displayName} 자재 변환: ${material.displayName} (${material.id}) - 원본가격: ${rawPrice}, 단위: ${actualUnit}, 톤단위인가: ${isLargeUnit}`);
+        console.log(`테이블 ${material.displayName} 데이터 개수: ${sortedData.length}, 첫번째 데이터:`, sortedData[0]);
+        if (sortedData.length >= 2) {
+          console.log(`테이블 ${material.displayName} 두번째 데이터:`, sortedData[1]);
+        }
       }
       
       let currentPrice = rawPrice;
@@ -589,11 +608,24 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
         // 톤 단위인 경우 이전 가격도 변환 (특별 자재 제외)
         const previousPrice = (isLargeUnit && !isSpecialMaterial) ? previousRawPrice / 1000 : previousRawPrice;
         
+        // 시멘트 자재의 경우 전월비 계산 과정 로깅
+        if (material.displayName.includes('시멘트')) {
+          console.log(`시멘트 전월비 계산: 현재가격=${currentPrice}, 이전가격=${previousPrice}, 이전원본가격=${previousRawPrice}`);
+        }
+        
         if (previousPrice !== 0) {
           monthlyChange = ((currentPrice - previousPrice) / previousPrice) * 100;
           monthlyChange = Math.round(monthlyChange * 100) / 100;
+          
+          // 시멘트 자재의 경우 계산 결과 로깅
+          if (material.displayName.includes('시멘트')) {
+            console.log(`시멘트 전월비 계산 결과: ${monthlyChange}%`);
+          }
         } else {
           monthlyChange = null; // 0 대신 null로 설정하여 '-' 표시
+          if (material.displayName.includes('시멘트')) {
+            console.log(`시멘트 전월비: 이전 가격이 0이므로 null 설정`);
+          }
         }
       }
 
@@ -824,7 +856,7 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
              {/* 우측 범례 (보조축) */}
              <div className="flex-1 flex justify-end">
                {axisAssignment.rightAxisMaterials.length > 0 && (
-                 <div className="flex flex-wrap gap-1 sm:gap-2 justify-end">
+                 <div className="flex gap-1 sm:gap-2 justify-end overflow-hidden">
                    {axisAssignment.rightAxisMaterials.map((materialName) => {
                      const materialIndex = materials.findIndex(m => m.displayName === materialName);
                      return (

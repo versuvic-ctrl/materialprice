@@ -75,18 +75,24 @@ const formatChangeWithPrice = (change: number | null, price: number | null): { t
   };
 };
 
-// 변동률 포맷팅 및 색상 결정 함수
-const formatChange = (change: number | undefined | null): { text: string; color: string } => {
-  if (change === undefined || change === null || isNaN(change)) {
-    return { text: '-', color: 'text-gray-500' };
+// 톤 단위 감지 함수 - 단위와 자재명을 모두 고려
+const isLargeWeightUnit = (unit: string, materialName: string): boolean => {
+  if (!unit && !materialName) return false;
+  
+  // 단위 기반 판별
+  const unitLower = unit?.toLowerCase() || '';
+  if (unitLower.includes('ton') || unitLower.includes('톤') || unitLower === 't') {
+    return true;
   }
-  if (change === 0) {
-    return { text: '0.00%', color: 'text-gray-900' };
-  } else if (change > 0) {
-    return { text: `+${change.toFixed(2)}%`, color: 'text-red-500' };
-  } else {
-    return { text: `${change.toFixed(2)}%`, color: 'text-blue-500' };
-  }
+  
+  // 자재명 기반 판별 (특정 자재들은 톤 단위로 거래되는 경우가 많음)
+  const materialLower = materialName?.toLowerCase() || '';
+  const largeMaterialKeywords = [
+    'pp', 'hdpe', 'ldpe', 'pvc', 'abs', 'pc', 'pa', 'pom', 'pet', 'ps',
+    '플라스틱', '수지', '펠릿', '원료', '화학', '석유화학'
+  ];
+  
+  return largeMaterialKeywords.some(keyword => materialLower.includes(keyword));
 };
 
 const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMaterials }) => {
@@ -198,16 +204,24 @@ const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMater
           }
         }
 
+        // 단위 변환 적용 (톤 -> kg)
+        const shouldConvert = isLargeWeightUnit(actualUnit, material);
+        const displayPrice = shouldConvert ? rawPrice / 1000 : rawPrice;
+        const displayUnit = shouldConvert ? 'kg' : actualUnit;
+        const displayPreviousMonthPrice = shouldConvert && previousMonthPrice ? previousMonthPrice / 1000 : previousMonthPrice;
+        const displayYearAgoPrice = shouldConvert && yearAgoPrice ? yearAgoPrice / 1000 : yearAgoPrice;
+        const displayTwoYearAgoPrice = shouldConvert && twoYearAgoPrice ? twoYearAgoPrice / 1000 : twoYearAgoPrice;
+
         return {
           name: material,
-          currentPrice: rawPrice,
-          unit: actualUnit,
+          currentPrice: displayPrice,
+          unit: displayUnit,
           monthlyChange,
           yearlyChange,
           twoYearAgoChange,
-          previousMonthPrice,
-          yearAgoPrice,
-          twoYearAgoPrice,
+          previousMonthPrice: displayPreviousMonthPrice,
+          yearAgoPrice: displayYearAgoPrice,
+          twoYearAgoPrice: displayTwoYearAgoPrice,
         };
       });
 

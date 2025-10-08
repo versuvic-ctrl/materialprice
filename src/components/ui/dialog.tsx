@@ -116,6 +116,19 @@ const DialogFooter = React.forwardRef<
 ))
 DialogFooter.displayName = "DialogFooter"
 
+const DialogTrigger = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    asChild?: boolean
+  }
+>(({ asChild = false, ...props }, ref) => {
+  if (asChild) {
+    return <div {...props} ref={ref as any} />
+  }
+  return <button ref={ref} {...props} />
+})
+DialogTrigger.displayName = "DialogTrigger"
+
 export {
   Dialog,
   DialogContent,
@@ -123,4 +136,5 @@ export {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogTrigger,
 }

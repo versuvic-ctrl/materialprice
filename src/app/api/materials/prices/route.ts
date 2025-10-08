@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   return NextResponse.json({ 
     error: 'GET method not supported. Use POST with materials, startDate, endDate, and interval in request body.' 
   }, { status: 405 });
@@ -37,12 +37,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Interval is required' }, { status: 400 });
     }
 
-    const { data, error } = await supabase.rpc('get_material_prices', {
+    // 타임아웃 설정 (30초)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout')), 30000);
+    });
+
+    const rpcPromise = supabase.rpc('get_material_prices', {
       material_names: materials,
       start_date_str: startDate,
       end_date_str: endDate,
       time_interval: interval,
     });
+
+    const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as any;
 
     if (error) {
       console.error('Error fetching material prices:', error);

@@ -37,7 +37,10 @@ import { createClient } from '@/utils/supabase/client'; // [수정]
 import useMaterialStore from '@/store/materialStore'; // [교체] Zustand 스토어 import
 import MaterialsChart from '@/components/materials/MaterialsChart'; // [교체] 새로운 차트 컴포넌트 import
 import MaterialsPriceTable from '@/components/materials/MaterialsPriceTable'; // [추가] 자재 가격 테이블 컴포넌트 import
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'; // [추가] Tabs 컴포넌트 import
+// [제거] 탭 구조 제거로 인해 사용하지 않는 컴포넌트들 import 제거
+// import MaterialPropertyComparison from '@/components/materials/MaterialPropertyComparison';
+// import MakeItFromComparison from '@/components/materials/MakeItFromComparison';
+// import type { MakeItFromDatabase } from '@/types/makeItFrom';
 
 const supabase = createClient(); // [수정]
 
@@ -161,11 +164,13 @@ const MaterialsPage: React.FC = () => {
     React.useMemo(() => ({ major: selectedLevel1, middle: selectedLevel2, sub: selectedLevel3, specification: selectedLevel4 }), [selectedLevel1, selectedLevel2, selectedLevel3, selectedLevel4])
   );
 
+  // [제거] MakeItFrom 데이터 로드 - 탭 구조 제거로 인해 불필요
+
   // 상태 관리는 Zustand로, 서버 상태는 React Query로 처리하여 컴포넌트 로직 단순화
 
   return (
     <Layout title="자재가격 상세">
-      <div className="space-y-6">
+      <div className="space-y-3">
         {/* === 이 아래부터는 기존 UI 구조를 그대로 유지합니다 === */}
 
         {/* 가격 변동률 지표 (이 부분은 추후 동적 데이터로 연결 가능) */}
@@ -174,26 +179,21 @@ const MaterialsPage: React.FC = () => {
           {/* ... 다른 지표 카드들 ... */}
         </div>
 
-        <Tabs defaultValue="material-price-detail" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="material-price-detail">자재가격 상세</TabsTrigger>
-            <TabsTrigger value="material-comparison-detail">재질비교 상세</TabsTrigger>
-          </TabsList>
-          <TabsContent value="material-price-detail">
-            <div className="space-y-6">
-              {/* 가격 변동률 지표 (이 부분은 추후 동적 데이터로 연결 가능) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                
-                {/* ... 다른 지표 카드들 ... */}
-              </div>
+        {/* 자재가격 상세 페이지 - 탭 제거하고 바로 표시 */}
+        <div className="space-y-4">
+          {/* 가격 변동률 지표 (이 부분은 추후 동적 데이터로 연결 가능) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            {/* ... 다른 지표 카드들 ... */}
+          </div>
 
-              {/* [수정] 조회 조건: 컴팩트한 디자인 */}
+          {/* [수정] 조회 조건: 컴팩트한 디자인 */}
               <Card className="border border-gray-200">
-                <CardContent className="p-3">
+                <CardContent className="p-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="flex flex-wrap gap-2">
                       <Select value={selectedLevel1} onValueChange={(v) => setCategory(1, v)}>
-                        <SelectTrigger className="h-8 min-w-[100px] text-sm">
+                        <SelectTrigger className="h-7 min-w-[90px] text-custom-xs">
                           <SelectValue placeholder="대분류" />
                         </SelectTrigger>
                         <SelectContent>
@@ -203,7 +203,7 @@ const MaterialsPage: React.FC = () => {
                       </Select>
 
                       <Select value={selectedLevel2} onValueChange={(v) => setCategory(2, v)} disabled={!selectedLevel1 || level2Categories.isLoading}>
-                        <SelectTrigger className="h-8 min-w-[100px] text-sm">
+                        <SelectTrigger className="h-7 min-w-[90px] text-custom-xs">
                           <SelectValue placeholder="중분류" />
                         </SelectTrigger>
                         <SelectContent>
@@ -213,7 +213,7 @@ const MaterialsPage: React.FC = () => {
                       </Select>
 
                       <Select value={selectedLevel3} onValueChange={(v) => setCategory(3, v)} disabled={!selectedLevel2 || level3Categories.isLoading}>
-                        <SelectTrigger className="h-8 min-w-[100px] text-sm">
+                        <SelectTrigger className="h-7 min-w-[90px] text-custom-xs">
                           <SelectValue placeholder="소분류" />
                         </SelectTrigger>
                         <SelectContent>
@@ -223,7 +223,7 @@ const MaterialsPage: React.FC = () => {
                       </Select>
 
                       <Select value={selectedLevel4} onValueChange={(v) => setCategory(4, v)} disabled={!selectedLevel3 || level4Categories.isLoading}>
-                        <SelectTrigger className="h-8 min-w-[100px] text-sm">
+                        <SelectTrigger className="h-7 min-w-[90px] text-custom-xs">
                           <SelectValue placeholder="규격" />
                         </SelectTrigger>
                         <SelectContent>
@@ -320,20 +320,12 @@ const MaterialsPage: React.FC = () => {
                 </Card>
               )}
 
-              {/* [교체] 차트 영역: 기존 DashboardCharts를 MaterialsChart로 교체 */}
-              <MaterialsChart />
+          {/* [교체] 차트 영역: 기존 DashboardCharts를 MaterialsChart로 교체 */}
+          <MaterialsChart />
 
-              {/* [추가] 자재 가격 테이블 */}
-              <MaterialsPriceTable selectedMaterials={selectedMaterialsForChart} />
-            </div>
-          </TabsContent>
-          <TabsContent value="material-comparison-detail">
-            {/* 재질비교 상세 페이지 내용이 들어갈 곳 */}
-            <div className="p-4 text-center text-gray-500">
-              재질비교 상세 페이지가 여기에 표시됩니다.
-            </div>
-          </TabsContent>
-        </Tabs>
+          {/* [추가] 자재 가격 테이블 */}
+          <MaterialsPriceTable selectedMaterials={selectedMaterialsForChart} />
+        </div>
       </div>
     </Layout>
   );
