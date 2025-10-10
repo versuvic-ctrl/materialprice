@@ -22,7 +22,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from '@tanstack/react-query';
-import MarketIndicators from "./MarketIndicators";
+import MarketIndicatorsSummary from "./MarketIndicatorsSummary";
 
 // 카테고리별 자재 구성 정보
 const CATEGORY_MATERIALS = {
@@ -324,7 +324,10 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
         <div className="h-full flex flex-col">
           {/* 헤더 */}
             <div className="px-4 py-2 border-b border-gray-100">
-              <h3 className="text-sm font-bold text-gray-900">자재 가격 변동 SUMMARY</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-bold text-gray-900">자재 가격 변동 SUMMARY</h3>
+                <span className="text-xs text-gray-500">(전월비)</span>
+              </div>
             </div>
           
           {/* 내용 */}
@@ -456,7 +459,7 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
       </Card>
 
       {/* 시장 지표 */}
-      <MarketIndicators />
+      <MarketIndicatorsSummary />
     </div>
   );
 };

@@ -115,7 +115,7 @@ export default function CorrosionInfo({ selectedMaterials }: CorrosionInfoProps)
         <CardContent className="text-center py-12">
           <div className="text-gray-500">
             <Shield className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium mb-2">재료를 선택해주세요</p>
+            <p className="text-lg font-medium mb-2">재질을 선택해주세요</p>
             <p className="text-sm">
               재료를 선택하면 부식 저항성 정보를 확인할 수 있습니다.
             </p>

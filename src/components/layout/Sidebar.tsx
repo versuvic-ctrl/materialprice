@@ -31,13 +31,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       description: '자재 가격 현황'
     },
     {
-      name: '자재 가격',
+      name: '자재 가격 상세',
       href: '/materials',
       icon: ChartBarIcon,
       description: '자재 가격 조회'
     },
     {
-      name: '자재 비교',
+      name: '물성 및 부식성 상세',
       href: '/materials/comparison',
       icon: ClipboardDocumentListIcon,
       description: '자재 속성 비교'

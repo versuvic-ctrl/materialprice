@@ -48,8 +48,8 @@ interface LayoutProps {
 // 각 메뉴는 이름, 경로, 아이콘을 포함
 const navigation = [
   { name: '대시보드', href: '/', icon: HomeIcon },
-  { name: '자재 가격', href: '/materials', icon: ChartBarIcon },
-  { name: '자재 비교', href: '/materials/comparison', icon: DocumentTextIcon },
+  { name: '자재 가격 상세', href: '/materials', icon: ChartBarIcon },
+  { name: '물성 및 부식성 상세', href: '/materials/comparison', icon: DocumentTextIcon },
   { name: '엔지니어링 계산기', href: '/calculator', icon: CalculatorIcon },
   { name: '기술자료', href: '/technical-data', icon: DocumentTextIcon },
   { name: '관리자', href: '/admin', icon: ShieldCheckIcon },

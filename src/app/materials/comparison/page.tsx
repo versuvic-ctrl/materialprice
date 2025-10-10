@@ -6,7 +6,7 @@ import MaterialComparisonPage from '@/components/materials/MaterialComparisonPag
 
 export default function MaterialComparison() {
   return (
-    <Layout>
+    <Layout title="물성/부식성 비교">
       <MaterialComparisonPage />
     </Layout>
   );

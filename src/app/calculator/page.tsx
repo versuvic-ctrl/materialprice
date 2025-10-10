@@ -655,11 +655,6 @@ export default function CalculatorPage() {
                         />
                       </div>
                     )}
-                    {(selectedCalculator === 'npsh' || selectedCalculator === 'affinity') && (
-                       <div className="h-96">
-                         <PumpVisualization />
-                       </div>
-                     )}
                      {!['tank', 'npsh', 'affinity'].includes(selectedCalculator) && (
                        <div className="h-96 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
                          <div className="text-center">

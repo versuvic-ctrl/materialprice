@@ -23,6 +23,7 @@ import ReferenceSection from '@/components/dashboard/ReferenceSection';
 import CalculatorPreview from '@/components/dashboard/CalculatorPreview';
 import DashboardClient from '@/components/dashboard/DashboardClient';
 import DashboardChartGrid from '@/components/dashboard/DashboardChartGrid'; // [추가] 새로 만든 차트 그리드 컴포넌트를 import 합니다.
+import MarketIndicatorsSummary from '@/components/dashboard/MarketIndicatorsSummary';
 import CronInitializer from '@/components/CronInitializer';
 
 // 빌드 시 프리렌더 오류를 회피하기 위해 동적 렌더링 강제
@@ -48,12 +49,13 @@ export default function Dashboard() {
     <Layout title="대시보드">
       {/* Cron Job 초기화 (UI 없음) */}
       <CronInitializer />
+
+
       
       {/* 통계 카드 섹션 */}
       <DashboardClient dashboardData={dashboardData} />
       
       {/* 중앙 차트 그리드 섹션 */}
-      {/* 6개의 동적 미니 차트와 공통 필터를 포함 */}
       <div className="mt-4">
         <DashboardChartGrid />
       </div>

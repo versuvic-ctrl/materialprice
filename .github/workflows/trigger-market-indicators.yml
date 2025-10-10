@@ -1,0 +1,27 @@
+name: Trigger Market Indicators Update
+
+on:
+  schedule:
+    # Run daily at 06:00 UTC (which is 3 PM KST)
+    - cron: '0 6 * * *'
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  trigger-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Trigger Market Indicators API
+        env:
+          VERCEL_DEPLOYMENT_URL: ${{ secrets.VERCEL_DEPLOYMENT_URL }}
+        run: |
+          if [ -z "$VERCEL_DEPLOYMENT_URL" ]; then
+            echo "VERCEL_DEPLOYMENT_URL secret is not set. Skipping API trigger."
+            exit 1
+          fi
+          curl -X POST \
+               -H "Content-Type: application/json" \
+               -d '{"action": "test"}' \
+               "${VERCEL_DEPLOYMENT_URL}/api/market-indicators/cron"

@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import CorrosionInfo from './CorrosionInfo';
+import CorrosionCompatibility from '../corrosion/CorrosionCompatibility';
 
 interface MakeItFromMaterial {
   names: string[];
@@ -524,7 +524,9 @@ export default function MaterialComparisonPage() {
   }
 
   return (
-    <Tabs defaultValue="properties" className="w-full">
+    <>
+
+      <Tabs defaultValue="properties" className="w-full">
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="properties">물성정보</TabsTrigger>
         <TabsTrigger value="corrosion">부식성</TabsTrigger>
@@ -533,35 +535,32 @@ export default function MaterialComparisonPage() {
       <TabsContent value="properties" className="space-y-6">
         <div className="space-y-6">
       {/* 재료 선택 섹션 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="w-5 h-5" />
-            재료 선택
-          </CardTitle>
+      <Card className="mt-6">
+        <CardHeader className="p-6 pb-4">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-1 h-5 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
+            <h2 className="text-2xl font-semibold leading-none tracking-tight">Material Properties</h2>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-end gap-3 flex-wrap">
             {/* 대분류 선택 */}
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-600">대분류</label>
-              <Select 
-                value={selectedMajor} 
+            <div className="w-[200px]">
+              <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
+                대분류를 선택하세요
+              </label>
+              <Select
+                value={selectedMajor}
                 onValueChange={(value) => {
                   setSelectedMajor(value);
                   resetSelections('major');
                 }}
               >
-                <SelectTrigger 
-                  className="h-8 text-sm" 
-                  style={{ 
-                    width: selectedMajor ? `${Math.max(100, selectedMajor.length * 8 + 40)}px` : '100px' 
-                  }}
-                >
-                  <SelectValue placeholder="대분류" />
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="대분류를 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
-                  {majorCategories.map(category => (
+                  {majorCategories.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
                     </SelectItem>
@@ -571,26 +570,23 @@ export default function MaterialComparisonPage() {
             </div>
 
             {/* 중분류 선택 */}
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-600">중분류</label>
-              <Select 
-                value={selectedMiddle} 
+            <div className="w-[200px]">
+              <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
+                중분류를 선택하세요
+              </label>
+              <Select
+                value={selectedMiddle}
                 onValueChange={(value) => {
                   setSelectedMiddle(value);
                   resetSelections('middle');
                 }}
                 disabled={!selectedMajor}
               >
-                <SelectTrigger 
-                  className="h-8 text-sm" 
-                  style={{ 
-                    width: selectedMiddle ? `${Math.max(120, selectedMiddle.length * 8 + 40)}px` : '120px' 
-                  }}
-                >
-                  <SelectValue placeholder="중분류" />
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="중분류를 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
-                  {middleCategories.map(category => (
+                  {middleCategories.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
                     </SelectItem>
@@ -601,26 +597,23 @@ export default function MaterialComparisonPage() {
 
             {/* 소분류 선택 */}
             {subCategories.length > 0 && (
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-600">소분류</label>
-                <Select 
-                  value={selectedSub} 
+              <div className="w-[200px]">
+                <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
+                  소분류 선택
+                </label>
+                <Select
+                  value={selectedSub}
                   onValueChange={(value) => {
                     setSelectedSub(value);
                     resetSelections('sub');
                   }}
                   disabled={!selectedMiddle}
                 >
-                  <SelectTrigger 
-                    className="h-8 text-sm" 
-                    style={{ 
-                      width: selectedSub ? `${Math.max(140, selectedSub.length * 8 + 40)}px` : '140px' 
-                    }}
-                  >
-                    <SelectValue placeholder="소분류" />
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="소분류를 선택하세요" />
                   </SelectTrigger>
                   <SelectContent>
-                    {subCategories.map(category => (
+                    {subCategories.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
                       </SelectItem>
@@ -631,23 +624,20 @@ export default function MaterialComparisonPage() {
             )}
 
             {/* 재료 선택 */}
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-600">재료</label>
-              <Select 
-                value={selectedDetail} 
-                onValueChange={setSelectedDetail}
+            <div className="w-[200px]">
+              <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
+                재료 선택
+              </label>
+              <Select
+                value={selectedDetail}
+                onValueChange={(value) => setSelectedDetail(value)}
                 disabled={!selectedMiddle || (subCategories.length > 0 && !selectedSub)}
               >
-                <SelectTrigger 
-                  className="h-8 text-sm" 
-                  style={{ 
-                    width: selectedDetail ? `${Math.max(200, selectedDetail.length * 8 + 40)}px` : '200px' 
-                  }}
-                >
-                  <SelectValue placeholder="재료 선택" />
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="재질을 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableMaterials.map(material => (
+                  {availableMaterials.map((material) => (
                     <SelectItem key={material.name} value={material.name}>
                       {material.name}
                     </SelectItem>
@@ -658,14 +648,13 @@ export default function MaterialComparisonPage() {
 
             {/* 재료 추가 버튼 - 가장 오른쪽에 배치 */}
             <div className="ml-auto">
-              <Button 
+              <button
                 onClick={handleAddMaterial}
                 disabled={!selectedDetail}
-                className="h-8 px-4 text-sm bg-blue-600 hover:bg-blue-700"
+                className="w-[120px] bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                재료 추가
-              </Button>
+                재질 조회
+              </button>
             </div>
           </div>
 
@@ -1007,10 +996,10 @@ export default function MaterialComparisonPage() {
           <CardContent className="text-center py-12">
             <div className="text-gray-500">
               <Plus className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium mb-2">재료를 선택해주세요</p>
+              <p className="text-lg font-medium mb-2">재질을 선택해주세요</p>
               <p className="text-sm">
-                위에서 재료를 선택하면 물성 정보를 비교할 수 있습니다.
-              </p>
+                  위에서 재질을 선택하면 물성 정보를 비교할 수 있습니다.
+                </p>
             </div>
           </CardContent>
         </Card>
@@ -1026,8 +1015,8 @@ export default function MaterialComparisonPage() {
       </TabsContent>
       
       <TabsContent value="corrosion" className="space-y-6">
-        <CorrosionInfo selectedMaterials={selectedMaterials} />
+        <CorrosionCompatibility selectedMaterials={selectedMaterials} />
       </TabsContent>
     </Tabs>
-  );
+  </>);
 }
