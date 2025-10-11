@@ -119,10 +119,13 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/estree": "^1.0.8",
     "@types/lodash.throttle": "^4.1.9",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/stats.js": "^0.17.4",
+    "@types/webxr": "^0.5.24",
     "concurrently": "^8.2.2",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
@@ -131,6 +134,8 @@
     "supabase": "^2.39.2",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.7",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@types/json-schema": "*",
+    "@types/phoenix": "*"
   }
 }

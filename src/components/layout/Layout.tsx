@@ -38,6 +38,7 @@ import {
   ChevronRightIcon
 } from '@heroicons/react/24/outline';
 
+
 // 레이아웃 컴포넌트 Props 타입 정의
 interface LayoutProps {
   children: React.ReactNode; // 페이지 콘텐츠
@@ -49,7 +50,7 @@ interface LayoutProps {
 const navigation = [
   { name: '대시보드', href: '/', icon: HomeIcon },
   { name: '자재 가격 상세', href: '/materials', icon: ChartBarIcon },
-  { name: '물성 및 부식성 상세', href: '/materials/comparison', icon: DocumentTextIcon },
+  { name: '물성 및 부식성 상세', href: '/comparison', icon: DocumentTextIcon },
   { name: '엔지니어링 계산기', href: '/calculator', icon: CalculatorIcon },
   { name: '기술자료', href: '/technical-data', icon: DocumentTextIcon },
   { name: '관리자', href: '/admin', icon: ShieldCheckIcon },

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -38,7 +38,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     },
     {
       name: '물성 및 부식성 상세',
-      href: '/materials/comparison',
+      href: '/comparison',
       icon: ClipboardDocumentListIcon,
       description: '자재 속성 비교'
     },

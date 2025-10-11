@@ -41,7 +41,10 @@ const TankVisualization = dynamic(() => import('@/components/calculator/TankVisu
 
 // Pump 3D 시각화 컴포넌트 (동적 로딩)
 // SSR 비활성화로 클라이언트에서만 렌더링
+// PumpVisualization is imported for future use; suppress warning
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const PumpVisualization = dynamic(() => import('@/components/calculator/PumpVisualization'), {
+
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-full">
