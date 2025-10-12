@@ -1,0 +1,74 @@
+name: Publish Package to npmjs
+
+on:
+  push:
+    tags: ["*"]
+
+jobs:
+  release:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4 #Setup Node
+      with:
+        node-version-file: '.nvmrc'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        npm ci --legacy-peer-deps
+
+    - name: Lint
+      run: |
+        make lint
+
+    - name: Build
+      run: |
+        make build-all
+
+    - name: Check ESM build
+      run: |
+        make check-esm-build pluginsCount=63
+
+    - name: Test all
+      run: |
+        make test-all uglify=true fat=true
+
+    - name: Publish
+      run: |
+        NPM_TOKEN=${{ secrets.NPM_TOKEN }} npm publish ./build --access public
+
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/')
+
+    - name: Trigger generate site hook
+      run: |
+        curl -XPOST -u "${{ secrets.PAT_USERNAME}}:${{secrets.PAT_TOKEN}}" -H "Accept:application/vnd.github.everest-preview+json" -H "Content-Type: application/json" https://api.github.com/repos/xdan/jodit-pro-home/dispatches --data '{"event_type": "opened" }'
+
+    - name: Trigger release React package
+      run: |
+        curl -XPOST -u "${{ secrets.PAT_USERNAME}}:${{secrets.PAT_TOKEN}}" -H "Accept:application/vnd.github.everest-preview+json" -H "Content-Type: application/json" https://api.github.com/repos/jodit/jodit-react/dispatches --data '{"event_type": "newversion" }'
+
+    - name: Trigger startup update version
+      run: |
+        curl -XPOST -u "${{ secrets.PAT_USERNAME}}:${{secrets.PAT_TOKEN}}" -H "Accept:application/vnd.github.everest-preview+json" -H "Content-Type: application/json" https://api.github.com/repos/xdan/jodit-startup-service/dispatches --data '{"event_type": "newversion" }'
+
+    - name: Trigger update PRO version
+      run: |
+        curl -XPOST -u "${{ secrets.PAT_USERNAME}}:${{secrets.PAT_TOKEN}}" -H "Accept:application/vnd.github.everest-preview+json" -H "Content-Type: application/json" https://api.github.com/repos/jodit/jodit-pro/dispatches --data '{"event_type": "newversion" }'
+
+    - name: Get tag
+      id: get_version
+      run: |
+        VERSION=$(node -p "require('./package.json').version")
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Show new version
+      run: |
+        VERSION=${{ steps.get_version.outputs.version }}
+        PACKAGE_NAME="jodit"
+        echo "[New version npm](https://www.npmjs.com/package/${PACKAGE_NAME}/v/${VERSION})" >> $GITHUB_STEP_SUMMARY

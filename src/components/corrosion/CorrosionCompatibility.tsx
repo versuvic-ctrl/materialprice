@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, AlertTriangle, CheckCircle, XCircle, Info, ChevronDown, Droplet } from 'lucide-react';
 import alleimaCorrosionData from '@/data/alleima_corrosion_data_full.json';
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/tiptap-ui-primitive/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 console.log('Full alleimaCorrosionData:', alleimaCorrosionData);
 console.log('Length of corrosion_data array:', (alleimaCorrosionData as AlleimaCorrosionData).corrosion_data.length);
@@ -1114,41 +1114,41 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                         className={`${dynamicWidths.material} px-4 py-1 text-sm font-medium text-gray-900 text-center align-middle`}
                       >
                         {result.material === "Alleima® 3R12" ? (
-                          <Tooltip placement="top">
+                          <Tooltip>
                             <TooltipTrigger asChild>
                               <span>Alleima® 3R12 (&apos;304L&apos;) <span className="cursor-pointer text-gray-400 text-sm">ℹ️</span></span>
                             </TooltipTrigger>
-                            <TooltipContent className="!bg-white !p-2 !border !border-black !rounded-md !shadow-lg !opacity-100">
+                            <TooltipContent side="top" className="!bg-white !p-2 !border !border-black !rounded-md !shadow-lg !opacity-100">
                               ASTM : TP304/TP304L
                               UNS : S30400/S30403
                             </TooltipContent>
                           </Tooltip>
                         ) : result.material === "Alleima® 2RK65 ('904L')" ? (
-                          <Tooltip placement="top">
+                          <Tooltip>
                             <TooltipTrigger asChild>
                               <span>Alleima® 2RK65 (&apos;904L&apos;) <span className="cursor-pointer text-gray-400 text-sm">ℹ️</span></span>
                             </TooltipTrigger>
-                            <TooltipContent className="!bg-white !p-2 !border !border-black !rounded-md !shadow-lg !opacity-100">
+                            <TooltipContent side="top" className="!bg-white !p-2 !border !border-black !rounded-md !shadow-lg !opacity-100">
                               ASTM : 904L
                               UNS : N08904
                             </TooltipContent>
                           </Tooltip>
                         ) : result.material === "Alleima® 3R64 ('317L')" ? (
-                          <Tooltip placement="top">
+                          <Tooltip>
                             <TooltipTrigger asChild>
                               <span>Alleima® 3R64 (&apos;317L&apos;) <span className="cursor-pointer text-gray-400 text-sm">ℹ️</span></span>
                             </TooltipTrigger>
-                            <TooltipContent className="!bg-white !p-2 !border !border-black !rounded-md !shadow-lg !opacity-100">
+                            <TooltipContent side="top" className="!bg-white !p-2 !border !border-black !rounded-md !shadow-lg !opacity-100">
                               ASTM : TP317L
                               UNS : S31703
                             </TooltipContent>
                           </Tooltip>
                         ) : result.material === "Alleima® 3R60" ? (
-                          <Tooltip placement="top">
+                          <Tooltip>
                             <TooltipTrigger asChild>
                               <span>Alleima® 3R60 (&apos;316L&apos;) <span className="cursor-pointer text-gray-400 text-sm">ℹ️</span></span>
                             </TooltipTrigger>
-                            <TooltipContent className="!bg-white !p-2 !border !border-black !rounded-md !shadow-lg !opacity-100">
+                            <TooltipContent side="top" className="!bg-white !p-2 !border !border-black !rounded-md !shadow-lg !opacity-100">
                               ASTM : TP316/TP316L
                               UNS : S31600/S31603
                             </TooltipContent>

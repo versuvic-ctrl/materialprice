@@ -23,7 +23,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Calculator, Loader2 } from 'lucide-react';
+import { Calculator, ArrowLeft, Loader2 } from 'lucide-react';
+import Link from 'next/link';
 import { calculateTankVolumeExport, calculateNPSHExport, calculateAffinityExport, CalculationResult } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import Layout from '@/components/layout/Layout';
@@ -41,10 +42,7 @@ const TankVisualization = dynamic(() => import('@/components/calculator/TankVisu
 
 // Pump 3D 시각화 컴포넌트 (동적 로딩)
 // SSR 비활성화로 클라이언트에서만 렌더링
-// PumpVisualization is imported for future use; suppress warning
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const PumpVisualization = dynamic(() => import('@/components/calculator/PumpVisualization'), {
-
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-full">
@@ -658,6 +656,11 @@ export default function CalculatorPage() {
                         />
                       </div>
                     )}
+                    {(selectedCalculator === 'npsh' || selectedCalculator === 'affinity') && (
+                       <div className="h-96">
+                         <PumpVisualization />
+                       </div>
+                     )}
                      {!['tank', 'npsh', 'affinity'].includes(selectedCalculator) && (
                        <div className="h-96 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
                          <div className="text-center">

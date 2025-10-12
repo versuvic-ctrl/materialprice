@@ -137,6 +137,39 @@
   }
 }
 
+/* General Table Styles - 모든 테이블 요소에 적용 */
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+table, th, td {
+  border: 1px solid #e5e7eb;
+}
+
+th {
+  background-color: #f9fafb;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+
+td {
+  padding: 8px 12px;
+}
+
+/* Dark mode table styles */
+.dark table, .dark th, .dark td {
+  border-color: #374151;
+}
+
+.dark th {
+  background-color: #111827;
+}
+
+.dark td {
+  background-color: #1f2937;
+}
+
 /* Tiptap Editor Styles */
 .ProseMirror {
   outline: none;
