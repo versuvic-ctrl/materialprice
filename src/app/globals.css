@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "jodit/es2021/jodit.min.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -124,11 +125,9 @@
   
   body {
     @apply bg-background text-foreground;
-    height: 100vh;
-    width: 100vw;
+    height: 100%;
     margin: 0;
     padding: 0;
-    overflow-x: hidden;
   }
   
   #__next {
@@ -137,6 +136,7 @@
   }
 }
 
+<<<<<<< HEAD
 /* General Table Styles - 모든 테이블 요소에 적용 */
 table {
   border-collapse: collapse;
@@ -174,186 +174,9 @@ td {
 .ProseMirror {
   outline: none;
 }
+=======
+>>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
 
-.ProseMirror table {
-  border-collapse: collapse;
-  table-layout: fixed;
-  width: 100%;
-  margin: 0;
-  overflow: hidden;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-}
-
-.ProseMirror table td,
-.ProseMirror table th {
-  min-width: 1em;
-  border: 1px solid #e5e7eb;
-  padding: 8px 12px;
-  vertical-align: top;
-  box-sizing: border-box;
-  position: relative;
-  background-color: white;
-}
-
-.ProseMirror table th {
-  font-weight: bold;
-  text-align: left;
-  background-color: #f9fafb;
-}
-
-.ProseMirror table .selectedCell:after {
-  z-index: 2;
-  position: absolute;
-  content: "";
-  left: 0; right: 0; top: 0; bottom: 0;
-  background: rgba(200, 200, 255, 0.4);
-  pointer-events: none;
-}
-
-.ProseMirror table .column-resize-handle {
-  position: absolute;
-  right: -2px;
-  top: 0;
-  bottom: -2px;
-  width: 4px;
-  background-color: #adf;
-  pointer-events: none;
-}
-
-.ProseMirror table p {
-  margin: 0;
-}
-
-.ProseMirror .tableWrapper {
-  padding: 1rem 0;
-  overflow-x: auto;
-}
-
-.ProseMirror .resize-cursor {
-  cursor: ew-resize;
-  cursor: col-resize;
-}
-
-/* Code block styles */
-.ProseMirror pre {
-  background: #f4f4f5;
-  color: #374151;
-  font-family: 'JetBrainsMono', 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  border: 1px solid #e5e7eb;
-  overflow-x: auto;
-}
-
-.ProseMirror pre code {
-  color: inherit;
-  padding: 0;
-  background: none;
-  font-size: 0.8rem;
-}
-
-/* Inline code styles */
-.ProseMirror code {
-  background-color: #f3f4f6;
-  color: #374151;
-  padding: 0.125rem 0.25rem;
-  border-radius: 0.25rem;
-  font-size: 0.875em;
-  font-family: 'JetBrainsMono', 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
-}
-
-/* Blockquote styles */
-.ProseMirror blockquote {
-  padding-left: 1rem;
-  border-left: 4px solid #e5e7eb;
-  margin: 1.5rem 0;
-  font-style: italic;
-  color: #6b7280;
-}
-
-/* Horizontal rule styles */
-.ProseMirror hr {
-  border: none;
-  border-top: 2px solid #e5e7eb;
-  margin: 2rem 0;
-}
-
-/* List styles */
-.ProseMirror ul,
-.ProseMirror ol {
-  padding-left: 1.5rem;
-}
-
-.ProseMirror li {
-  margin: 0.25rem 0;
-}
-
-/* Heading styles */
-.ProseMirror h1 {
-  font-size: 2rem;
-  font-weight: bold;
-  margin: 1.5rem 0 1rem 0;
-  line-height: 1.2;
-}
-
-.ProseMirror h2 {
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin: 1.25rem 0 0.75rem 0;
-  line-height: 1.3;
-}
-
-.ProseMirror h3 {
-  font-size: 1.25rem;
-  font-weight: bold;
-  margin: 1rem 0 0.5rem 0;
-  line-height: 1.4;
-}
-
-/* Placeholder styles */
-.ProseMirror p.is-editor-empty:first-child::before {
-  content: attr(data-placeholder);
-  float: left;
-  color: #9ca3af;
-  pointer-events: none;
-  height: 0;
-}
-
-/* Dark mode styles */
-.dark .ProseMirror table td,
-.dark .ProseMirror table th {
-  border-color: #374151;
-  background-color: #1f2937;
-}
-
-.dark .ProseMirror table th {
-  background-color: #111827;
-}
-
-.dark .ProseMirror table {
-  border-color: #374151;
-}
-
-.dark .ProseMirror pre {
-  background: #1f2937;
-  color: #e5e7eb;
-  border-color: #374151;
-}
-
-.dark .ProseMirror code {
-  background-color: #374151;
-  color: #e5e7eb;
-}
-
-.dark .ProseMirror blockquote {
-  border-left-color: #374151;
-  color: #9ca3af;
-}
-
-.dark .ProseMirror hr {
-  border-top-color: #374151;
-}
 
 /* Custom dropdown styles */
 select {
@@ -396,4 +219,54 @@ select option:checked {
 .dark select option:checked {
   background-color: #3b82f6;
   color: white;
+}
+
+/* Table styles for content rendered with dangerouslySetInnerHTML */
+.prose table,
+[data-content] table,
+div[dangerouslySetInnerHTML] table {
+  border-collapse: collapse !important;
+  border: 1px solid #d1d5db !important;
+  width: 100% !important;
+  margin: 1rem 0 !important;
+}
+
+.prose th,
+.prose td,
+[data-content] th,
+[data-content] td,
+div[dangerouslySetInnerHTML] th,
+div[dangerouslySetInnerHTML] td {
+  border: 1px solid #d1d5db !important;
+  padding: 8px 12px !important;
+  text-align: left !important;
+}
+
+.prose th,
+[data-content] th,
+div[dangerouslySetInnerHTML] th {
+  background-color: #f9fafb !important;
+  font-weight: 600 !important;
+}
+
+/* Dark mode table styles */
+.dark .prose table,
+.dark [data-content] table,
+.dark div[dangerouslySetInnerHTML] table {
+  border-color: #374151 !important;
+}
+
+.dark .prose th,
+.dark .prose td,
+.dark [data-content] th,
+.dark [data-content] td,
+.dark div[dangerouslySetInnerHTML] th,
+.dark div[dangerouslySetInnerHTML] td {
+  border-color: #374151 !important;
+}
+
+.dark .prose th,
+.dark [data-content] th,
+.dark div[dangerouslySetInnerHTML] th {
+  background-color: #1f2937 !important;
 }

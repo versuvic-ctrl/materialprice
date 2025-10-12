@@ -82,7 +82,7 @@ export default function Layout({ children, title }: LayoutProps) {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex bg-gray-50 h-screen">
       {/* Mobile sidebar */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
@@ -276,7 +276,7 @@ export default function Layout({ children, title }: LayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 px-4 py-3 sm:px-6 lg:px-8">
+        <main className="flex-1 px-3 py-3 sm:px-5 lg:px-7 overflow-y-auto">
           {children}
         </main>
       </div>

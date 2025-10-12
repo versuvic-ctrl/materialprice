@@ -1,7 +1,14 @@
+<<<<<<< HEAD
 "use client";
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as ReactDOM from 'react-dom';
+=======
+'use client';
+
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import ReactDOM from 'react-dom';
+>>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
 
 // React 19에서 findDOMNode 오류 해결을 위한 패치
 if (typeof window !== 'undefined' && !(ReactDOM as any).findDOMNode) {
@@ -52,7 +59,10 @@ interface Article {
   images?: string[];
   tags?: string; // 태그 필드 추가
   preview_image?: string; // 미리보기 이미지 URL
+<<<<<<< HEAD
   preview_table?: string; // 미리보기 테이블 HTML
+=======
+>>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
 }
 
 // 카테고리 목록
@@ -154,7 +164,11 @@ export default function TechnicalDataPage() {
     const initJodit = async () => {
       try {
         // CDN에서 Jodit 로드 (example 폴더 방식)
+<<<<<<< HEAD
         if (typeof window !== 'undefined' && !window.Jodit) {
+=======
+        if (!window.Jodit) {
+>>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
           // CSS 로드
           const cssLink = document.createElement('link');
           cssLink.rel = 'stylesheet';
@@ -170,7 +184,11 @@ export default function TechnicalDataPage() {
             }
           };
           document.head.appendChild(script);
+<<<<<<< HEAD
         } else if (typeof window !== 'undefined' && window.Jodit) {
+=======
+        } else {
+>>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
           initEditor();
         }
       } catch (error) {
@@ -349,7 +367,11 @@ export default function TechnicalDataPage() {
             'paste', 'paste-from-word', 'paste-storage', 'placeholder', 'powered-by-jodit',
             'preview', 'print', 'redo-undo', 'resize-cells', 'resize-handler',
             'resizer', 'search', 'select', 'select-cells', 'size', 'source',
+<<<<<<< HEAD
             'spellcheck', 'stat', 'sticky', 'symbols', 'tab',
+=======
+            'spellcheck', 'stat', 'sticky', 'symbols', 'ai-assistant', 'tab',
+>>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
             'table', 'table-keyboard-navigation', 'video', 'wrap-nodes', 'dtd', 'xpath'
           ],
           
@@ -1006,6 +1028,7 @@ export default function TechnicalDataPage() {
                       // 목록에서는 간단한 미리보기 텍스트 표시
                       const preview = `${article.category} 관련 기술자료`;
 
+<<<<<<< HEAD
                       // article.content에서 테이블 미리보기 추출
                       let previewTable: string | undefined;
                       if (!previewImage && article.content) {
@@ -1029,6 +1052,16 @@ export default function TechnicalDataPage() {
                         >
                           <div className="w-full h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
                             {previewImage ? (
+=======
+                      return (
+                        <div
+                          key={article.id}
+                          className="group bg-white border border-gray-200 rounded-lg h-full hover:shadow-lg transition-all duration-200 cursor-pointer"
+                          onClick={() => handleViewArticle(article)}
+                        >
+                          {previewImage ? (
+                            <div className="aspect-video bg-gray-100">
+>>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
                               <img
                                 src={previewImage}
                                 alt="미리보기 이미지"
@@ -1045,6 +1078,7 @@ export default function TechnicalDataPage() {
                                   `;
                                 }}
                               />
+<<<<<<< HEAD
                             ) : previewTable ? (
                               <div
                                 className="w-full h-full p-2"
@@ -1078,6 +1112,37 @@ export default function TechnicalDataPage() {
                               </span>
                             </div>
                           </div>
+=======
+                            </div>
+                          ) : (
+                            <div className="aspect-video bg-gray-100 flex items-center justify-center">
+                              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                              </svg>
+                            </div>
+                          )}
+                          <div className="p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {article.category}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {new Date(article.created_at).toLocaleDateString('ko-KR')}
+                              </span>
+                            </div>
+                            <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-200 line-clamp-2">
+                              {article.title}
+                            </h3>
+                            <p className="text-sm text-gray-600 mb-3 line-clamp-3">
+                              {preview}
+                            </p>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-blue-600 group-hover:text-blue-700 font-medium">
+                                자세히 보기 →
+                              </span>
+                            </div>
+                          </div>
+>>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
                         </div>
                       );
                     })}

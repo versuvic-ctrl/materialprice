@@ -104,19 +104,19 @@ const CalculatorPreview: React.FC<CalculatorPreviewProps> = ({ title = '엔지�
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-2">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
             <CalculatorIcon className="w-5 h-5 text-white" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">{title}</h3>
         </div>
         
         <Link 
           href="/calculator"
-          className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1"
+          className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1 self-start sm:self-auto"
         >
           <span>전체보기</span>
           <ArrowRightIcon className="w-4 h-4" />
@@ -124,9 +124,9 @@ const CalculatorPreview: React.FC<CalculatorPreviewProps> = ({ title = '엔지�
       </div>
 
       {/* Quick Calculator */}
-      <div className="bg-gray-50 rounded-lg p-4 mb-6">
+      <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
         <h4 className="text-sm font-medium text-gray-900 mb-3">빠른 계산 - Tank 부피</h4>
-        <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
               직경 (m)
@@ -168,7 +168,7 @@ const CalculatorPreview: React.FC<CalculatorPreviewProps> = ({ title = '엔지�
       </div>
 
       {/* Calculator List */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
         {calculators.map((calc) => {
           const Icon = calc.icon;
           
@@ -176,23 +176,23 @@ const CalculatorPreview: React.FC<CalculatorPreviewProps> = ({ title = '엔지�
             <Link
               key={calc.id}
               href={calc.href}
-              className="group p-3 rounded-lg border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all duration-200"
+              className="group p-2 sm:p-3 rounded-lg border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all duration-200"
             >
               <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 bg-gray-100 group-hover:bg-blue-100 rounded-lg flex items-center justify-center transition-colors">
-                  <Icon className="w-4 h-4 text-gray-600 group-hover:text-blue-600" />
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-100 group-hover:bg-blue-100 rounded-lg flex items-center justify-center transition-colors">
+                  <Icon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600 group-hover:text-blue-600" />
                 </div>
                 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2 mb-1">
-                    <h4 className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                    <h4 className="text-xs sm:text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors truncate">
                       {calc.name}
                     </h4>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(calc.category)}`}>
                       {getCategoryLabel(calc.category)}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-600 line-clamp-2">
+                  <p className="text-xs text-gray-600 line-clamp-2 truncate">
                     {calc.description}
                   </p>
                 </div>

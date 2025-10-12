@@ -9,7 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, AlertTriangle, CheckCircle, XCircle, Info, ChevronDown, Droplet } from 'lucide-react';
 import alleimaCorrosionData from '@/data/alleima_corrosion_data_full.json';
+<<<<<<< HEAD
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+=======
+>>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
 
 console.log('Full alleimaCorrosionData:', alleimaCorrosionData);
 console.log('Length of corrosion_data array:', (alleimaCorrosionData as AlleimaCorrosionData).corrosion_data.length);
@@ -1114,6 +1117,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                         className={`${dynamicWidths.material} px-4 py-1 text-sm font-medium text-gray-900 text-center align-middle`}
                       >
                         {result.material === "Alleima® 3R12" ? (
+<<<<<<< HEAD
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span>Alleima® 3R12 (&apos;304L&apos;) <span className="cursor-pointer text-gray-400 text-sm">ℹ️</span></span>
@@ -1153,6 +1157,23 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                               UNS : S31600/S31603
                             </TooltipContent>
                           </Tooltip>
+=======
+                          <span title="ASTM : TP304/TP304L, UNS : S30400/S30403">
+                            Alleima® 3R12 (&apos;304L&apos;) <span className="cursor-pointer text-gray-400 text-sm">ℹ️</span>
+                          </span>
+                        ) : result.material === "Alleima® 2RK65 ('904L')" ? (
+                          <span title="ASTM : 904L, UNS : N08904">
+                            Alleima® 2RK65 (&apos;904L&apos;) <span className="cursor-pointer text-gray-400 text-sm">ℹ️</span>
+                          </span>
+                        ) : result.material === "Alleima® 3R64 ('317L')" ? (
+                          <span title="ASTM : TP317L, UNS : S31703">
+                            Alleima® 3R64 (&apos;317L&apos;) <span className="cursor-pointer text-gray-400 text-sm">ℹ️</span>
+                          </span>
+                        ) : result.material === "Alleima® 3R60" ? (
+                          <span title="ASTM : TP316/TP316L, UNS : S31600/S31603">
+                            Alleima® 3R60 (&apos;316L&apos;) <span className="cursor-pointer text-gray-400 text-sm">ℹ️</span>
+                          </span>
+>>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
                         ) : result.material}
                       </td>
                       {result.isMultipleChemicals ? (
