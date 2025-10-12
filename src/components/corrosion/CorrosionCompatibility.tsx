@@ -9,10 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, AlertTriangle, CheckCircle, XCircle, Info, ChevronDown, Droplet } from 'lucide-react';
 import alleimaCorrosionData from '@/data/alleima_corrosion_data_full.json';
-<<<<<<< HEAD
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-=======
->>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
 
 console.log('Full alleimaCorrosionData:', alleimaCorrosionData);
 console.log('Length of corrosion_data array:', (alleimaCorrosionData as AlleimaCorrosionData).corrosion_data.length);
