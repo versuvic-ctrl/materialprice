@@ -2,15 +2,6 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as ReactDOM from 'react-dom';
-
-// React 19에서 findDOMNode 오류 해결을 위한 패치
-if (typeof window !== 'undefined' && !(ReactDOM as any).findDOMNode) {
-  (ReactDOM as any).findDOMNode = (node: any) => {
-    if (node?.nodeType === 1) return node;
-    if (node?.current?.nodeType === 1) return node.current;
-    return null;
-  };
-}
 import { createClient } from '@/utils/supabase/client';
 import Layout from '@/components/layout/Layout';
 import { 
@@ -158,12 +149,12 @@ export default function TechnicalDataPage() {
           // CSS 로드
           const cssLink = document.createElement('link');
           cssLink.rel = 'stylesheet';
-          cssLink.href = 'https://unpkg.com/jodit@4.6.13/es2021/jodit.min.css';
+          cssLink.href = 'https://unpkg.com/jodit@4.11.2/es2021/jodit.min.css';
           document.head.appendChild(cssLink);
 
           // JS 로드
           const script = document.createElement('script');
-          script.src = 'https://unpkg.com/jodit@4.6.13/es2021/jodit.min.js';
+          script.src = 'https://unpkg.com/jodit@4.11.2/es2021/jodit.min.js';
           script.onload = () => {
             if (mounted) {
               initEditor();
