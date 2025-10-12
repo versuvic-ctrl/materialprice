@@ -1,14 +1,7 @@
-<<<<<<< HEAD
 "use client";
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as ReactDOM from 'react-dom';
-=======
-'use client';
-
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import ReactDOM from 'react-dom';
->>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
 
 // React 19에서 findDOMNode 오류 해결을 위한 패치
 if (typeof window !== 'undefined' && !(ReactDOM as any).findDOMNode) {
@@ -59,10 +52,7 @@ interface Article {
   images?: string[];
   tags?: string; // 태그 필드 추가
   preview_image?: string; // 미리보기 이미지 URL
-<<<<<<< HEAD
   preview_table?: string; // 미리보기 테이블 HTML
-=======
->>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
 }
 
 // 카테고리 목록
@@ -164,11 +154,7 @@ export default function TechnicalDataPage() {
     const initJodit = async () => {
       try {
         // CDN에서 Jodit 로드 (example 폴더 방식)
-<<<<<<< HEAD
         if (typeof window !== 'undefined' && !window.Jodit) {
-=======
-        if (!window.Jodit) {
->>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
           // CSS 로드
           const cssLink = document.createElement('link');
           cssLink.rel = 'stylesheet';
@@ -184,11 +170,7 @@ export default function TechnicalDataPage() {
             }
           };
           document.head.appendChild(script);
-<<<<<<< HEAD
         } else if (typeof window !== 'undefined' && window.Jodit) {
-=======
-        } else {
->>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
           initEditor();
         }
       } catch (error) {
@@ -367,11 +349,7 @@ export default function TechnicalDataPage() {
             'paste', 'paste-from-word', 'paste-storage', 'placeholder', 'powered-by-jodit',
             'preview', 'print', 'redo-undo', 'resize-cells', 'resize-handler',
             'resizer', 'search', 'select', 'select-cells', 'size', 'source',
-<<<<<<< HEAD
-            'spellcheck', 'stat', 'sticky', 'symbols', 'tab',
-=======
             'spellcheck', 'stat', 'sticky', 'symbols', 'ai-assistant', 'tab',
->>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
             'table', 'table-keyboard-navigation', 'video', 'wrap-nodes', 'dtd', 'xpath'
           ],
           
@@ -1035,7 +1013,6 @@ export default function TechnicalDataPage() {
                         try {
                           const parser = new window.DOMParser();
                           const doc = parser.parseFromString(article.content, 'text/html');
-                          const table = doc.querySelector('table');
                           if (table) {
                             previewTable = table.outerHTML;
                           }
@@ -1059,16 +1036,6 @@ export default function TechnicalDataPage() {
                           className="group bg-white border border-gray-200 rounded-lg h-full hover:shadow-lg transition-all duration-200 cursor-pointer"
                           onClick={() => handleViewArticle(article)}
                         >
-                          {previewImage ? (
-                            <div className="aspect-video bg-gray-100">
->>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
-                              <img
-                                src={previewImage}
-                                alt="미리보기 이미지"
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                                onError={(e) => {
-                                  // 이미지 로딩 실패 시 기본 이미지 표시
-                                  e.currentTarget.style.display = 'none';
                                   e.currentTarget.parentElement!.innerHTML = `
                                     <div class="w-full h-full flex items-center justify-center bg-gray-100">
                                       <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

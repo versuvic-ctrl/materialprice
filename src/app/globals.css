@@ -136,7 +136,6 @@
   }
 }
 
-<<<<<<< HEAD
 /* General Table Styles - 모든 테이블 요소에 적용 */
 table {
   border-collapse: collapse;
@@ -174,8 +173,6 @@ td {
 .ProseMirror {
   outline: none;
 }
-=======
->>>>>>> b55a31651d19de946cce5728304ae5cbda08f811
 
 
 /* Custom dropdown styles */
