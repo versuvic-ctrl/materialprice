@@ -318,21 +318,21 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
 
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
       {/* 자재 가격 변동 SUMMARY */}
-      <Card className="md:col-span-2 h-[220px] bg-white shadow-sm border border-gray-100">
+      <Card className="lg:col-span-2 min-h-[220px] bg-white shadow-sm border border-gray-100">
         <div className="h-full flex flex-col">
           {/* 헤더 */}
-            <div className="px-4 py-2 border-b border-gray-100">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-bold text-gray-900">자재 가격 변동 SUMMARY</h3>
+            <div className="px-3 sm:px-4 py-2 border-b border-gray-100">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
+                <h3 className="text-sm sm:text-base font-bold text-gray-900">자재 가격 변동 SUMMARY</h3>
                 <span className="text-xs text-gray-500">(전월비)</span>
               </div>
             </div>
           
           {/* 내용 */}
-          <div className="flex-1 px-4 py-4 overflow-hidden">
-            <div className="h-full space-y-0.5">
+          <div className="flex-1 px-3 sm:px-4 py-3 sm:py-4 overflow-hidden">
+            <div className="h-full space-y-1">
           {summaryLoading ? (
             <div>
               <Skeleton className="h-6 w-full" />
@@ -434,12 +434,12 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
                 };
 
                 return (
-                  <div key={index} className="flex items-center py-0.5 leading-[0.8]">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-bold text-gray-900 min-w-[90px]">
+                  <div key={index} className="flex flex-col sm:flex-row sm:items-center py-1 leading-relaxed">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 w-full">
+                      <span className="text-xs sm:text-sm font-bold text-gray-900 sm:min-w-[90px] mb-1 sm:mb-0">
                       {getCategoryEmoji(item.category)} {item.category}:
                     </span>
-                      <span className="text-sm">
+                      <span className="text-xs sm:text-sm break-words">
                         {renderSummary(item.summary)}
                       </span>
                     </div>

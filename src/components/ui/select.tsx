@@ -24,6 +24,8 @@ function SelectValue({
   return <SelectPrimitive.Value data-slot="select-value" {...props} />
 }
 
+import { useId } from 'react';
+
 function SelectTrigger({
   className,
   size = "default",
@@ -32,8 +34,10 @@ function SelectTrigger({
 }: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
   size?: "sm" | "default"
 }) {
+  const triggerId = useId();
   return (
     <SelectPrimitive.Trigger
+      id={triggerId}
       data-slot="select-trigger"
       data-size={size}
       className={cn(

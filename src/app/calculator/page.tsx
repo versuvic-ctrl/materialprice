@@ -417,7 +417,7 @@ export default function CalculatorPage() {
 
   return (
     <Layout title="엔지니어링 계산기">
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="px-0 sm:px-0 lg:px-0 p-6">
         {/* 상단 계산기 탭 버튼 (2줄 x 5열) */}
         <div className="mb-4">
           <div className="grid grid-cols-5 gap-2">
@@ -427,7 +427,7 @@ export default function CalculatorPage() {
                className={`p-2 rounded-lg text-left transition-all duration-200 ${
                  selectedCalculator === 'tank'
                    ? 'bg-blue-50 dark:bg-blue-900 dark:bg-opacity-20 border-2 border-blue-200 dark:border-blue-700'
-                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                   : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
                }`}
              >
                <div className="flex items-center space-x-2">
@@ -443,7 +443,7 @@ export default function CalculatorPage() {
                className={`p-2 rounded-lg text-left transition-all duration-200 ${
                  selectedCalculator === 'npsh'
                    ? 'bg-green-50 dark:bg-green-900 dark:bg-opacity-20 border-2 border-green-200 dark:border-green-700'
-                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                   : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
                }`}
              >
                <div className="flex items-center space-x-2">
@@ -459,7 +459,7 @@ export default function CalculatorPage() {
                className={`p-2 rounded-lg text-left transition-all duration-200 ${
                  selectedCalculator === 'affinity'
                    ? 'bg-purple-50 dark:bg-purple-900 dark:bg-opacity-20 border-2 border-purple-200 dark:border-purple-700'
-                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                   : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
                }`}
              >
                <div className="flex items-center space-x-2">
@@ -475,7 +475,7 @@ export default function CalculatorPage() {
                className={`p-2 rounded-lg text-left transition-all duration-200 ${
                  selectedCalculator === 'pressure'
                    ? 'bg-red-50 dark:bg-red-900 dark:bg-opacity-20 border-2 border-red-200 dark:border-red-700'
-                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                   : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
                }`}
              >
                <div className="flex items-center space-x-2">
@@ -491,7 +491,7 @@ export default function CalculatorPage() {
                className={`p-2 rounded-lg text-left transition-all duration-200 ${
                  selectedCalculator === 'flow'
                    ? 'bg-yellow-50 dark:bg-yellow-900 dark:bg-opacity-20 border-2 border-yellow-200 dark:border-yellow-700'
-                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                   : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
                }`}
              >
                <div className="flex items-center space-x-2">
@@ -508,7 +508,7 @@ export default function CalculatorPage() {
                className={`p-2 rounded-lg text-left transition-all duration-200 ${
                  selectedCalculator === 'heat'
                    ? 'bg-orange-50 dark:bg-orange-900 dark:bg-opacity-20 border-2 border-orange-200 dark:border-orange-700'
-                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                   : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
                }`}
              >
                <div className="flex items-center space-x-2">
@@ -524,7 +524,7 @@ export default function CalculatorPage() {
                className={`p-2 rounded-lg text-left transition-all duration-200 ${
                  selectedCalculator === 'pipe'
                    ? 'bg-indigo-50 dark:bg-indigo-900 dark:bg-opacity-20 border-2 border-indigo-200 dark:border-indigo-700'
-                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                   : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
                }`}
              >
                <div className="flex items-center space-x-2">
@@ -540,7 +540,7 @@ export default function CalculatorPage() {
                className={`p-2 rounded-lg text-left transition-all duration-200 ${
                  selectedCalculator === 'valve'
                    ? 'bg-teal-50 dark:bg-teal-900 dark:bg-opacity-20 border-2 border-teal-200 dark:border-teal-700'
-                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                   : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
                }`}
              >
                <div className="flex items-center space-x-2">
@@ -556,7 +556,7 @@ export default function CalculatorPage() {
                className={`p-2 rounded-lg text-left transition-all duration-200 ${
                  selectedCalculator === 'stress'
                    ? 'bg-pink-50 dark:bg-pink-900 dark:bg-opacity-20 border-2 border-pink-200 dark:border-pink-700'
-                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                   : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
                }`}
              >
                <div className="flex items-center space-x-2">
@@ -572,7 +572,7 @@ export default function CalculatorPage() {
                className={`p-2 rounded-lg text-left transition-all duration-200 ${
                  selectedCalculator === 'vibration'
                    ? 'bg-cyan-50 dark:bg-cyan-900 dark:bg-opacity-20 border-2 border-cyan-200 dark:border-cyan-700'
-                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                   : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
                }`}
              >
                <div className="flex items-center space-x-2">
