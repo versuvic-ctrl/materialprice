@@ -168,7 +168,7 @@ const CalculatorPreview: React.FC<CalculatorPreviewProps> = ({ title = '엔지�
       </div>
 
       {/* Calculator List */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {calculators.map((calc) => {
           const Icon = calc.icon;
           
@@ -176,28 +176,26 @@ const CalculatorPreview: React.FC<CalculatorPreviewProps> = ({ title = '엔지�
             <Link
               key={calc.id}
               href={calc.href}
-              className="group p-2 sm:p-3 rounded-lg border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all duration-200"
+              className="group p-3 sm:p-4 rounded-lg border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all duration-200 flex flex-col min-h-[140px] max-w-full overflow-hidden"
             >
-              <div className="flex items-start space-x-3">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-100 group-hover:bg-blue-100 rounded-lg flex items-center justify-center transition-colors">
-                  <Icon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600 group-hover:text-blue-600" />
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <h4 className="text-xs sm:text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors truncate">
-                      {calc.name}
-                    </h4>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(calc.category)}`}>
-                      {getCategoryLabel(calc.category)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-600 line-clamp-2 truncate">
+              {/* 아이콘 */}
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 group-hover:bg-blue-100 rounded-lg flex items-center justify-center transition-colors mb-2 sm:mb-3">
+                <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 group-hover:text-blue-600" />
+              </div>
+              
+              {/* 텍스트 영역 */}
+              <div className="w-full flex-1 flex flex-col justify-between min-h-0 max-w-full text-left">
+                <div className="flex-1 w-full">
+                  <h4 className="w-full text-xs sm:text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors mb-1 line-clamp-2">
+                    {calc.name}
+                  </h4>
+                  <p className="w-full text-xs text-gray-600 mb-2 line-clamp-2">
                     {calc.description}
                   </p>
                 </div>
-                
-                <ArrowRightIcon className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(calc.category)} flex-shrink-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap`}>
+                  {getCategoryLabel(calc.category)}
+                </span>
               </div>
             </Link>
           );
@@ -207,7 +205,7 @@ const CalculatorPreview: React.FC<CalculatorPreviewProps> = ({ title = '엔지�
       {/* Popular Formulas */}
       <div className="mt-6 pt-4 border-t border-gray-200">
         <h4 className="text-sm font-medium text-gray-900 mb-3">자주 사용하는 공식</h4>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {[
             'Tank Volume: π × r² × h',
             'Steel Weight: Volume × Density',
@@ -216,9 +214,9 @@ const CalculatorPreview: React.FC<CalculatorPreviewProps> = ({ title = '엔지�
           ].map((formula, index) => (
             <div
               key={index}
-              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-mono bg-gray-100 text-gray-700"
+              className="flex items-center px-3 py-2 rounded-lg text-xs sm:text-sm font-mono bg-gray-100 text-gray-700 overflow-hidden"
             >
-              {formula}
+              <span className="truncate">{formula}</span>
             </div>
           ))}
         </div>
