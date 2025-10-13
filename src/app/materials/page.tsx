@@ -42,8 +42,6 @@ import MaterialsPriceTable from '@/components/materials/MaterialsPriceTable'; //
 // import MakeItFromComparison from '@/components/materials/MakeItFromComparison';
 // import type { MakeItFromDatabase } from '@/types/makeItFrom';
 
-const supabase = createClient(); // [수정]
-
 // 한글 자음 순서로 배열을 정렬하는 유틸리티 함수
 // 카테고리 목록을 사용자가 찾기 쉽도록 가나다 순으로 정렬
 const sortKorean = (arr: string[]) => {
@@ -70,6 +68,7 @@ const useCategories = (
   const queryResult = useQuery<string[], Error>({
     queryKey: ['categories', level, filters],
     queryFn: async () => {
+      const supabase = createClient();
       
       // 타임아웃과 함께 Supabase RPC 함수 호출
       const timeoutPromise = new Promise((_, reject) => {
@@ -191,9 +190,9 @@ const MaterialsPage: React.FC = () => {
               <Card className="border border-gray-200">
                 <CardContent className="p-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex gap-2">
                       <Select value={selectedLevel1} onValueChange={(v) => setCategory(1, v)}>
-                        <SelectTrigger className="h-7 min-w-[90px] text-custom-xs">
+                        <SelectTrigger className="h-7 sm:w-auto text-custom-xs">
                           <SelectValue placeholder="대분류" />
                         </SelectTrigger>
                         <SelectContent>
@@ -203,7 +202,7 @@ const MaterialsPage: React.FC = () => {
                       </Select>
 
                       <Select value={selectedLevel2} onValueChange={(v) => setCategory(2, v)} disabled={!selectedLevel1 || level2Categories.isLoading}>
-                        <SelectTrigger className="h-7 min-w-[90px] text-custom-xs">
+                        <SelectTrigger className="h-7 sm:w-auto text-custom-xs">
                           <SelectValue placeholder="중분류" />
                         </SelectTrigger>
                         <SelectContent>
@@ -212,8 +211,8 @@ const MaterialsPage: React.FC = () => {
                         </SelectContent>
                       </Select>
 
-                      <Select value={selectedLevel3} onValueChange={(v) => setCategory(3, v)} disabled={!selectedLevel2 || level3Categories.isLoading}>
-                        <SelectTrigger className="h-7 min-w-[90px] text-custom-xs">
+                      <Select value={selectedLevel3} onValueChange={(v) => setCategory(3, v)} disabled={!selectedLevel2}>
+                        <SelectTrigger className="h-7 sm:w-auto text-custom-xs">
                           <SelectValue placeholder="소분류" />
                         </SelectTrigger>
                         <SelectContent>
@@ -223,7 +222,7 @@ const MaterialsPage: React.FC = () => {
                       </Select>
 
                       <Select value={selectedLevel4} onValueChange={(v) => setCategory(4, v)} disabled={!selectedLevel3 || level4Categories.isLoading}>
-                        <SelectTrigger className="h-7 min-w-[90px] text-custom-xs">
+                        <SelectTrigger className="h-7 sm:w-auto text-custom-xs">
                           <SelectValue placeholder="규격" />
                         </SelectTrigger>
                         <SelectContent>
@@ -235,7 +234,7 @@ const MaterialsPage: React.FC = () => {
                       {/* 5번째 상세규격 드롭다운 - 조건부 렌더링 */}
                       {selectedLevel4 && level5Categories.data && Array.isArray(level5Categories.data) && level5Categories.data.length > 0 && (
                         <Select value={selectedLevel5} onValueChange={(v) => setCategory(5, v)} disabled={!selectedLevel4 || level5Categories.isLoading}>
-                          <SelectTrigger className="h-8 min-w-[100px] text-sm">
+                        <SelectTrigger className="h-7 sm:w-auto text-custom-xs">
                             <SelectValue placeholder="상세규격" />
                           </SelectTrigger>
                           <SelectContent>
