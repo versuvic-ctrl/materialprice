@@ -1,20 +1,8 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/utils/supabase/server';
 import { load } from 'cheerio';
 // import * as fs from 'fs';
 // import * as path from 'path';
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Supabase URL and Anon Key are required!');
-}
-
-const supabase = createClient(
-  supabaseUrl,
-  supabaseAnonKey
-);
 
 interface MarketIndicator {
   name: string;
@@ -29,6 +17,7 @@ interface MarketIndicator {
 // const logFilePath = path.join(logDirectory, 'market_indicators_scrape.log');
 
 async function logToSupabase(level: 'info' | 'error', message: string) {
+  const supabase = await createClient();
   const { error } = await supabase.from('scrape_logs').insert({
     level,
     message,
@@ -97,6 +86,8 @@ async function scrapeMarketIndicators(html: string): Promise<MarketIndicator[]> 
 
 async function updateMarketIndicators(indicators: MarketIndicator[]) {
   try {
+    const supabase = await createClient();
+    
     // 기존 데이터 삭제
     await supabase.from('market_indicators').delete().neq('id', 0);
 
@@ -118,6 +109,8 @@ async function updateMarketIndicators(indicators: MarketIndicator[]) {
 
 export async function GET() {
   try {
+    const supabase = await createClient();
+    
     // 현재 저장된 시장지표 데이터 조회
     const { data, error } = await supabase
       .from('market_indicators')
