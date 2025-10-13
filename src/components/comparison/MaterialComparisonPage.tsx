@@ -118,7 +118,7 @@ const elementKoreanNames: { [key: string]: string } = {
   'Nb': '니오븀',
   'Al': '알루미늄',
   'Cu': '구리',
-  'Co': '코발트',
+  'Co': '코��val트',
   'W': '텅스텐',
   'P': '인',
   'S': '황',
@@ -342,32 +342,14 @@ interface CategoryStructure {
   };
 }
 
-export default function MaterialComparisonPage() {
-  const [allData, setAllData] = useState<CategoryStructure>({});
+export default function MaterialComparisonPage({ initialData }: { initialData: CategoryStructure }) {
+  const [allData, setAllData] = useState<CategoryStructure>(initialData);
   const [selectedMajor, setSelectedMajor] = useState<string>('');
   const [selectedMiddle, setSelectedMiddle] = useState<string>('');
   const [selectedSub, setSelectedSub] = useState<string>('');
   const [selectedDetail, setSelectedDetail] = useState<string>('');
   const [selectedMaterials, setSelectedMaterials] = useState<SelectedMaterial[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-
-  // 데이터 로드
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch('/api/data');
-        const data = await response.json();
-        setAllData(data);
-      } catch (error) {
-        console.error('데이터 로드 실패:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
 
   // 카테고리별 옵션 추출
   const majorCategories = Object.keys(allData);
@@ -527,7 +509,7 @@ export default function MaterialComparisonPage() {
     <>
 
       <Tabs defaultValue="properties" className="w-full">
-      <TabsList className="grid w-full grid-cols-2">
+      <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2">
         <TabsTrigger value="properties">물성정보</TabsTrigger>
         <TabsTrigger value="corrosion">부식성</TabsTrigger>
       </TabsList>
@@ -539,7 +521,7 @@ export default function MaterialComparisonPage() {
         <CardHeader className="p-6 pb-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-1 h-5 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
-            <h2 className="text-2xl font-semibold leading-none tracking-tight">Material Properties</h2>
+            <h2 className="text-xl sm:text-2xl font-semibold leading-none tracking-tight">Material Properties</h2>
           </div>
           <div className="text-xs text-gray-500 mt-2 ml-4">
             - 물성 데이터는 공개된 표준 규격 및 문헌 자료를 기반으로 합니다. (출처 : MakeItFrom)
@@ -548,9 +530,9 @@ export default function MaterialComparisonPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-end gap-3 mt-2 mb-2">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3 mt-2 mb-2">
             {/* 대분류 선택 */}
-            <div className="w-[200px]">
+            <div className="w-full sm:w-[200px]">
               <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
                 대분류를 선택하세요
               </label>
@@ -575,7 +557,7 @@ export default function MaterialComparisonPage() {
             </div>
 
             {/* 중분류 선택 */}
-            <div className="w-[200px]">
+            <div className="w-full sm:w-[200px]">
               <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
                 중분류를 선택하세요
               </label>
@@ -602,7 +584,7 @@ export default function MaterialComparisonPage() {
 
             {/* 소분류 선택 */}
             {subCategories.length > 0 && (
-              <div className="w-[200px]">
+              <div className="w-full sm:w-[200px]">
                 <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
                   소분류 선택
                 </label>
@@ -629,7 +611,7 @@ export default function MaterialComparisonPage() {
             )}
 
             {/* 재료 선택 */}
-            <div className="w-[200px]">
+            <div className="w-full sm:w-[200px]">
               <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
                 재료 선택
               </label>
@@ -679,7 +661,7 @@ export default function MaterialComparisonPage() {
                 </button>
                 <label
                   data-slot="label"
-                  className="flex items-center gap-2 select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 text-xs font-medium text-gray-700 cursor-pointer max-w-[150px] truncate"
+                  className="flex items-center gap-2 select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 text-xs font-medium text-gray-700 cursor-pointer max-w-[150px] sm:max-w-[150px] truncate"
                   title={material.name}
                 >
                   {material.name}
@@ -709,8 +691,63 @@ export default function MaterialComparisonPage() {
                 <h3 className="text-lg font-semibold mb-3 text-blue-600 border-b border-blue-200 pb-2">
                   PROPERTIES
                 </h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse table-fixed">
+                
+                {/* 모바일에서는 카드 레이아웃, 데스크톱에서는 테이블 */}
+                <div className="block sm:hidden">
+                  {/* 모바일 카드 레이아웃 */}
+                  <div className="space-y-4">
+                    {(() => {
+                      // 모든 재료의 물성 키를 수집 (Alloy Composition과 Base Metal Price 제외)
+                      const allPropertyKeys = new Set<string>();
+                      selectedMaterials.filter(m => m.active).forEach(material => {
+                        Object.keys(material.properties || {}).forEach(key => {
+                          if (key !== 'Alloy Composition' && key !== 'Base Metal Price') {
+                            allPropertyKeys.add(key);
+                          }
+                        });
+                      });
+                      
+                      return sortPropertiesByOrder(Array.from(allPropertyKeys)).map((propertyKey) => {
+                        const koreanInfo = propertyKoreanNames[propertyKey];
+                        const firstMaterial = selectedMaterials.find(m => m.active && m.properties[propertyKey]);
+                        const unit = firstMaterial?.properties[propertyKey]?.unit;
+                        
+                        return (
+                          <div key={propertyKey} className="bg-white border border-gray-200 rounded-lg p-4">
+                            <div className="mb-3">
+                              <h4 className="text-sm font-semibold text-gray-900">
+                                {koreanInfo?.korean ? `${koreanInfo.korean}` : propertyKey}
+                              </h4>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {propertyKey} {unit && (
+                                  <span className="font-mono">
+                                    (<span dangerouslySetInnerHTML={{ __html: formatUnit(unit) }} />)
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                            <div className="space-y-2">
+                              {selectedMaterials.filter(m => m.active).map((material, index) => (
+                                <div key={index} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
+                                  <span className="text-sm font-medium text-gray-700 truncate max-w-[60%]">
+                                    {material.name}
+                                  </span>
+                                  <span className="text-sm font-semibold text-gray-900">
+                                    {formatRangeValue(material.properties[propertyKey]?.value || '-')}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+
+                {/* 데스크톱 테이블 레이아웃 */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full border-collapse table-fixed min-w-[600px]">
                     {/* 헤더 */}
                     <thead>
                       <tr className="border-b border-gray-200">
@@ -849,8 +886,55 @@ export default function MaterialComparisonPage() {
                     <h3 className="text-lg font-semibold mb-3 text-green-600 border-b border-green-200 pb-2">
                       합금 조성
                     </h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse table-fixed">
+                    
+                    {/* 모바일에서는 카드 레이아웃, 데스크톱에서는 테이블 */}
+                    <div className="block sm:hidden">
+                      {/* 모바일 카드 레이아웃 */}
+                      <div className="space-y-4">
+                        {sortedElements.map((symbol, elementIndex) => (
+                          <div key={elementIndex} className="bg-white border border-gray-200 rounded-lg p-4">
+                            <div className="mb-3">
+                              <h4 className="text-sm font-semibold text-gray-900">
+                                {elementKoreanNames[symbol] ? `${elementKoreanNames[symbol]}` : symbol}
+                              </h4>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {symbol} (%)
+                              </p>
+                            </div>
+                            <div className="space-y-2">
+                              {selectedMaterials.filter(m => m.active).map((material, materialIndex) => {
+                                // 해당 재료의 composition 데이터 파싱
+                                const compositionData = material.composition?.Composition 
+                                  ? parseCompositionData(material.composition.Composition)
+                                  : [];
+                                
+                                // 해당 원소의 데이터 찾기
+                                const elementData = compositionData.find(element => element.symbol === symbol);
+                                
+                                const value = elementData 
+                                  ? elementData.percentage.replace(/ to /g, '~').replace(/%/g, '')
+                                  : '-';
+
+                                return (
+                                  <div key={materialIndex} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
+                                    <span className="text-sm font-medium text-gray-700 truncate max-w-[60%]">
+                                      {material.name}
+                                    </span>
+                                    <span className="text-sm font-semibold text-gray-900">
+                                      {value}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 데스크톱 테이블 레이아웃 */}
+                    <div className="hidden sm:block overflow-x-auto">
+                      <table className="w-full border-collapse table-fixed min-w-[600px]">
                         {/* 헤더 */}
                         <thead>
                           <tr className="border-b border-gray-200">
@@ -930,8 +1014,37 @@ export default function MaterialComparisonPage() {
                   <h3 className="text-lg font-semibold mb-3 text-purple-600 border-b border-purple-200 pb-2">
                     기준 가격
                   </h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse table-fixed">
+                  
+                  {/* 모바일에서는 카드 레이아웃, 데스크톱에서는 테이블 */}
+                  <div className="block sm:hidden">
+                    {/* 모바일 카드 레이아웃 */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="mb-3">
+                        <h4 className="text-sm font-semibold text-gray-900">
+                          기본 금속 가격
+                        </h4>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Base Metal Price ({selectedMaterials.find(m => m.active && m.basePrice)?.basePrice?.unit === '%' ? '%rel' : selectedMaterials.find(m => m.active && m.basePrice)?.basePrice?.unit || '-'})
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        {selectedMaterials.filter(m => m.active).map((material, index) => (
+                          <div key={index} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
+                            <span className="text-sm font-medium text-gray-700 truncate max-w-[60%]">
+                              {material.name}
+                            </span>
+                            <span className="text-sm font-semibold text-gray-900">
+                              {material.basePrice ? formatRangeValue(material.basePrice.value) : '-'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 데스크톱 테이블 레이아웃 */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full border-collapse table-fixed min-w-[600px]">
                       {/* 헤더 */}
                       <thead>
                         <tr className="border-b border-gray-200">
