@@ -22,7 +22,7 @@
  */
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import {
@@ -83,7 +83,9 @@ const fetchPriceData = async (
       throw new Error(errorData.message || `API 요청 실패: ${response.statusText}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    console.log('fetchPriceData 응답:', { materials, result });
+    return result;
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === 'AbortError') {
@@ -521,29 +523,103 @@ interface DashboardMiniChartProps {
 }
 
 const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, materials }) => {
+  console.log(`[${title}] 컴포넌트 렌더링 시작`);
+  
+  // useEffect 테스트를 위한 간단한 로그
+  console.log(`🚀 [${title}] 컴포넌트 함수 실행 중 - useEffect 전`);
+  
   // Zustand 스토어에서 공통 날짜/기간 설정을 가져옴
   const { interval, startDate, endDate } = useMaterialStore();
+  
+  console.log(`[${title}] 컴포넌트 렌더링:`, { 
+    materialIds: materials.map(m => m.id), 
+    startDate, 
+    endDate, 
+    interval,
+    enabled: materials.length > 0 && !!startDate && !!endDate
+  });
+
+  console.log(`[${title}] useEffect 의존성 배열:`, [materials.map(m => m.id).join(','), startDate, endDate, interval, title]);
 
   // DB에 쿼리할 실제 ID(긴 이름) 목록을 props로부터 추출
   const materialIds = useMemo(() => materials.map(m => m.id), [materials]);
+  
+  // Query key를 안정화
+  const queryKey = useMemo(() => 
+    ['dashboardChart', materialIds.join(','), startDate, endDate, interval], 
+    [materialIds, startDate, endDate, interval]
+  );
 
   // React Query를 사용하여 데이터 페칭
-  const { data: rawData, isLoading, isError, error } = useQuery({
-    queryKey: ['dashboardChart', title, materialIds, startDate, endDate, interval],
-    queryFn: () => fetchPriceData(materialIds, startDate, endDate, interval),
-    enabled: materialIds.length > 0, // 조회할 자재가 있을 때만 쿼리 실행
-    staleTime: 1000 * 60 * 5, // 5분 동안 캐시 유지
-  });
+
+  // 임시로 useEffect를 사용하여 직접 데이터 페칭
+  const [rawData, setRawData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+  const [error, setError] = useState<any>(null);
+
+  useEffect(() => {
+    console.log(`🔥 [${title}] useEffect 실행됨 - 시작:`, { 
+      materialIds, 
+      materialIdsLength: materialIds.length,
+      startDate, 
+      endDate, 
+      interval,
+      hasStartDate: !!startDate,
+      hasEndDate: !!endDate,
+      timestamp: new Date().toISOString()
+    });
+
+    const fetchData = async () => {
+      if (materialIds.length === 0 || !startDate || !endDate) {
+        console.log(`[${title}] 조건 불만족으로 데이터 페칭 건너뜀:`, {
+          materialIdsLength: materialIds.length,
+          hasStartDate: !!startDate,
+          hasEndDate: !!endDate
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setIsError(false);
+        setError(null);
+        
+        console.log(`[${title}] fetchPriceData 호출 시작:`, { materialIds, startDate, endDate, interval });
+        const result = await fetchPriceData(materialIds, startDate, endDate, interval);
+        console.log(`[${title}] fetchPriceData 결과:`, result);
+        
+        setRawData(result);
+      } catch (err) {
+        console.error(`[${title}] fetchPriceData 오류:`, err);
+        setIsError(true);
+        setError(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [materialIds, startDate, endDate, interval, title]);
+
+  console.log(`✅ [${title}] useEffect 정의 완료 - 다음은 useMemo`);
 
   // DB에서 받아온 데이터를 차트용으로 가공
   const chartData = useMemo(() => {
     // rawData가 undefined이거나 null인 경우 안전하게 처리
     if (!rawData) {
-      console.log('DashboardMiniChart: rawData가 undefined 또는 null입니다.');
+      console.log(`DashboardMiniChart [${title}]: rawData가 undefined 또는 null입니다.`);
+      console.log(`  - Materials:`, materials.map(m => m.id));
+      console.log(`  - isLoading:`, isLoading);
+      console.log(`  - isError:`, isError);
+      console.log(`  - error:`, error);
+      console.log(`  - rawData:`, rawData);
       return [];
     }
+    console.log(`DashboardMiniChart [${title}]: rawData 정상 수신, 길이:`, rawData.length);
     return transformDataForChart(rawData, materials, interval);
-  }, [rawData, materials, interval]);
+  }, [rawData, materials, interval, title, isLoading, isError, error]);
 
   // 스마트 축 배치 계산
   const axisAssignment = useMemo(() => {

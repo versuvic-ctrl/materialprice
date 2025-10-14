@@ -17,8 +17,8 @@ export const DASHBOARD_CHARTS_CONFIG = [
     materials: [
       { id: '스테인리스열연강판 STS304 -  (HR) 3~6', displayName: 'STS304' },
       { id: '스테인리스냉연강판 STS316(2B) -  2.0, 31.92', displayName: 'STS316' },
-      { id: '후판 -  6.0 ≤T ≤7.0, 2,438 ×6,096㎜', displayName: 'SS275' },
-      { id: '고장력철근(하이바)(SD 400) -  D10㎜, 0.560', displayName: '고장력철근' },
+      { id: '4각강(SS275) -  대변거리 16㎜', displayName: 'SS275' },
+      { id: '(SD 400) D35㎜ 7.510㎏/m', displayName: '고장력철근' },
       { id: 'H형강 -  (소형)H200×B100×t₁5.5×t₂8㎜ 단중21.3㎏/m', displayName: 'H형강' },
       { id: '고철(철) - 중량철 A ', displayName: '고철(중량철A)' }
     ]
@@ -48,7 +48,7 @@ export const DASHBOARD_CHARTS_CONFIG = [
     title: '테프론',
     materials: [
       //{ id: 'PTFE(테프론)판(백색) -  5T 1,000×1,000', displayName: 'PTFE' },
-      { id: 'UHP PVDF PIPE SDR21 - (1PC=5M) 110㎜', displayName: 'PVDF관(4",5m)' },
+      { id: 'AGRU UHP PVDF T-DIAPHRAGM VALVE SDR21, BUTT TYPE -  110×20㎜', displayName: 'PVDF관(4",5m)' },
       { id: 'ECTFE PIPE SDR21(1본=5m) -  110㎜', displayName: 'ECTFE(4",5m)' },
     ]
   },

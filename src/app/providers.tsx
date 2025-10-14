@@ -32,12 +32,12 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         // React Query 기본 옵션 설정
         defaultOptions: {
           queries: {
-            staleTime: 0,              // 캐시된 데이터를 즉시 오래된 것으로 간주
-            gcTime: 0,                 // 사용하지 않는 캐시 즉시 메모리에서 제거
-            refetchOnWindowFocus: true, // 창 포커스 시 자동 재요청
+            staleTime: 1000 * 60 * 5,   // 5분 동안 캐시 유지
+            gcTime: 1000 * 60 * 30,     // 30분 후 메모리에서 제거
+            refetchOnWindowFocus: false, // 창 포커스 시 자동 재요청 비활성화
             refetchOnReconnect: true,   // 네트워크 재연결 시 자동 재요청
             refetchOnMount: true,       // 컴포넌트 마운트 시 자동 재요청
-            retry: 3,                   // 실패 시 최대 3번 재시도
+            retry: 1,                   // 실패 시 최대 1번 재시도
           },
         },
       })

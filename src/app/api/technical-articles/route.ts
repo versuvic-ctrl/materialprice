@@ -12,9 +12,12 @@ export async function GET() {
   // 1. Redis 캐시 확인
   try {
     const cachedData = await redis.get(cacheKey);
+    console.log('Cached data from Redis:', cachedData);
     if (cachedData) {
       console.log('Technical articles list fetched from Redis cache.');
-      return NextResponse.json(JSON.parse(cachedData as string));
+      // cachedData가 문자열인 경우에만 JSON.parse를 적용
+      const parsedData = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
+      return NextResponse.json(parsedData);
     }
   } catch (error) {
     console.error('Redis cache read error:', error);

@@ -80,7 +80,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, title = '대시보드' }
 
           {/* User Menu */}
           <div className="relative group">
-            <button className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100 transition-colors">
+            <button className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100 transition-colors group">
               <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                 <UserIcon className="w-4 h-4 text-white" />
               </div>

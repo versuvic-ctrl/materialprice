@@ -81,7 +81,7 @@ async function getDashboardData() {
 
   // 평균 가격
   const { data: avgPriceResult, error: avgPriceError } = await supabase
-    .from('kpi_average_price')
+    .from('average_daily_prices')
     .select('average_price');
 
   if (avgPriceError) {
