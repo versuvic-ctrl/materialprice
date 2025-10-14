@@ -324,14 +324,14 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
         <div className="h-full flex flex-col">
           {/* 헤더 */}
             <div className="px-3 sm:px-4 py-2 border-b border-gray-100">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
+              <div className="flex flex-row justify-between items-center gap-1">
                 <h3 className="text-sm sm:text-base font-bold text-gray-900">자재 가격 변동 SUMMARY</h3>
                 <span className="text-xs text-gray-500">(전월비)</span>
               </div>
             </div>
           
           {/* 내용 */}
-          <div className="flex-1 px-3 sm:px-4 py-3 sm:py-4 overflow-hidden">
+          <div className="flex-1 px-3 sm:px-4 py-2 sm:py-3 overflow-hidden">
             <div className="h-full space-y-1">
           {summaryLoading ? (
             <div>
@@ -435,11 +435,11 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
 
                 return (
                   <div key={index} className="flex flex-col sm:flex-row sm:items-center py-1 leading-relaxed">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 w-full">
-                      <span className="text-xs sm:text-sm font-bold text-gray-900 sm:min-w-[90px] mb-1 sm:mb-0">
+                    <div className="flex flex-row items-start space-x-1 w-full">
+                      <span className="text-xs sm:text-sm font-bold text-gray-900 whitespace-nowrap">
                       {getCategoryEmoji(item.category)} {item.category}:
                     </span>
-                      <span className="text-xs sm:text-sm break-words">
+                      <span className="text-xs sm:text-sm flex-1">
                         {renderSummary(item.summary)}
                       </span>
                     </div>

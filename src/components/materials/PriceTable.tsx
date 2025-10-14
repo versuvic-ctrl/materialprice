@@ -71,7 +71,7 @@ const PriceTable: React.FC<PriceTableProps> = ({ data, isLoading = false }) => {
   if (!data || data.length === 0) {
     return (
       <div className="w-full mt-2 text-center text-sm text-gray-500 py-4">
-        표시할 가격 정보가 없습니다.
+        
       </div>
     );
   }
@@ -81,12 +81,12 @@ const PriceTable: React.FC<PriceTableProps> = ({ data, isLoading = false }) => {
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
         {/* 테이블 헤더 */}
         <div className="grid gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200" style={{ gridTemplateColumns: '2fr 1fr 1.5fr 1.5fr 1.5fr 1.5fr' }}>
-          <div className="text-xs font-medium text-gray-700 text-center">품목</div>
-          <div className="text-xs font-medium text-gray-700 text-center">단위</div>
-          <div className="text-xs font-medium text-gray-700 text-center">2년전비</div>
-          <div className="text-xs font-medium text-gray-700 text-center">전년비</div>
-          <div className="text-xs font-medium text-gray-700 text-center">전월비</div>
-          <div className="text-xs font-medium text-gray-700 text-center">현재가</div>
+          <div className="text-sm font-medium text-gray-700 text-center">품목</div>
+            <div className="text-sm font-medium text-gray-700 text-center">단위</div>
+            <div className="text-sm font-medium text-gray-700 text-center">2년전비</div>
+            <div className="text-sm font-medium text-gray-700 text-center">전년비</div>
+            <div className="text-sm font-medium text-gray-700 text-center">전월비</div>
+            <div className="text-sm font-medium text-gray-700 text-center">현재가</div>
         </div>
         
         {/* 테이블 바디 */}
@@ -99,32 +99,32 @@ const PriceTable: React.FC<PriceTableProps> = ({ data, isLoading = false }) => {
             return (
               <div key={index} className="grid gap-2 px-3 py-2 hover:bg-gray-50 transition-colors" style={{ gridTemplateColumns: '2fr 1fr 1.5fr 1.5fr 1.5fr 1.5fr' }}>
                 {/* 품목명 */}
-                <div className="text-xs text-gray-900 text-center overflow-hidden text-ellipsis whitespace-nowrap" title={item.name}>
+                <div className="text-sm text-gray-900 text-center overflow-hidden text-ellipsis whitespace-nowrap" title={item.name}>
                   {item.name}
                 </div>
                 
                 {/* 단위 */}
-                <div className="text-xs text-gray-900 text-center">
+                <div className="text-sm text-gray-900 text-center">
                   {item.unit}
                 </div>
 
                 {/* 2년전비 */}
-                <div className={`text-xs text-center font-medium ${twoYearAgoChangeFormat.color}`}>
+                <div className={`text-sm text-center font-medium ${twoYearAgoChangeFormat.color}`}>
                   {twoYearAgoChangeFormat.text}
                 </div>
                 
                 {/* 전년비 */}
-                <div className={`text-xs text-center font-medium ${yearlyChangeFormat.color}`}>
+                <div className={`text-sm text-center font-medium ${yearlyChangeFormat.color}`}>
                   {yearlyChangeFormat.text}
                 </div>
 
                 {/* 전월비 */}
-                <div className={`text-xs text-center font-medium ${monthlyChangeFormat.color}`}>
+                <div className={`text-sm text-center font-medium ${monthlyChangeFormat.color}`}>
                   {monthlyChangeFormat.text}
                 </div>
 
                 {/* 가격 */}
-                <div className="text-xs text-gray-900 text-center font-medium">
+                <div className="text-sm text-gray-900 text-center font-medium">
                   {formatPrice(item.currentPrice)}
                 </div>
               </div>

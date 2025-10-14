@@ -30,20 +30,89 @@ import CronInitializer from '@/components/CronInitializer';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+import { createClient } from '@/utils/supabase/server';
+import { redis } from '@/utils/redis';
+
 // 서버 컴포넌트에서 대시보드 데이터를 가져오는 함수
-// 현재는 샘플 데이터를 반환하지만, 향후 Supabase에서 실제 데이터를 가져올 예정
-function getDashboardData() {
-  return {
-    total_materials: 150,    // 총 자재 수
-    total_categories: 25,    // 총 카테고리 수
-    average_price: 6500,     // 평균 가격 (원)
-    recent_updates: 12       // 최근 업데이트 수
+async function getDashboardData() {
+  const cacheKey = 'dashboard_summary_data';
+  const cacheExpiry = 3600; // 1시간 (초 단위)
+
+  // 1. Redis 캐시 확인
+  try {
+    const cachedData = await redis.get(cacheKey);
+    if (typeof cachedData === 'string') {
+      console.log('Dashboard data fetched from Redis cache.');
+      return JSON.parse(cachedData);
+    }
+  } catch (error) {
+    console.error('Redis cache read error:', error);
+  }
+
+  // 2. Supabase에서 데이터 가져오기
+  const supabase = await createClient();
+
+  let totalMaterials = 0;
+  let totalCategories = 0;
+  let averagePrice = 0;
+
+  // 총 자재 수 (고유한 specification 수)
+  const { count: materialsCount, error: materialsError } = await supabase
+    .from('kpi_price_data')
+    .select('specification', { count: 'exact' });
+
+  if (materialsError) {
+    console.error('Error fetching total materials:', materialsError);
+  } else {
+    totalMaterials = materialsCount || 0;
+  }
+
+  // 총 카테고리 수 (고유한 sub_category 수)
+  const { count: categoriesCount, error: categoriesError } = await supabase
+    .from('kpi_price_data')
+    .select('sub_category', { count: 'exact', head: true });
+
+
+  if (categoriesError) {
+    console.error('Error fetching total categories:', categoriesError);
+  } else {
+    totalCategories = categoriesCount || 0;
+  }
+
+  // 평균 가격
+  const { data: avgPriceResult, error: avgPriceError } = await supabase
+    .from('kpi_average_price')
+    .select('average_price');
+
+  if (avgPriceError) {
+    console.error('Error fetching average price:', JSON.stringify(avgPriceError, null, 2));
+  } else {
+    averagePrice = avgPriceResult && avgPriceResult[0] && typeof avgPriceResult[0].average_price === 'number'
+      ? Math.round(avgPriceResult[0].average_price)
+      : 0;
+  }
+
+  const dashboardData = {
+    total_materials: totalMaterials,
+    total_categories: totalCategories,
+    average_price: averagePrice,
+    recent_updates: 12 // 현재는 샘플 값 유지
   };
+
+  // 3. Redis에 데이터 저장
+  try {
+    await redis.setex(cacheKey, cacheExpiry, JSON.stringify(dashboardData));
+    console.log('Dashboard data saved to Redis cache.');
+  } catch (error) {
+    console.error('Redis cache write error:', error);
+  }
+
+  return dashboardData;
 }
 
-export default function Dashboard() {
+export default async function Dashboard() {
   // 대시보드 통계 데이터 가져오기
-  const dashboardData = getDashboardData();
+  const dashboardData = await getDashboardData();
   
   return (
     <Layout title="대시보드">

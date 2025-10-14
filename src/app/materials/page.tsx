@@ -20,7 +20,7 @@
  */
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Select, 
@@ -34,6 +34,7 @@ import { Label } from '@/components/ui/label';
 import Layout from '@/components/layout/Layout';
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client'; // [수정]
+import { redis } from '@/utils/redis';
 import useMaterialStore from '@/store/materialStore'; // [교체] Zustand 스토어 import
 import MaterialsChart from '@/components/materials/MaterialsChart'; // [교체] 새로운 차트 컴포넌트 import
 import MaterialsPriceTable from '@/components/materials/MaterialsPriceTable'; // [추가] 자재 가격 테이블 컴포넌트 import
@@ -67,51 +68,41 @@ const useCategories = (
   
   const queryResult = useQuery<string[], Error>({
     queryKey: ['categories', level, filters],
-    queryFn: async () => {
+    queryFn: async (): Promise<string[]> => {
+      const cacheKey = `categories:${level}:${JSON.stringify(filters)}`;
+      const cachedData = await redis.get(cacheKey);
+      if (cachedData) {
+        return cachedData as string[];
+      }
+
       const supabase = createClient();
-      
-      // 타임아웃과 함께 Supabase RPC 함수 호출
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout')), 15000); // 15초 타임아웃
+        setTimeout(() => reject(new Error('Request timeout')), 15000);
       });
-      
       const rpcPromise = supabase.rpc('get_distinct_categories', {
         p_level: level,
         p_filters: filters
       });
-      
+
       try {
         const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as any;
+        if (error) throw new Error(`Failed to fetch ${level} categories: ${error.message || 'Unknown error'}`);
 
-        if (error) {
-          throw new Error(`Failed to fetch ${level} categories: ${error.message || 'Unknown error'}`);
-        }
-        
-        // 데이터 처리 및 한글 자음 순서로 정렬하여 반환
         let categories: string[] = [];
         if (Array.isArray(data)) {
-          // RPC 함수가 다양한 형태로 반환하는 경우 처리
           categories = data.map((item: any) => {
-            if (typeof item === 'string') {
-              return item;
-            } else if (item && typeof item.category === 'string') {
-              // {category: "값"} 형태 처리 (우선순위 높임)
-              return item.category;
-            } else if (item && typeof item.get_distinct_categories === 'string') {
-              return item.get_distinct_categories;
-            } else if (item && typeof item.name === 'string') {
-              return item.name;
-            } else if (item && typeof item[level] === 'string') {
-              return item[level];
-            }
-            return '';
-          }).filter(cat => cat !== '');
+            if (typeof item === 'string') return item;
+            if (item?.category) return item.category;
+            return String(item);
+          });
         }
-        
-        return sortKorean(categories);
-      } catch (err) {
-        // 에러를 throw하여 React Query의 재시도 메커니즘 활용
-        throw err;
+
+        const uniqueCategories = [...new Set(categories)];
+        const sortedCategories = sortKorean(uniqueCategories);
+        await redis.setex(cacheKey, 43200, sortedCategories); // 12시간 캐시
+        return sortedCategories;
+      } catch (error) {
+        throw error;
       }
     },
     // enabled 옵션: 모든 레벨에서 쿼리를 실행하도록 변경하여 디버깅
@@ -142,7 +133,21 @@ const MaterialsPage: React.FC = () => {
     removeMaterialFromChart,     // 차트에서 자재 제거
     toggleMaterialVisibility,    // 자재 표시/숨김 토글
     clearAllMaterials,           // 모든 자재 제거
+    resetAllMaterialState,       // resetAllMaterialState 액션 가져오기
+
   } = useMaterialStore();
+  
+  // 컴포넌트 언마운트 시 상태 초기화
+  useEffect(() => {
+    return () => {
+      if (resetAllMaterialState) {
+        resetAllMaterialState();
+      }
+    };
+  }, [resetAllMaterialState]);
+
+  // 테이블 행 수 계산 (숨겨진 자재 제외)
+  const visibleMaterialsCount = selectedMaterialsForChart.filter(material => !hiddenMaterials.has(material)).length;
 
   // React Query를 통해 계층형 카테고리 데이터를 동적으로 조회
   const level1Categories = useCategories('major', {});
@@ -169,7 +174,7 @@ const MaterialsPage: React.FC = () => {
 
   return (
     <Layout title="자재가격 상세">
-      <div className="space-y-3">
+      <div className="space-y-2">
         {/* === 이 아래부터는 기존 UI 구조를 그대로 유지합니다 === */}
 
         {/* 가격 변동률 지표 (이 부분은 추후 동적 데이터로 연결 가능) */}
@@ -179,7 +184,7 @@ const MaterialsPage: React.FC = () => {
         </div>
 
         {/* 자재가격 상세 페이지 - 탭 제거하고 바로 표시 */}
-        <div className="space-y-4">
+        <div className="mb-4">
           {/* 가격 변동률 지표 (이 부분은 추후 동적 데이터로 연결 가능) */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             
@@ -266,7 +271,7 @@ const MaterialsPage: React.FC = () => {
 
               {/* [수정] 선택된 자재 목록: 컴팩트하고 세련된 디자인 */}
               {selectedMaterialsForChart.length > 0 && (
-                <Card className="border border-gray-200">
+                <Card className="border border-gray-200 mt-4">
                   <CardHeader className="py-1.5 px-3">
                     <div className="flex justify-between items-center">
                       <CardTitle className="text-xs font-medium text-gray-600">
@@ -320,10 +325,15 @@ const MaterialsPage: React.FC = () => {
               )}
 
           {/* [교체] 차트 영역: 기존 DashboardCharts를 MaterialsChart로 교체 */}
-          <MaterialsChart />
-
-          {/* [추가] 자재 가격 테이블 */}
-          <MaterialsPriceTable selectedMaterials={selectedMaterialsForChart} />
+          <div className="flex flex-col gap-2 mt-4">
+            <div className="w-full">
+              <MaterialsChart tableRowCount={visibleMaterialsCount} />
+            </div>
+            {/* [추가] 자재 가격 테이블 */}
+            <div className="w-full">
+              <MaterialsPriceTable selectedMaterials={selectedMaterialsForChart} />
+            </div>
+          </div>
         </div>
       </div>
     </Layout>

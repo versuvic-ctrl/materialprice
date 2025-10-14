@@ -793,6 +793,23 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
     return descriptions.join(', ');
   };
   
+  // 등급별 아이콘 반환
+  const getRatingIcon = (rating: string) => {
+    const ratingInfo = getRatingInfo(rating);
+    const IconComponent = ratingInfo.icon;
+    
+    return (
+      <IconComponent 
+        className={`w-4 h-4 ${
+          rating === '0' ? 'text-green-600' :
+          rating === '1' ? 'text-yellow-600' :
+          rating === '2' ? 'text-red-600' :
+          'text-gray-600'
+        }`}
+      />
+    );
+  };
+
   const getRatingBadge = (rating: string) => {
     const ratingInfo = getRatingInfo(rating);
     const IconComponent = ratingInfo.icon;
@@ -830,9 +847,9 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
         </div>
         <div className="p-6 pt-0">
             
-        <div className="flex items-end gap-3 mt-2 mb-2">
+        <div className="flex flex-col md:flex-row md:items-end gap-2 md:gap-3 mt-2 mb-2">
           {/* 화학물질 선택 */}
-          <div className="w-[200px]">
+          <div className="w-full md:w-[200px]">
             <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
               화학물질 선택
             </label>
@@ -840,7 +857,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="화학물질을 선택하세요" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="min-w-max">
                 {availableChemicals.map((chemical) => (
                   <SelectItem key={chemical} value={chemical}>
                     {chemical}
@@ -850,8 +867,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
             </Select>
           </div>
         
-          {/* 재질 선택 */}
-          <div className="w-[200px]">
+          <div className="w-full md:w-[200px]">
             <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
               재질 선택
             </label>
@@ -859,7 +875,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="재질을 선택하세요" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="min-w-max">
                 {availableMaterials.map((material) => (
                   <SelectItem key={material} value={material}>
                     {material}
@@ -869,8 +885,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
             </Select>
           </div>
           
-          {/* 호환성 등급 필터 */}
-          <div className="w-[200px]">
+          <div className="w-full md:w-[200px]">
             <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
               모든 등급
             </label>
@@ -878,7 +893,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="모든 등급" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="min-w-max">
                 <SelectItem value="all">모든 등급</SelectItem>
                 {availableRatings.map((rating) => (
                   <SelectItem key={rating} value={rating}>
@@ -905,7 +920,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
       {/* 특정 재질 선택시 결과 */}
       {/* 이 섹션은 이제 필요 없으므로 주석 처리하거나 제거할 수 있습니다. */}
       {/* {selectedChemical && selectedMaterial && specificCompatibility && (
-        <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+        <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-2 md:p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             {selectedChemical} × {selectedMaterial} 호환성 결과
           </h3>
@@ -997,15 +1012,86 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
 
       {/* 전체 재질 호환성 결과 테이블 */}
       {selectedChemical && compatibilityResults.length > 0 && (
-        <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+        <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-2 md:p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             {getChemicalTitleWithFormulas(selectedChemical)} 호환성 결과
           </h3>
-          <div className="overflow-x-auto">
+          
+          {/* 모바일에서는 카드 형태로 표시 */}
+          <div className="block sm:hidden space-y-4">
+            {compatibilityResults.map((result, index) => (
+              <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm max-w-full">
+                <div className="space-y-2">
+                  <div className="block">
+                    <span className="font-semibold text-sm text-gray-700 min-w-fit block mb-1">재질명</span>
+                    <span className="text-sm font-medium text-right break-words max-w-full block">{result.material}</span>
+                  </div>
+                  
+                  {selectedChemical && selectedChemical.includes('+') ? (
+                    (() => {
+                      const chemicalParts = selectedChemical.split('+').map(part => part.trim());
+                      const chemicalCount = chemicalParts.length;
+                      
+                      if (chemicalCount >= 3) {
+                        const multiChemMapping = multiChemicalConcentrations[selectedChemical];
+                        if (multiChemMapping && result.concentrations) {
+                          return multiChemMapping.chemicals.map((chemName, idx) => (
+                            <div key={idx} className="block">
+                          <span className="font-semibold text-sm text-gray-700 min-w-fit block mb-1">{chemName} 농도</span>
+                          <span className="text-sm text-right break-words max-w-full block">{result.concentrations?.[idx] || 'N/A'}</span>
+                        </div>
+                          ));
+                        }
+                      }
+                      
+                      return chemicalParts.map((chemName, idx) => (
+                        <div key={idx} className="flex flex-wrap justify-between items-center">
+                          <span className="font-semibold text-sm text-gray-700 min-w-[80px]">{chemName} 농도</span>
+                          <span className="text-sm text-right break-words max-w-[60%]">
+                            {idx === 0 ? result.concentration1 : 
+                             idx === 1 ? result.concentration2 : 
+                             idx === 2 ? result.concentration3 : 'N/A'}
+                          </span>
+                        </div>
+                      ));
+                    })()
+                  ) : (
+                    <div className="flex flex-wrap justify-between items-center">
+                      <span className="font-semibold text-sm text-gray-700 min-w-[80px]">농도</span>
+                      <span className="text-sm text-right break-words max-w-[60%]">{result.concentration}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex flex-wrap justify-between items-center">
+                    <span className="font-semibold text-sm text-gray-700 min-w-[80px]">온도 (°C)</span>
+                    <span className="text-sm text-right break-words max-w-[60%]">{result.temperature}</span>
+                  </div>
+                  
+                  <div className="flex flex-wrap justify-between items-center">
+                    <span className="font-semibold text-sm text-gray-700 min-w-[80px]">호환성 등급</span>
+                    <span className="text-sm text-right break-words max-w-[60%]">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRatingBadge(result.rating).props.className}`}>
+                        {getRatingIcon(result.rating)}
+                        <span className="ml-1">{result.rating}</span>
+                      </span>
+                    </span>
+                  </div>
+                  
+                  <div className="pt-2 border-t">
+                    <span className="font-semibold text-sm text-gray-700 block mb-1">비고</span>
+                    <div className="text-sm text-gray-600 break-words" dangerouslySetInnerHTML={{ __html: getDetailedRatingDescription(result.rating) || 'N/A' }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 데스크톱에서는 테이블 형태로 표시 */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full divide-y divide-black">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className={`${dynamicWidths.material} px-6 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider`}>
+                  <th className="px-4 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider">
                     재질명
                   </th>
                   {selectedChemical && selectedChemical.includes('+') ? (
@@ -1018,7 +1104,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                         const multiChemMapping = multiChemicalConcentrations[selectedChemical];
                         if (multiChemMapping) {
                           return multiChemMapping.chemicals.map((chemName, idx) => (
-                            <th key={idx} className={`${dynamicWidths.concentration} px-6 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider whitespace-nowrap`}>
+                            <th key={idx} className="px-4 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider whitespace-nowrap">
                               {chemName} 농도
                             </th>
                           ));
@@ -1027,23 +1113,23 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                       
                       // 2개 화학물질인 경우 (기존 로직)
                       return chemicalParts.map((chemName, idx) => (
-                        <th key={idx} className={`${dynamicWidths.concentration} px-6 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider whitespace-nowrap`}>
+                        <th key={idx} className="px-4 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider whitespace-nowrap">
                           {chemName} 농도
                         </th>
                       ));
                     })()
                   ) : (
-                    <th className={`${dynamicWidths.concentration} px-6 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider whitespace-nowrap`}>
+                    <th className="px-4 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider whitespace-nowrap">
                       농도
                     </th>
                   )}
-                  <th className={`${dynamicWidths.temperature} px-6 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider`}>
+                  <th className="px-4 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider">
                     온도 (°C)
                   </th>
-                  <th className={`${dynamicWidths.rating} px-6 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider`}>
+                  <th className="px-4 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider">
                     호환성 등급
                   </th>
-                  <th className={`${dynamicWidths.remarks} px-6 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider`}>
+                  <th className="px-4 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider">
                     비고
                   </th>
                 </tr>
@@ -1067,7 +1153,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                             if (result.chemicalCount && result.chemicalCount >= 3 && result.concentrations) {
                               // 3개 이상의 화학물질인 경우
                               return result.concentrations.map((conc, idx) => (
-                                <td key={idx} className={`${dynamicWidths.concentration} px-4 py-1 text-sm text-black whitespace-nowrap text-center`}>
+                                <td key={idx} className="px-3 py-1 text-sm text-black whitespace-nowrap text-center">
                                   {conc}
                                 </td>
                               ));
@@ -1075,10 +1161,10 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                               // 2개 화학물질인 경우 (기존 로직)
                               return (
                                 <>
-                                  <td className={`${dynamicWidths.concentration} px-4 py-1 text-sm text-black whitespace-nowrap text-center`}>
+                                  <td className="px-3 py-1 text-sm text-black whitespace-nowrap text-center">
                                     {result.concentration1}
                                   </td>
-                                  <td className={`${dynamicWidths.concentration} px-4 py-1 text-sm text-black whitespace-nowrap text-center`}>
+                                  <td className="px-3 py-1 text-sm text-black whitespace-nowrap text-center">
                                     {result.concentration2}
                                   </td>
                                 </>
@@ -1086,19 +1172,19 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                             }
                           })()
                         ) : (
-                          <td className={`${dynamicWidths.concentration} px-4 py-1 text-sm text-black whitespace-nowrap text-center`}>
+                          <td className="px-3 py-1 text-sm text-black whitespace-nowrap text-center">
                             {result.concentration}
                           </td>
                         )}
-                        <td className={`${dynamicWidths.temperature} px-4 py-1 text-sm text-black text-center`}>
+                        <td className="px-3 py-1 text-sm text-black text-center">
                           {result.temperature}
                         </td>
-                        <td className={`${dynamicWidths.rating} px-4 py-1 text-sm text-black text-center`}>
+                        <td className="px-3 py-1 text-sm text-black text-center">
                           {getRatingBadge(result.rating)}
                         </td>
-                        <td className={`${dynamicWidths.remarks} px-4 py-1 text-sm text-black whitespace-nowrap text-center`}>
+                        <td className="px-3 py-1 text-sm text-black text-center">
                           {getDetailedRatingDescription(result.rating) ? (
-                            <span dangerouslySetInnerHTML={{ __html: getDetailedRatingDescription(result.rating) }} />
+                            <div className="max-w-xs break-words" dangerouslySetInnerHTML={{ __html: getDetailedRatingDescription(result.rating) }} />
                           ) : (
                             '-'
                           )}
@@ -1111,7 +1197,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                     <tr key={index} className="hover:bg-gray-50">
                       <td
                         rowSpan={rowSpan}
-                        className={`${dynamicWidths.material} px-4 py-1 text-sm font-medium text-gray-900 text-center align-middle`}
+                        className="px-3 py-1 text-sm font-medium text-gray-900 text-center align-middle"
                       >
                           {result.material === "Alleima® 3R12" ? (
                           <Tooltip>
@@ -1160,7 +1246,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                           if (result.chemicalCount && result.chemicalCount >= 3 && result.concentrations) {
                             // 3개 이상의 화학물질인 경우
                             return result.concentrations.map((conc, idx) => (
-                              <td key={idx} className={`${dynamicWidths.concentration} px-4 py-1 text-sm text-black whitespace-nowrap text-center`}>
+                              <td key={idx} className="min-w-[80px] px-2 py-1 text-sm text-black whitespace-nowrap text-center">
                                 {conc}
                               </td>
                             ));
@@ -1168,10 +1254,10 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                             // 2개 화학물질인 경우 (기존 로직)
                             return (
                               <>
-                                <td className={`${dynamicWidths.concentration} px-4 py-1 text-sm text-black whitespace-nowrap text-center`}>
+                                <td className="min-w-[80px] px-2 py-1 text-sm text-black whitespace-nowrap text-center">
                                   {result.concentration1}
                                 </td>
-                                <td className={`${dynamicWidths.concentration} px-4 py-1 text-sm text-black whitespace-nowrap text-center`}>
+                                <td className="min-w-[80px] px-2 py-1 text-sm text-black whitespace-nowrap text-center">
                                   {result.concentration2}
                                 </td>
                               </>
@@ -1179,17 +1265,17 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                           }
                         })()
                       ) : (
-                        <td className={`${dynamicWidths.concentration} px-4 py-1 text-sm text-black whitespace-nowrap text-center`}>
+                        <td className="min-w-[80px] px-2 py-1 text-sm text-black whitespace-nowrap text-center">
                           {result.concentration}
                         </td>
                       )}
-                      <td className={`${dynamicWidths.temperature} px-4 py-1 text-sm text-black text-center`}>
+                      <td className="min-w-[60px] px-2 py-1 text-sm text-black text-center">
                         {result.temperature}
                       </td>
-                      <td className={`${dynamicWidths.rating} px-4 py-1 text-sm text-black text-center`}>
+                      <td className="min-w-[60px] px-2 py-1 text-sm text-black text-center">
                         {getRatingBadge(result.rating)}
                       </td>
-                      <td className={`${dynamicWidths.remarks} px-4 py-1 text-sm text-black whitespace-nowrap text-center`}>
+                      <td className="min-w-[100px] max-w-xs px-2 py-1 text-sm text-black break-words text-center">
                         {getDetailedRatingDescription(result.rating) ? (
                           <span dangerouslySetInnerHTML={{ __html: getDetailedRatingDescription(result.rating) }} />
                         ) : (
@@ -1222,7 +1308,64 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
       {results.length > 0 && (
         <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
           <h3 className="text-xl font-bold text-gray-800 mb-4">호환성 조회 결과</h3>
-          <div className="overflow-x-auto">
+          
+          {/* 모바일 카드 뷰 */}
+          <div className="block sm:hidden space-y-4">
+            {results.map((result, index) => (
+              <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm max-w-full">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-600">재질명</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {result.material === "SUS304L" ? "SUS304L" : result.material}
+                    </span>
+                  </div>
+                  
+                  {result.isMultipleChemicals ? (
+                    <>
+                      <div className="flex flex-wrap justify-between items-center">
+                        <span className="text-sm font-medium text-gray-600">
+                          {selectedChemical.split('+')[0]?.trim()} 농도
+                        </span>
+                        <span className="text-sm text-gray-900">{result.concentration1}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-600">
+                          {selectedChemical.split('+')[1]?.trim()} 농도
+                        </span>
+                        <span className="text-sm text-gray-900">{result.concentration2}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-600">농도</span>
+                      <span className="text-sm text-gray-900">{result.concentration}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-600">온도 (°C)</span>
+                    <span className="text-sm text-gray-900">{result.temperature}</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-600">호환성 등급</span>
+                    <div>{getRatingBadge(result.rating)}</div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <span className="text-sm font-medium text-gray-600">셀 클래스</span>
+                    <p className="text-sm text-gray-900 break-words">
+                      {getDetailedRatingDescription(result.cell_class.join(''))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 데스크톱 테이블 뷰 */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full table-auto">
               <thead>
                 <tr className="bg-gray-50">

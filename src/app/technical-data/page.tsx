@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as ReactDOM from 'react-dom';
-import { createClient } from '@/utils/supabase/client';
+
 import Layout from '@/components/layout/Layout';
 import { 
   PlusIcon, 
@@ -23,14 +23,13 @@ import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Plus, Edit, Trash2, Save, X, Upload, Image as ImageIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { koLang } from './jodit-ko';
+import dynamic from 'next/dynamic';
 
-// Jodit 에디터 타입 정의
-declare global {
-  interface Window {
-    Jodit: any;
-  }
-}
+const Jodit = dynamic(() => import('jodit-react'), { ssr: false });
+import { koLang } from './jodit-ko';
+import { createClient } from '@supabase/supabase-js';
+
+
 
 // 타입 정의
 interface Article {
@@ -65,12 +64,7 @@ export default function TechnicalDataPage() {
   const [selectedCategory, setSelectedCategory] = useState('전체');
   
 
-  // Jodit 한국어 언어팩 등록
-  useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).Jodit) {
-      (window as any).Jodit.lang.ko = koLang;
-    }
-  }, []);
+
 
   // 이미지 업로드 핸들러
   const handleImageUpload = useCallback(async (file: File) => {
@@ -103,7 +97,11 @@ export default function TechnicalDataPage() {
       const fileName = `${Date.now()}_${file.name}`;
       
       // Supabase Storage에 업로드
-      const supabase = createClient();
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
       const { data, error } = await supabase.storage
         .from('technical-data-images')
         .upload(fileName, file);
@@ -119,10 +117,7 @@ export default function TechnicalDataPage() {
         .getPublicUrl(fileName);
 
       // Jodit 에디터에 이미지 삽입
-      if (joditInstance.current && joditInstance.current.value !== undefined) {
-        const editor = joditInstance.current;
-        editor.selection.insertHTML(`<img src="${publicUrl}" alt="업로드된 이미지" style="max-width: 100%; height: auto;" />`);
-      }
+      setContent((prevContent) => prevContent + `<img src="${publicUrl}" alt="업로드된 이미지" style="max-width: 100%; height: auto;" />`);
     } catch (error) {
       console.error('Image upload error:', error);
       alert('이미지 업로드 중 오류가 발생했습니다.');
@@ -133,319 +128,49 @@ export default function TechnicalDataPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const joditInstance = useRef<any>(null);
 
-  // Jodit 에디터 초기화 - example 폴더 방식 적용
-  useEffect(() => {
-    // 에디터가 필요한 모드가 아니면 초기화하지 않음
-    if (!isWriting && !isEditing) {
-      return;
-    }
+  const editorConfig = useMemo(() => ({
+    readonly: false,
+    toolbar: true,
+    spellcheck: false,
+    language: 'ko',
+    height: 500,
+    buttons: 'paragraph,bold,strikethrough,underline,italic,|,superscript,subscript,|,ul,ol,|,align,outdent,indent,|,font,fontsize,brush,color,|,image,video,link,table,cut,hr,|,symbol,selectall,file,print,about',
+    buttonsMD: 'paragraph,bold,strikethrough,underline,italic,|,superscript,subscript,|,ul,ol,|,align,outdent,indent,|,font,fontsize,brush,color,|,image,video,link,table,cut,hr,|,symbol,selectall,file,print,about',
+    buttonsSM: 'paragraph,bold,strikethrough,underline,italic,|,superscript,subscript,|,ul,ol,|,align,outdent,indent,|,font,fontsize,brush,color,|,image,video,link,table,cut,hr,|,symbol,selectall,file,print,about',
+    buttonsXS: 'paragraph,bold,strikethrough,underline,italic,|,superscript,subscript,|,ul,ol,|,align,outdent,indent,|,font,fontsize,brush,color,|,image,video,link,table,cut,hr,|,symbol,selectall,file,print,about',
+    events: {
+      afterInit: (editor: any) => {
+        console.log('Jodit 에디터 초기화 완료');
+      },
+    },
+    uploader: {
+      insertImageAsBase64URI: true,
+    },
+    filebrowser: {
+      ajax: {
+        url: '/api/upload',
+      },
+    },
+  }), []);
 
-    let mounted = true;
 
-    const initJodit = async () => {
-      try {
-        // CDN에서 Jodit 로드 (example 폴더 방식)
-        if (typeof window !== 'undefined' && !window.Jodit) {
-          // CSS 로드
-          const cssLink = document.createElement('link');
-          cssLink.rel = 'stylesheet';
-          cssLink.href = 'https://unpkg.com/jodit@4.11.2/es2021/jodit.min.css';
-          document.head.appendChild(cssLink);
 
-          // JS 로드
-          const script = document.createElement('script');
-          script.src = 'https://unpkg.com/jodit@4.11.2/es2021/jodit.min.js';
-          script.onload = () => {
-            if (mounted) {
-              initEditor();
-            }
-          };
-          document.head.appendChild(script);
-        } else if (typeof window !== 'undefined' && window.Jodit) {
-          initEditor();
-        }
-      } catch (error) {
-        console.error('Jodit 로드 실패:', error);
-      }
-    };
-
-    const initEditor = () => {
-      if (!textareaRef.current || !window.Jodit) return;
-
-      try {
-        // 기존 에디터 정리
-        if (joditInstance.current) {
-          try {
-            joditInstance.current.destruct();
-          } catch (error) {
-            console.error('기존 에디터 정리 실패:', error);
-          }
-        }
-
-        // 한국어 언어팩 등록
-        if (koLang) {
-          window.Jodit.lang.ko = koLang;
-        }
-
-        // 참고용 폴더의 완전한 설정을 적용
-        const config = {
-          language: 'ko',
-          height: 800,
-          placeholder: '내용을 입력해주세요.',
-          toolbar: true,
-          toolbarAdaptive: true,
-          showTooltip: true,
-          showTooltipDelay: 200,
-          statusbar: true,
-          showCharsCounter: true,
-          showWordsCounter: true,
-          showXPathInStatusbar: false,
-          
-          // 깔끔한 툴바 설정 - 중복 제거
-          buttons: [
-            'bold', 'italic', 'underline', 'strikethrough', '|',
-            'superscript', 'subscript', '|',
-            'ul', 'ol', 'outdent', 'indent', '|',
-            'font', 'fontsize', 'lineHeight', '|',
-            'brush', 'align', 'paragraph', '|',
-            'image', 'video', 'file', 'table', 'link', 'hr', 'symbols', '|',
-            'cut', 'copy', 'paste', 'selectall', '|',
-            'undo', 'redo', '|',
-            'find', 'source', '|',
-            'eraser', 'copyformat', 'fullsize', 'preview', 'print', 'spellcheck', '|',
-            'about'
-          ],
-          // 업로더 설정
-          uploader: {
-            insertImageAsBase64URI: true,
-            imagesExtensions: ['jpg', 'png', 'jpeg', 'gif', 'svg', 'webp'],
-            filesVariableName: function(t: number) {
-              return 'files[' + t + ']';
-            },
-            withCredentials: false,
-            pathVariableName: 'path',
-            format: 'json',
-            method: 'POST'
-          },
-
-          // 파일 브라우저 설정
-          filebrowser: {
-            ajax: {
-              url: '/api/files'
-            }
-          },
-
-          // 이미지 설정
-          image: {
-            openOnDblClick: true,
-            editSrc: true,
-            editStyle: true,
-            editAlt: true,
-            editTitle: true,
-            editMargins: true,
-            editClass: true,
-            editId: true,
-            editAlign: true,
-            editSize: true,
-            useImageEditor: true
-          },
-
-          // 링크 설정
-          link: {
-            followOnDblClick: false,
-            processVideoLink: true,
-            processPastedLink: true,
-            openLinkDialogAfterPost: true,
-            removeLinkAfterFormat: true,
-            noFollowCheckbox: true,
-            openInNewTabCheckbox: true
-          },
-
-          // 테이블 설정
-          table: {
-            selectionCellStyle: 'border: 1px double #1e88e5 !important;',
-            useExtraClassesOptions: false
-          },
-
-          // 색상 설정
-          colors: {
-            greyscale: [
-              '#000000', '#434343', '#666666', '#999999', '#B7B7B7',
-              '#CCCCCC', '#D9D9D9', '#EFEFEF', '#F3F3F3', '#FFFFFF'
-            ],
-            palette: [
-              '#980000', '#FF0000', '#FF9900', '#FFFF00', '#00F0F0',
-              '#00FFFF', '#4A86E8', '#0000FF', '#9900FF', '#FF00FF'
-            ],
-            full: [
-              '#E6B8AF', '#F4CCCC', '#FCE5CD', '#FFF2CC', '#D9EAD3',
-              '#D0E0E3', '#C9DAF8', '#CFE2F3', '#D9D2E9', '#EAD1DC',
-              '#DD7E6B', '#EA9999', '#F9CB9C', '#FFE599', '#B6D7A8',
-              '#A2C4C9', '#A4C2F4', '#9FC5E8', '#B4A7D6', '#D5A6BD'
-            ]
-          },
-
-          // 폰트 설정
-          controls: {
-            font: {
-              list: {
-                'Arial': 'Arial, Helvetica, sans-serif',
-                'Arial Black': 'Arial Black, Gadget, sans-serif',
-                'Comic Sans MS': 'Comic Sans MS, cursive',
-                'Courier New': 'Courier New, Courier, monospace',
-                'Georgia': 'Georgia, serif',
-                'Impact': 'Impact, Charcoal, sans-serif',
-                'Lucida Console': 'Lucida Console, Monaco, monospace',
-                'Lucida Sans Unicode': 'Lucida Sans Unicode, Lucida Grande, sans-serif',
-                'Palatino Linotype': 'Palatino Linotype, Book Antiqua, Palatino, serif',
-                'Tahoma': 'Tahoma, Geneva, sans-serif',
-                'Times New Roman': 'Times New Roman, Times, serif',
-                'Trebuchet MS': 'Trebuchet MS, Helvetica, sans-serif',
-                'Verdana': 'Verdana, Geneva, sans-serif',
-                '맑은 고딕': 'Malgun Gothic, sans-serif',
-                '나눔고딕': 'Nanum Gothic, sans-serif',
-                '돋움': 'Dotum, sans-serif',
-                '굴림': 'Gulim, sans-serif'
-              }
-            },
-            fontsize: {
-              list: [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72]
-            }
-          },
-
-          // 기타 설정
-          enter: 'p',
-          defaultActionOnPaste: 'insert_as_html',
-          askBeforePasteHTML: false,
-          askBeforePasteFromWord: false,
-          defaultMode: 1, // WYSIWYG 모드
-          useSplitMode: false,
-          editHTMLDocumentMode: false,
-          iframe: false,
-          iframeStyle: '',
-          iframeCSSLinks: [],
-          
-          // 플러그인 설정 - 모든 기본 플러그인 활성화
-          disablePlugins: [], // 비활성화할 플러그인 없음
-          extraPlugins: [], // 추가 플러그인 없음
-          
-          // 모든 기본 플러그인 명시적 활성화
-          safePluginsList: [
-            'about', 'add-new-line', 'backspace', 'delete', 'bold', 'class-span',
-            'clean-html', 'clipboard', 'color', 'copy-format', 'drag-and-drop',
-            'drag-and-drop-element', 'enter', 'file', 'focus', 'font', 'format-block',
-            'fullsize', 'hotkeys', 'hr', 'iframe', 'image', 'image-processor',
-            'image-properties', 'indent', 'inline-popup', 'justify', 'key-arrow-outside',
-            'limit', 'line-height', 'link', 'media', 'mobile', 'ordered-list',
-            'paste', 'paste-from-word', 'paste-storage', 'placeholder', 'powered-by-jodit',
-            'preview', 'print', 'redo-undo', 'resize-cells', 'resize-handler',
-            'resizer', 'search', 'select', 'select-cells', 'size', 'source',
-            'spellcheck', 'stat', 'sticky', 'symbols', 'ai-assistant', 'tab',
-            'table', 'table-keyboard-navigation', 'video', 'wrap-nodes', 'dtd', 'xpath'
-          ],
-          
-          // 이벤트 설정
-          events: {
-            afterInit: function() {
-              console.log('Jodit 에디터가 완전히 초기화되었습니다.');
-              console.log('활성화된 플러그인:', (this as any).plugins);
-            },
-            beforeDestruct: function() {
-              console.log('Jodit 에디터가 종료됩니다.');
-            }
-          }
-        };
-
-        // example 폴더와 동일한 방식으로 에디터 생성
-        joditInstance.current = window.Jodit.make(textareaRef.current, config);
-        
-        if (joditInstance.current) {
-          // 이벤트 리스너 등록
-          joditInstance.current.events.on('change', (value: string) => {
-            setContent(value);
-          });
-
-          joditInstance.current.events.on('afterInit', () => {
-            console.log('Jodit 에디터 초기화 완료');
-            // 초기 내용 설정
-            if (content) {
-              joditInstance.current.value = content;
-            }
-          });
-        }
-      } catch (error) {
-        console.error('Jodit 에디터 초기화 실패:', error);
-      }
-    };
-
-    initJodit();
-
-    return () => {
-      mounted = false;
-      if (joditInstance.current && joditInstance.current.destruct) {
-        try {
-          joditInstance.current.destruct();
-          joditInstance.current = null;
-        } catch (error) {
-          console.error('Jodit 에디터 정리 실패:', error);
-        }
-      }
-    };
-  }, [isWriting, isEditing]);
-
-  // 콘텐츠 변경 시 에디터 업데이트
-  useEffect(() => {
-    if (joditInstance.current && joditInstance.current.value !== content) {
-      joditInstance.current.value = content;
-    }
-  }, [content]);
-
-  // 편집 모드 전환 시 에디터 내용 동기화
-  useEffect(() => {
-    if (isEditing && editingArticle && joditInstance.current) {
-      // 편집할 글의 내용을 에디터에 설정
-      setTimeout(() => {
-        if (joditInstance.current) {
-          joditInstance.current.value = editingArticle.content;
-        }
-      }, 100); // 에디터 초기화 완료 후 내용 설정
-    }
-  }, [isEditing, editingArticle]);
 
   // 글 목록 가져오기 (최적화: 목록에 필요한 필드만 선택)
   useEffect(() => {
     const fetchArticles = async () => {
       try {
         setIsLoading(true);
-        const supabase = createClient();
-        
-        // 목록 화면에서는 필요한 필드만 가져오기
-        const { data, error } = await supabase
-          .from('technical_articles')
-          .select('id, title, category, created_at, updated_at, tags, content')
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          console.error('Error fetching articles:', error);
-          return;
+        // API 라우트에서 캐싱된 기술 자료 목록을 가져옵니다.
+        const response = await fetch('/api/technical-articles');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-
-        // content에서 첫 번째 이미지 URL을 추출하고 content는 빈 문자열로 설정
-        const articlesWithEmptyContent = (data || []).map((article: any) => {
-          // 첫 번째 이미지 URL 추출
-          const imgMatch = article.content?.match(/<img[^>]+src="([^"]+)"/i);
-          const preview_image = imgMatch ? imgMatch[1] : null;
-          
-          return {
-            ...article,
-            content: '', // 목록에서는 빈 문자열로 설정
-            preview_image // 첫 번째 이미지 URL
-          };
-        });
-
-        setArticles(articlesWithEmptyContent);
+        const data = await response.json();
+        setArticles(data);
       } catch (error) {
-        console.error('Error:', error);
+        console.error('Error fetching articles:', error);
+        toast.error('기술 자료를 불러오는 데 실패했습니다.');
       } finally {
         setIsLoading(false);
       }
@@ -481,7 +206,11 @@ export default function TechnicalDataPage() {
 
     setSaving(true);
     try {
-      const supabase = createClient();
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
       const { data, error } = await supabase
         .from('technical_articles')
         .insert([
@@ -551,7 +280,11 @@ export default function TechnicalDataPage() {
 
     setSaving(true);
     try {
-      const supabase = createClient();
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
       const { data, error } = await supabase
         .from('technical_articles')
         .update({
@@ -591,7 +324,11 @@ export default function TechnicalDataPage() {
     }
 
     try {
-      const supabase = createClient();
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
       const { error } = await supabase
         .from('technical_articles')
         .delete()
@@ -615,21 +352,14 @@ export default function TechnicalDataPage() {
   // 글 상세 내용 가져오기 (최적화: 필요할 때만 content 로딩)
   const fetchArticleDetail = async (articleId: string) => {
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('technical_articles')
-        .select('content')
-        .eq('id', articleId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching article detail:', error);
-        return null;
+      const response = await fetch(`/api/technical-articles/${articleId}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-
+      const data = await response.json();
       return data.content;
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching article detail:', error);
       return null;
     }
   };
@@ -857,13 +587,12 @@ export default function TechnicalDataPage() {
                   </button>
                 </div>
                 <div className="jodit-editor-container border border-gray-300 rounded-lg overflow-hidden">
-                  <textarea 
-                    ref={textareaRef} 
-                    id="jodit-editor"
-                    className="min-h-[400px] w-full"
-                    defaultValue={content}
-                    title="기술 자료 내용 입력"
-                    placeholder="내용을 입력해주세요."
+                  <Jodit
+                    ref={joditInstance}
+                    value={content}
+                    config={editorConfig}
+                    onBlur={(newContent: string) => setContent(newContent)}
+                    onChange={(newContent: string) => {}}
                   />
                 </div>
               </div>
@@ -943,13 +672,12 @@ export default function TechnicalDataPage() {
                   </button>
                 </div>
                 <div className="jodit-editor-container border border-gray-300 rounded-lg overflow-hidden">
-                  <textarea 
-                    ref={textareaRef} 
-                    id="jodit-editor-write"
-                    placeholder="내용을 입력해주세요."
-                    title="글 내용 입력"
-                    className="min-h-[400px] w-full"
-                    defaultValue={content}
+                  <Jodit
+                    ref={joditInstance}
+                    value={content}
+                    config={editorConfig}
+                    onBlur={(newContent: string) => setContent(newContent)}
+                    onChange={(newContent: string) => {}}
                   />
                 </div>
               </div>

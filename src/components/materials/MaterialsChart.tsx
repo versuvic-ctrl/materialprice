@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import useMaterialStore from '@/store/materialStore';
 import { createClient } from '@/utils/supabase/client'; // 표준 클라이언트 import
-import { formatWeekLabel, formatXAxisLabel } from '@/utils/dateFormatter';
+import { formatWeekLabel, formatXAxisLabel } from "@/utils/dateFormatter";
 
 const supabase = createClient(); // Supabase 클라이언트 생성
 
@@ -730,7 +730,19 @@ const formatYAxisPrice = (value: number) => {
 };
 
 // [수정] 커스텀 범례 컴포넌트 - 실제 축 배치에 따른 범례 배치 및 단위 표시
-const CustomizedLegend = (props: any) => {
+// CustomizedLegend is defined but not used; remove the unused component
+interface CustomLegendProps {
+  payload?: any[];
+  onVisibilityChange?: (material: string) => void;
+  hiddenMaterials?: Set<string>;
+  axisAssignment?: {
+    leftAxisMaterials: string[];
+    rightAxisMaterials: string[];
+  };
+  unitMap?: Map<string, string>;
+}
+
+const CustomLegend: React.FC<CustomLegendProps> = (props) => {
   const { payload, onVisibilityChange, hiddenMaterials, axisAssignment, unitMap } = props;
 
   if (!payload || payload.length === 0 || !axisAssignment) return null;
@@ -752,13 +764,13 @@ const CustomizedLegend = (props: any) => {
             {items.map((entry: any, index: number) => {
               const materialName = entry.dataKey;
               const materialUnit = unitMap?.get(materialName) || 'kg';
-              const isHidden = hiddenMaterials.has(materialName);
+              const isHidden = hiddenMaterials?.has(materialName) ?? false;
 
               return (
                 <div 
                   key={`${title}-${materialName}-${index}`} 
                   className={`flex items-center space-x-1 cursor-pointer transition-opacity min-w-0 flex-shrink-0 ${isHidden ? 'opacity-50' : 'opacity-100'}`}
-                  onClick={() => onVisibilityChange(materialName)}
+                  onClick={() => onVisibilityChange?.(materialName)}
                 >
                   <div 
                     className="w-3 h-3 rounded-full flex-shrink-0"
@@ -786,7 +798,11 @@ const CustomizedLegend = (props: any) => {
   );
 };
 
-const MaterialsChart: React.FC = () => {
+interface MaterialsChartProps {
+  tableRowCount?: number;
+}
+
+const MaterialsChart: React.FC<MaterialsChartProps> = ({ tableRowCount = 0 }) => {
   const {
     interval, setInterval, startDate, endDate, setDateRange,
     selectedMaterialsForChart,
@@ -867,20 +883,36 @@ const MaterialsChart: React.FC = () => {
     return Math.max(maxCount * 20 + 10, 30);
   }, [visibleMaterials, axisAssignment]);
 
-  // 차트 높이 계산 (1:5 비율 적용, 범례 공간 고려)
+  // 차트 높이 계산 (테이블 행 수에 따라 동적 조정)
   const calculateChartHeight = useMemo(() => {
     if (!chartRef.current) return 500;
     
-    const containerWidth = chartRef.current.offsetWidth || 800;
-    const baseHeight = containerWidth / 5; // 1:5 비율
+    // 기본 뷰포트 높이 (브라우저 창 높이)
+    const viewportHeight = window.innerHeight;
     
-    // 최소/최대 높이 제한 (적절히 조정)
-    const minHeight = 400; // 최소 높이를 적절히 조정
-    const maxHeight = 650; // 최대 높이를 적절히 조정
+    // 페이지 상단 여백 (헤더, 네비게이션 등) - 대략 150px
+    const pageHeaderHeight = 150;
     
-    // 실제 차트 높이 (범례 높이를 빼지 않음)
-    return Math.max(minHeight, Math.min(maxHeight, baseHeight));
-  }, []);
+    // 차트 헤더 높이 (CardHeader) - 대략 60px
+    const chartHeaderHeight = 60;
+    
+    // 테이블 행당 높이 (헤더 1행 + 데이터 행들) - 각 행당 약 32px
+    const rowHeight = 32;
+    const tableHeight = (tableRowCount + 1) * rowHeight; // +1은 헤더 행
+    
+    // 여백 및 패딩 - 대략 120px (테이블 공간 확보를 위해 증가)
+    const margins = 180; // 테이블 공간 확보를 위해 추가 증가
+    
+    // 사용 가능한 차트 높이 계산
+    const availableHeight = viewportHeight - pageHeaderHeight - chartHeaderHeight - tableHeight - margins - 30; // 30px offset으로 높이 약간 줄임
+    
+    // 최소/최대 높이 제한
+    const minHeight = 200;
+    const maxHeight = 500;
+    
+    // 계산된 높이가 최소값보다 작으면 최소값 사용, 최대값보다 크면 최대값 사용
+    return Math.max(minHeight, Math.min(maxHeight, availableHeight));
+  }, [tableRowCount]);
 
   // X축 라벨 간격 계산 (월 단위로 표시)
   const xAxisInterval = useMemo(() => {
@@ -988,8 +1020,8 @@ const MaterialsChart: React.FC = () => {
 
   return (
     <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-      <CardHeader className="p-2 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
-        <CardTitle className="text-xl font-bold text-gray-900 flex items-center justify-between">
+      <CardHeader className="py-1 bg-blue-50 border-b border-gray-100 shadow-sm">
+        <CardTitle className="text-xl font-bold text-gray-900 flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <div className="w-1 h-5 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
             자재 가격 변동
@@ -999,20 +1031,20 @@ const MaterialsChart: React.FC = () => {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3">
-            <Select onValueChange={setInterval} value={interval}>
-              <SelectTrigger className="w-24 h-8 text-sm font-normal">
-                <SelectValue placeholder="기간" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="weekly">주간</SelectItem>
-                <SelectItem value="monthly">월간</SelectItem>
-                <SelectItem value="yearly">연간</SelectItem>
-              </SelectContent>
-            </Select>
-            <Input type="date" value={startDate} onChange={(e) => setDateRange(e.target.value, endDate)} className="w-32 h-8 text-sm font-normal border-gray-300 hover:border-gray-400 transition-colors" />
-            <Input type="date" value={endDate} onChange={(e) => setDateRange(startDate, e.target.value)} className="w-32 h-8 text-sm font-normal border-gray-300 hover:border-gray-400 transition-colors" />
-          </div>
+          <div className="flex flex-wrap items-center gap-3">
+              <Select onValueChange={setInterval} value={interval}>
+                <SelectTrigger className="w-full sm:w-24 !h-7 text-sm font-normal bg-white px-3 py-1">
+                  <SelectValue placeholder="기간" className="py-0 text-sm" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">주간</SelectItem>
+                  <SelectItem value="monthly">월간</SelectItem>
+                  <SelectItem value="yearly">연간</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input type="date" value={startDate} onChange={(e) => setDateRange(e.target.value, endDate)} className="w-full sm:w-32 h-7 text-sm font-normal border-gray-300 hover:border-gray-400 transition-colors bg-white" />
+              <Input type="date" value={endDate} onChange={(e) => setDateRange(startDate, e.target.value)} className="w-full sm:w-32 h-7 text-sm font-normal border-gray-300 hover:border-gray-400 transition-colors bg-white" />
+            </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-3 bg-white">
@@ -1033,16 +1065,16 @@ const MaterialsChart: React.FC = () => {
           ) : isError ? (
             <div className="text-red-500 text-center py-8 bg-red-50 rounded-lg border border-red-200"><div className="text-red-600 font-medium">데이터 로딩 실패: {error?.message || error?.toString() || '알 수 없는 오류'}</div></div>
           ) : !chartData || chartData.length === 0 || selectedMaterialsForChart.length === 0 ? (
-            <div className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg border border-gray-200"><div className="text-gray-600 font-medium">표시할 데이터가 없거나, 조회할 자재를 선택해주세요.</div></div>
+            <div className="flex items-center justify-center h-full text-gray-500 text-center py-8 bg-white rounded-lg border border-gray-200"><div className="text-gray-600 font-medium">조회할 자재를 선택해주세요.</div></div>
           ) : (
-            <>
+            <div className="w-full">
               <ResponsiveContainer width="100%" height={calculateChartHeight}>
-                  <LineChart data={chartData} margin={{ top: 10, right: 50, left: 50, bottom: shouldRotateLabels ? 25 : 5 }}>
+                  <LineChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: shouldRotateLabels ? 25 : 5 }}>
                     <CartesianGrid 
                       strokeDasharray="3 3" 
                       stroke="#e5e7eb" 
                       strokeWidth={0.8}
-                      horizontal={true} 
+                      horizontal={false} 
                       vertical={false}
                       horizontalPoints={gridHorizontalPoints}
                     />
@@ -1090,11 +1122,7 @@ const MaterialsChart: React.FC = () => {
                       return [formatTooltipValue(value, materialUnit), shortenMaterialName(name, visibleMaterials)];
                     }}
                     labelFormatter={(label) => {
-                      // ISO 주간 형식(2023-W36)을 한국어 형식(23년9월1주)으로 변환
-                      if (typeof label === 'string' && label.includes('-W')) {
-                        return `기간: ${formatWeekLabel(label)}`;
-                      }
-                      return `기간: ${label}`;
+                      return `기간: ${formatXAxisLabel(label, interval)}`;
                     }}
                   />
 
@@ -1178,7 +1206,7 @@ const MaterialsChart: React.FC = () => {
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       </CardContent>

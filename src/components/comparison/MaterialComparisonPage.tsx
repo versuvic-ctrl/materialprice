@@ -517,7 +517,7 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
       <TabsContent value="properties" className="space-y-6">
         <div className="space-y-6">
       {/* 재료 선택 섹션 */}
-      <Card className="mt-6">
+      <Card className="mt-10">
         <CardHeader className="p-6 pb-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-1 h-5 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
@@ -532,7 +532,7 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
         <CardContent>
           <div className="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3 mt-2 mb-2">
             {/* 대분류 선택 */}
-            <div className="w-full sm:w-[200px]">
+            <div className="w-full sm:flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
                 대분류를 선택하세요
               </label>
@@ -557,7 +557,7 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
             </div>
 
             {/* 중분류 선택 */}
-            <div className="w-full sm:w-[200px]">
+            <div className="w-full sm:flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
                 중분류를 선택하세요
               </label>
@@ -584,7 +584,7 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
 
             {/* 소분류 선택 */}
             {subCategories.length > 0 && (
-              <div className="w-full sm:w-[200px]">
+              <div className="w-full sm:flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
                   소분류 선택
                 </label>
@@ -611,7 +611,7 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
             )}
 
             {/* 재료 선택 */}
-            <div className="w-full sm:w-[200px]">
+            <div className="w-full sm:flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
                 재료 선택
               </label>
@@ -747,19 +747,19 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
 
                 {/* 데스크톱 테이블 레이아웃 */}
                 <div className="hidden sm:block overflow-x-auto">
-                  <table className="w-full border-collapse table-fixed min-w-[600px]">
+                  <table className="w-full border-collapse table-fixed">
                     {/* 헤더 */}
                     <thead>
                       <tr className="border-b border-gray-200">
                         <th 
                           className="text-left py-2 px-3 text-sm font-medium text-gray-600 bg-gray-50"
-                          style={{ width: `${Math.max(300, 100 - (selectedMaterials.filter(m => m.active).length * 15))}px` }}
+                          style={{ width: `${100 - (selectedMaterials.filter(m => m.active).length * 15)}%` }}
                         >
                           물성
                         </th>
                         <th 
                           className="text-left py-2 px-3 text-sm font-medium text-gray-600 bg-gray-50"
-                          style={{ width: '100px' }}
+                          style={{ width: '10%' }}
                         >
                           단위
                         </th>
@@ -934,7 +934,7 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
 
                     {/* 데스크톱 테이블 레이아웃 */}
                     <div className="hidden sm:block overflow-x-auto">
-                      <table className="w-full border-collapse table-fixed min-w-[600px]">
+                      <table className="w-full border-collapse table-fixed">
                         {/* 헤더 */}
                         <thead>
                           <tr className="border-b border-gray-200">
@@ -1044,7 +1044,7 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
 
                   {/* 데스크톱 테이블 레이아웃 */}
                   <div className="hidden sm:block overflow-x-auto">
-                    <table className="w-full border-collapse table-fixed min-w-[600px]">
+                    <table className="w-full border-collapse table-fixed">
                       {/* 헤더 */}
                       <thead>
                         <tr className="border-b border-gray-200">
@@ -1133,7 +1133,9 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
       </TabsContent>
       
       <TabsContent value="corrosion" className="space-y-6">
-        <CorrosionCompatibility selectedMaterials={selectedMaterials} />
+        <div className="mt-10">
+          <CorrosionCompatibility selectedMaterials={selectedMaterials} />
+        </div>
       </TabsContent>
     </Tabs>
   </>);

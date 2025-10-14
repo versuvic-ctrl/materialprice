@@ -1,6 +1,3 @@
-supabase
-python-dotenv
-playwright
-pandas
 requests
-psutil
+beautifulsoup4
+pandas

@@ -30,6 +30,7 @@ interface MaterialState {
   removeMaterialFromChart: (material: string) => void;
   toggleMaterialVisibility: (material: string) => void;
   clearAllMaterials: () => void;
+  resetAllMaterialState: () => void;
 }
 
 const useMaterialStore = create<MaterialState>((set) => ({
@@ -155,6 +156,20 @@ const useMaterialStore = create<MaterialState>((set) => ({
   }),
   
   clearAllMaterials: () => set({ selectedMaterialsForChart: [], hiddenMaterials: new Set() }),
+
+  // 모든 자재 관련 상태를 초기화하는 액션
+  resetAllMaterialState: () => set({
+    selectedLevel1: '',
+    selectedLevel2: '',
+    selectedLevel3: '',
+    selectedLevel4: '',
+    selectedLevel5: '',
+    selectedMaterialsForChart: [],
+    hiddenMaterials: new Set(),
+    interval: 'monthly',
+    startDate: format(new Date(subYears(new Date(), 2).getFullYear(), subYears(new Date(), 2).getMonth(), 1), 'yyyy-MM-dd'),
+    endDate: format(new Date(), 'yyyy-MM-dd'),
+  }),
 
   // 카테고리별 자재 목록 가져오기 함수
   fetchMaterialsByCategory: async (level: number, categoryName: string) => {

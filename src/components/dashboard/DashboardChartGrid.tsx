@@ -81,9 +81,9 @@ export default function DashboardChartGrid() {
     <div className="space-y-4">
       {/* 공통 컨트롤 영역 */}
       <Card>
-        <CardContent className="p-3 sm:p-4">
+        <CardContent className="p-2 sm:p-2">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <div className="flex sm:flex-row sm:items-center gap-2">
               <Label htmlFor="interval-dashboard" className="text-sm font-medium whitespace-nowrap">조회 간격</Label>
               <Select value={interval} onValueChange={(value: any) => setInterval(value)}>
                 <SelectTrigger id="interval-dashboard" className="w-full sm:w-24 h-8"><SelectValue /></SelectTrigger>
@@ -94,13 +94,13 @@ export default function DashboardChartGrid() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <div className="flex sm:flex-row sm:items-center gap-2">
               <Label htmlFor="start-date-dashboard" className="text-sm font-medium whitespace-nowrap">시작일</Label>
-              <Input id="start-date-dashboard" type="date" value={startDate} onChange={(e) => setDateRange(e.target.value, endDate)} className="w-full sm:w-36 h-8" />
+              <Input id="start-date-dashboard" type="date" value={startDate} onChange={(e) => setDateRange(e.target.value, endDate)} className="w-full sm:w-36 h-8 pr-8" />
             </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <div className="flex sm:flex-row sm:items-center gap-2">
               <Label htmlFor="end-date-dashboard" className="text-sm font-medium whitespace-nowrap">종료일</Label>
-              <Input id="end-date-dashboard" type="date" value={endDate} onChange={(e) => setDateRange(startDate, e.target.value)} className="w-full sm:w-36 h-8" />
+              <Input id="end-date-dashboard" type="date" value={endDate} onChange={(e) => setDateRange(startDate, e.target.value)} className="w-full sm:w-36 h-8 pr-8" />
             </div>
           </div>
         </CardContent>

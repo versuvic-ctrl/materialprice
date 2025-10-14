@@ -276,7 +276,7 @@ export default function Layout({ children, title }: LayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 px-3 py-3 sm:px-5 lg:px-7 overflow-y-auto">
+        <main className="flex-1 px-3 py-3 sm:px-5 lg:px-7 overflow-y-auto overflow-x-hidden max-w-full">
           {children}
         </main>
       </div>

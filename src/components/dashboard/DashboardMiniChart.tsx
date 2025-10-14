@@ -689,7 +689,7 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
           </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
+      <CardContent className="p-2">
         <div className="h-48 sm:h-64 w-full relative">
           {isLoading ? (
             <Skeleton className="h-full w-full" />
@@ -878,7 +878,7 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
         )}
         
         {/* 가격 정보 테이블 */}
-        <div className="mt-5">
+        <div className="mt-3">
           <PriceTable data={tableData} isLoading={isLoading} />
         </div>
       </CardContent>

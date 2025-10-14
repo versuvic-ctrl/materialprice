@@ -84,12 +84,12 @@ export default function MarketIndicatorsSummary() {
   }, []);
 
   return (
-    <Card className="h-[220px] bg-white shadow-sm border border-gray-100 overflow-hidden">
+    <Card className="min-h-[220px] bg-white shadow-sm border border-gray-100 overflow-hidden">
       <div className="h-full flex flex-col">
         {/* 헤더 */}
-        <div className="px-4 py-2 border-b border-gray-100">
-          <div className="flex justify-between items-center">
-            <h3 className="text-sm font-bold text-gray-900">주요 시장지표 SUMMARY</h3>
+        <div className="px-3 sm:px-4 py-2 border-b border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
+            <h3 className="text-sm sm:text-base font-bold text-gray-900">주요 시장지표 SUMMARY</h3>
             <span className="text-xs text-gray-500">(전일비)</span>
           </div>
         </div>
@@ -103,11 +103,11 @@ export default function MarketIndicatorsSummary() {
                 className="flex items-center justify-between py-0.5 leading-[0.8]"
               >
                 {/* 왼쪽: 카테고리와 항목명 */}
-                <div className="flex items-center space-x-2 min-w-0 flex-1">
-                  <span className="text-sm text-gray-600 font-medium whitespace-nowrap">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600 font-medium flex-shrink-0">
                     {indicator.category}
                   </span>
-                  <span className="text-sm text-gray-800 font-semibold whitespace-nowrap">
+                  <span className="text-sm text-gray-800 font-semibold flex-grow truncate">
                     {indicator.name}
                   </span>
                 </div>
