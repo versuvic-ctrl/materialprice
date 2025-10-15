@@ -1,9 +1,10 @@
-name: Daily KPI Crawler by Category
+name: KPI Crawler by Category (Every 5 Days)
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 19 * * *'
+    # Run every 5 days at 19:00 UTC (4 AM KST)
+    - cron: '0 19 */5 * *'
 
 jobs:
   crawl-by-category:

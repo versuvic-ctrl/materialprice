@@ -1065,7 +1065,17 @@ const MaterialsChart: React.FC<MaterialsChartProps> = ({ tableRowCount = 0 }) =>
           ) : isError ? (
             <div className="text-red-500 text-center py-8 bg-red-50 rounded-lg border border-red-200"><div className="text-red-600 font-medium">데이터 로딩 실패: {error?.message || error?.toString() || '알 수 없는 오류'}</div></div>
           ) : !chartData || chartData.length === 0 || selectedMaterialsForChart.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-gray-500 text-center py-8 bg-white rounded-lg border border-gray-200"><div className="text-gray-600 font-medium">조회할 자재를 선택해주세요.</div></div>
+            <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center py-12 bg-white rounded-lg border border-gray-200">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              </div>
+              <div className="text-gray-700 font-medium text-lg mb-2">자재를 선택해주세요</div>
+              <div className="text-gray-500 text-sm max-w-md leading-relaxed">
+                자재를 선택하면 기간별 상세 가격을 확인할 수 있습니다.
+              </div>
+            </div>
           ) : (
             <div className="w-full">
               <ResponsiveContainer width="100%" height={calculateChartHeight}>

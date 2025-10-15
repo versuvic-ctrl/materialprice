@@ -35,15 +35,59 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // content에서 첫 번째 이미지 URL을 추출하고 content는 빈 문자열로 설정
+  // content에서 첫 번째 이미지 URL과 미리보기 텍스트를 추출하고 content는 빈 문자열로 설정
   const articlesWithEmptyContent = (data || []).map((article: any) => {
-    const imgMatch = article.content?.match(/<img[^>]+src=\"([^\"]+)\"/i);
-    const preview_image = imgMatch ? imgMatch[1] : null;
+    // 이미지 URL 추출 (다양한 형태의 src 속성 지원)
+    const imgMatch = article.content?.match(/<img[^>]+src\s*=\s*['"](.*?)['"][^>]*>/i);
+    let preview_image = imgMatch ? imgMatch[1] : null;
     
+    // Supabase Storage URL 처리 및 유효성 검사
+    if (preview_image) {
+      // Supabase Storage URL인지 확인 (article_images 버킷)
+    if (preview_image.includes('/storage/v1/object/public/article_images/')) {
+        // 이미 완전한 Supabase Storage URL인 경우 그대로 사용
+        preview_image = preview_image;
+      } else if (preview_image.startsWith('http') || preview_image.startsWith('data:')) {
+        // 외부 URL이나 base64 이미지는 그대로 사용
+        preview_image = preview_image;
+      } else {
+        // 상대 경로나 파일명만 있는 경우 null로 설정
+        preview_image = null;
+      }
+    }
+    
+    // 미리보기 텍스트 추출 (HTML 태그 제거 후 첫 100자)
+    let preview_text = '';
+    if (article.content) {
+      // HTML 태그 제거하고 공백 정리
+      const textOnly = article.content
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .trim();
+      
+      preview_text = textOnly.length > 100 ? textOnly.substring(0, 100) + '...' : textOnly;
+    }
+    
+    // 테이블 미리보기 추출
+    const tableMatch = article.content?.match(/<table[^>]*>(?:.|\n)*?<\/table>/i);
+    const preview_table = tableMatch ? tableMatch[0] : null;
+    
+    // 반환 객체에서 preview_text가 확실히 포함되도록 명시적으로 설정
     return {
-      ...article,
+      id: article.id,
+      title: article.title,
+      category: article.category,
+      created_at: article.created_at,
+      updated_at: article.updated_at,
+      tags: article.tags,
       content: '', // 목록에서는 content를 비워둠
       preview_image: preview_image,
+      preview_text: preview_text || `${article.category} 관련 기술자료`,
+      preview_table: preview_table,
     };
   });
 

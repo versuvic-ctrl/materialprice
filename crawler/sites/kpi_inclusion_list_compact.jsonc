@@ -17,7 +17,8 @@
       "C형강": {"unit": "kg"},
       "HyFo BEAM": {"unit": "ton"},
       "H형강": {"unit": "ton"},
-      "용접경량H형강": {"unit": "ton"}
+      "용접경량H형강": {"unit": "ton"},
+    "4각강": {"unit": "ton"}
       // "레일": {"unit": "ton"}
       // "TSC BEAM": {"unit": "ton"}
       // "OCFT COLUMN": {"unit": "ton"}

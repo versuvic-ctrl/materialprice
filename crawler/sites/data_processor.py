@@ -10,8 +10,10 @@ from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from urllib.parse import urlparse
-from unit_validation import UnitValidator
-from api_monitor import create_monitored_supabase_client
+import redis
+import hashlib
+# from unit_validation import UnitValidator
+# from api_monitor import create_monitored_supabase_client
 
 # 환경변수 로드
 load_dotenv("../../.env.local")
@@ -24,13 +26,25 @@ SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 _supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# Redis 클라이언트 초기화
+REDIS_URL = os.environ.get("REDIS_URL")
+_redis_client = None
+
+if REDIS_URL:
+    try:
+        _redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+        # Redis 연결 테스트
+        _redis_client.ping()
+        log("Redis 클라이언트 초기화 성공", "SUCCESS")
+    except Exception as e:
+        log(f"Redis 연결 실패: {e}", "ERROR")
+        _redis_client = None
+else:
+    log("REDIS_URL 환경변수가 설정되지 않음", "WARNING")
+
 # API 모니터링이 적용된 클라이언트 생성
-api_monitor = create_monitored_supabase_client(
-    _supabase_client, 
-    max_calls_per_minute=200,  # 분당 최대 200회
-    max_calls_per_hour=2000    # 시간당 최대 2000회
-)
-supabase = api_monitor.client
+
+
 
 
 def log(message: str, level: str = "INFO"):
@@ -75,7 +89,7 @@ class BaseDataProcessor(ABC):
     def __init__(self):
         self.raw_data_list: List[Dict[str, Any]] = []
         self.processed_data_list: List[Dict[str, Any]] = []
-        self.unit_validator = UnitValidator()  # 단위 검증기 초기화
+        # self.unit_validator = UnitValidator()  # 단위 검증기 초기화
     
     def add_raw_data(self, data: Dict[str, Any]):
         """파싱된 원본 데이터를 추가"""
@@ -319,10 +333,79 @@ class BaseDataProcessor(ABC):
     
     def save_to_cache(self, major_category: str, year: int, month: int, data: List[Dict]):
         """
-        데이터를 캐시에 저장 (현재는 비활성화)
+        데이터를 Redis 캐시에 저장
         """
-        # Redis 캐시 사용을 중단하고 프론트엔드에서 사용하도록 변경
-        return True
+        if not _redis_client:
+            log("Redis 클라이언트가 없어 캐시 저장을 건너뜁니다", "WARNING")
+            return False
+            
+        try:
+            cache_key = f"kpi_data:{major_category}:{year}:{month}"
+            
+            # 데이터를 JSON으로 직렬화하여 저장
+            cache_data = {
+                'data': data,
+                'timestamp': datetime.now().isoformat(),
+                'count': len(data)
+            }
+            
+            # 7일간 캐시 유지 (604800초)
+            _redis_client.setex(cache_key, 604800, json.dumps(cache_data, ensure_ascii=False))
+            
+            log(f"✅ Redis 캐시 저장 완료: {cache_key} ({len(data)}개 항목)", "SUCCESS")
+            return True
+            
+        except Exception as e:
+             log(f"Redis 캐시 저장 실패: {e}", "ERROR")
+             return False
+    
+    def get_from_cache(self, major_category: str, year: int, month: int) -> Optional[List[Dict]]:
+        """
+        Redis 캐시에서 데이터를 조회
+        """
+        if not _redis_client:
+            return None
+            
+        try:
+            cache_key = f"kpi_data:{major_category}:{year}:{month}"
+            cached_data = _redis_client.get(cache_key)
+            
+            if cached_data:
+                cache_obj = json.loads(cached_data)
+                log(f"✅ Redis 캐시 히트: {cache_key} ({cache_obj.get('count', 0)}개 항목)", "SUCCESS")
+                return cache_obj.get('data', [])
+            else:
+                log(f"❌ Redis 캐시 미스: {cache_key}", "INFO")
+                return None
+                
+        except Exception as e:
+            log(f"Redis 캐시 조회 실패: {e}", "ERROR")
+            return None
+    
+    def clear_cache(self, major_category: str = None):
+        """
+        Redis 캐시를 삭제 (특정 카테고리 또는 전체)
+        """
+        if not _redis_client:
+            return False
+            
+        try:
+            if major_category:
+                pattern = f"kpi_data:{major_category}:*"
+            else:
+                pattern = "kpi_data:*"
+                
+            keys = _redis_client.keys(pattern)
+            if keys:
+                _redis_client.delete(*keys)
+                log(f"✅ Redis 캐시 삭제 완료: {len(keys)}개 키", "SUCCESS")
+            else:
+                log("삭제할 캐시가 없습니다", "INFO")
+            return True
+            
+        except Exception as e:
+            log(f"Redis 캐시 삭제 실패: {e}", "ERROR")
+            return False
     
     def filter_new_data_only(self, df: pd.DataFrame, table_name: str = 'kpi_price_data') -> pd.DataFrame:
         """

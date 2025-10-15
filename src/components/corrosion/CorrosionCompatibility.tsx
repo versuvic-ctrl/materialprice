@@ -698,11 +698,11 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
     for (const symbol of symbols) {
       switch (symbol) {
         case '0':
-          return '부식 속도 0.1mm/년 미만. <부식 방지 가능>';
+          return '부식 속도 0.1mm/년 미만.';
         case '1':
-          return '부식 속도 0.1–1.0mm/년. <특정 경우 가능>';
+          return '부식 속도 0.1–1.0mm/년.';
         case '2':
-          return '부식 속도 1.0mm/년 초과. <심각한 부식>';
+          return '부식 속도 1.0mm/년 초과.';
         case 'P':
         case 'p':
           return '위험: 공식, 틈새 부식';
@@ -815,8 +815,8 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
     const IconComponent = ratingInfo.icon;
     
     return (
-      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${ratingInfo.color === 'bg-white border border-gray-300' ? 'text-gray-700' : 'text-white'} ${ratingInfo.color}`}>
-        <IconComponent className="w-3 h-3 mr-1" />
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ratingInfo.color === 'bg-white border border-gray-300' ? 'text-gray-700' : 'text-white'} ${ratingInfo.color}`}>
+        <IconComponent className="w-2 h-2 mr-1" />
         {rating}
       </span>
     );
@@ -836,12 +836,12 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
 
       {/* 검색 섹션 */}
       <div className="mt-6 rounded-lg border bg-card text-card-foreground shadow-sm">
-        <div className="flex flex-col space-y-1.5 p-6 pb-4">
+        <div className="flex flex-col space-y-1.5 p-6 pb-1">
           <div className="flex items-center gap-3">
             <div className="w-1 h-5 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
             <h2 className="text-2xl font-semibold leading-none tracking-tight">Material Corrosion Compatibility</h2>
       </div>
-       <div className="text-xs text-gray-500 mt-2 ml-4">
+       <div className="text-xs text-gray-500 py-2 ml-4 flex items-center">
          - 부식 데이터는 실제 수행한 일반 부식 실험실 테스트 결과를 기반으로 합니다. (출처 : Alleima (Sandvik))
        </div>
         </div>
@@ -908,7 +908,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
           <div className="ml-auto">
             <button
               onClick={handleSearch}
-              className="w-[120px] bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium"
+              className="w-[120px] h-8 bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 transition-colors text-xs"
             >
               호환성 조회
             </button>
@@ -1435,13 +1435,13 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
       )}
 
       {/* 호환성 등급 설명 */}
-      <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">호환성 등급 설명</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+      <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-5">
+        <h3 className="text-lg font-semibold text-gray-900 mb-3">호환성 등급 설명</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mb-3">
           {Object.entries(data.symbol_clarification).map(([symbol, description]) => (
             <div key={symbol} className="flex items-center space-x-2">
               {getRatingBadge(symbol)}
-              <p className="text-sm text-gray-700">{getKoreanRatingDescription(symbol)}</p>
+              <p className="text-xs text-gray-700">{getKoreanRatingDescription(symbol)}</p>
             </div>
           ))}
         </div>

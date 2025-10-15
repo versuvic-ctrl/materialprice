@@ -902,12 +902,23 @@ class KpiCrawler:
                     )
                     total_saved += saved_count
                     
+                    # Redis 캐시에 저장 (현재 년월 기준)
+                    current_date = datetime.now()
+                    cache_saved = self.processor.save_to_cache(
+                        batch_item['major'], 
+                        current_date.year, 
+                        current_date.month, 
+                        processed_data
+                    )
+                    
                     if saved_count == 0:
                         log(f"  - {batch_item['sub']}: pandas 가공 {processed_count}개, "
-                            f"supabase 저장 0개 (모두 중복 데이터)")
+                            f"supabase 저장 0개 (모두 중복 데이터), "
+                            f"Redis 캐시 {'성공' if cache_saved else '실패'}")
                     else:
                         log(f"  - {batch_item['sub']}: pandas 가공 {processed_count}개, "
-                            f"supabase 저장 {saved_count}개")
+                            f"supabase 저장 {saved_count}개, "
+                            f"Redis 캐시 {'성공' if cache_saved else '실패'}")
                 else:
                     # 처리할 데이터가 없는 이유를 명확히 구분
                     if batch_item.get('skip_reason') == 'not_found':
@@ -1094,8 +1105,36 @@ class KpiCrawler:
 
     async def _check_existing_data(self, major_name, middle_name, 
                                   sub_name, spec_name):
-        """Supabase에서 기존 데이터 확인하여 중복 체크 - 6개 필드 동일할 때 중복으로 간주 (가격 제외)"""
+        """Redis 캐시 우선 조회 후 Supabase에서 기존 데이터 확인하여 중복 체크 - 6개 필드 동일할 때 중복으로 간주 (가격 제외)"""
         try:
+            # 현재 년월 정보 가져오기
+            current_date = datetime.now()
+            current_year = current_date.year
+            current_month = current_date.month
+            
+            # Redis 캐시에서 먼저 조회 시도
+            cached_data = self.processor.get_from_cache(major_name, current_year, current_month)
+            if cached_data and not self.force_refresh:
+                # 캐시된 데이터에서 해당 스펙의 기존 데이터 추출
+                existing_data = set()
+                for item in cached_data:
+                    if (item.get('major_category') == major_name and 
+                        item.get('middle_category') == middle_name and
+                        item.get('sub_category') == sub_name and
+                        item.get('specification') == spec_name):
+                        existing_data.add((
+                            item['major_category'], 
+                            item['middle_category'], 
+                            item['sub_category'], 
+                            item['specification'], 
+                            item['region'], 
+                            item['date']
+                        ))
+                if existing_data:
+                    log(f"        - Redis 캐시에서 기존 데이터 발견: {len(existing_data)}개")
+                    return existing_data
+            
+            # 캐시에 없거나 force_refresh 모드인 경우 Supabase에서 조회
             response = self.supabase.table('kpi_price_data').select(
                 'major_category, middle_category, sub_category, specification, region, date'
             ).eq(
@@ -1120,7 +1159,7 @@ class KpiCrawler:
                         item['region'], 
                         item['date']
                     ))
-                log(f"        - 기존 데이터 발견: {len(existing_data)}개 (6개 필드 일치 조합, 가격 변동 허용)")
+                log(f"        - Supabase에서 기존 데이터 발견: {len(existing_data)}개 (6개 필드 일치 조합, 가격 변동 허용)")
                 return existing_data
             else:
                 log("        - 기존 데이터 없음: 전체 추출 필요")

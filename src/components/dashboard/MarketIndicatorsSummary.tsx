@@ -1,47 +1,48 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { Card } from '@/components/ui/card';
 
 interface MarketIndicator {
-  id: number;
   category: string;
   name: string;
   value: number;
   unit: string;
   change: number;
-  changerate: number; // Keep this as it's from Supabase, but won't be displayed directly as per MarketIndicators.tsx design
+  changerate: number;
 }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-const supabase = createClient(supabaseUrl!, supabaseAnonKey!);
+interface MarketIndicatorResponse {
+  data: MarketIndicator[];
+  lastUpdated: string;
+  timestamp: number;
+}
 
 async function getMarketIndicators(): Promise<MarketIndicator[]> {
-  console.log('Fetching market indicators...');
-  const { data, error } = await supabase
-    .from('market_indicators')
-    .select('*')
-    .order('updated_at', { ascending: false })
-    .limit(5);
+  try {
+    console.log('Fetching market indicators from API...');
+    
+    const response = await fetch('/api/market-indicators', {
+      cache: 'no-cache',
+      headers: {
+        'Cache-Control': 'no-cache',
+      },
+    });
 
-  if (error) {
-    console.error('Error fetching market indicators:', error);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const jsonData: MarketIndicatorResponse = await response.json();
+    console.log('Fetched data from API:', jsonData);
+    
+    return jsonData.data || [];
+  } catch (error) {
+    console.error('Error fetching market indicators from API:', error);
+    
+    // 폴백: 빈 배열 반환
     return [];
   }
-  
-  console.log('Fetched data:', data);
-  
-  // Convert value to number
-  const processedData = data.map(item => ({
-    ...item,
-    value: parseFloat(item.value) // Assuming value from Supabase is string and can be parsed to float
-  }));
-  
-  console.log('Processed data:', processedData);
-  return processedData;
 }
 
 // 네이버 스타일 포맷팅 함수들 (MarketIndicators.tsx에서 복사)
@@ -97,9 +98,9 @@ export default function MarketIndicatorsSummary() {
         {/* 지표 목록 */}
         <div className="flex-1 px-4 py-4 overflow-hidden">
           <div className="h-full space-y-0.5">
-            {indicators.map((indicator) => (
+            {indicators.map((indicator, index) => (
               <div
-                key={indicator.id}
+                key={`${indicator.name}-${index}`}
                 className="flex items-center justify-between py-0.5 leading-[0.8]"
               >
                 {/* 왼쪽: 카테고리와 항목명 */}

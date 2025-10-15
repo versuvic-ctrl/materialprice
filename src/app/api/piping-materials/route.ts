@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { redis } from '@/utils/redis';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // 배관 자재 가격 데이터베이스 (실제로는 데이터베이스에서 가져와야 함)
 const PIPING_MATERIALS = {
@@ -129,13 +133,39 @@ export async function GET(request: NextRequest) {
   const size = searchParams.get('size');
   const material = searchParams.get('material');
 
+  // Redis 캐시 키 생성
+  const cacheKey = `piping_materials:${category || 'all'}:${itemType || 'all'}:${size || 'all'}:${material || 'all'}`;
+  const cacheExpiry = 7200; // 2시간 (초 단위) - 정적 데이터이므로 길게 설정
+
+  // 1. Redis 캐시 확인
+  try {
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) {
+      console.log(`Piping materials data fetched from Redis cache for key: ${cacheKey}`);
+      const parsedData = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
+      return NextResponse.json(parsedData);
+    }
+  } catch (error) {
+    console.error('Redis cache read error:', error);
+  }
+
   try {
     // 전체 자재 목록 반환
     if (!category) {
-      return NextResponse.json({
+      const responseData = {
         success: true,
         data: PIPING_MATERIALS
-      });
+      };
+
+      // Redis에 데이터 저장
+      try {
+        await redis.setex(cacheKey, cacheExpiry, JSON.stringify(responseData));
+        console.log(`Piping materials (all) saved to Redis cache.`);
+      } catch (cacheError) {
+        console.error('Redis cache write error:', cacheError);
+      }
+
+      return NextResponse.json(responseData);
     }
 
     // 특정 카테고리의 자재 반환
@@ -147,10 +177,21 @@ export async function GET(request: NextRequest) {
           { status: 404 }
         );
       }
-      return NextResponse.json({
+
+      const responseData = {
         success: true,
         data: categoryData
-      });
+      };
+
+      // Redis에 데이터 저장
+      try {
+        await redis.setex(cacheKey, cacheExpiry, JSON.stringify(responseData));
+        console.log(`Piping materials (category: ${category}) saved to Redis cache.`);
+      } catch (cacheError) {
+        console.error('Redis cache write error:', cacheError);
+      }
+
+      return NextResponse.json(responseData);
     }
 
     // 특정 아이템의 가격 정보 반환
@@ -186,7 +227,7 @@ export async function GET(request: NextRequest) {
         const finalPrice = Math.round(sizeData.price * materialData.multiplier);
         const finalWeight = sizeData.weight;
 
-        return NextResponse.json({
+        const responseData = {
           success: true,
           data: {
             price: finalPrice,
@@ -195,13 +236,33 @@ export async function GET(request: NextRequest) {
             material: materialData.description,
             size: size
           }
-        });
+        };
+
+        // Redis에 데이터 저장
+        try {
+          await redis.setex(cacheKey, cacheExpiry, JSON.stringify(responseData));
+          console.log(`Piping materials (specific item: ${category}/${itemType}/${size}/${material}) saved to Redis cache.`);
+        } catch (cacheError) {
+          console.error('Redis cache write error:', cacheError);
+        }
+
+        return NextResponse.json(responseData);
       }
 
-      return NextResponse.json({
+      const responseData = {
         success: true,
         data: itemData
-      });
+      };
+
+      // Redis에 데이터 저장
+      try {
+        await redis.setex(cacheKey, cacheExpiry, JSON.stringify(responseData));
+        console.log(`Piping materials (item: ${category}/${itemType}) saved to Redis cache.`);
+      } catch (cacheError) {
+        console.error('Redis cache write error:', cacheError);
+      }
+
+      return NextResponse.json(responseData);
     }
 
     return NextResponse.json(

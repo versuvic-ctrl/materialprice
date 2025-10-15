@@ -19,7 +19,7 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -42,7 +42,6 @@ import {
 // 레이아웃 컴포넌트 Props 타입 정의
 interface LayoutProps {
   children: React.ReactNode; // 페이지 콘텐츠
-  title?: string;           // 선택적 페이지 제목
 }
 
 // 네비게이션 메뉴 구성
@@ -53,17 +52,21 @@ const navigation = [
   { name: '물성 및 부식성 상세', href: '/comparison', icon: DocumentTextIcon },
   { name: '엔지니어링 계산기', href: '/calculator', icon: CalculatorIcon },
   { name: '기술자료', href: '/technical-data', icon: DocumentTextIcon },
-  { name: '관리자', href: '/admin', icon: ShieldCheckIcon },
-  { name: '설정', href: '/settings', icon: Cog6ToothIcon },
+  { name: '설정', href: '/settings', icon: ShieldCheckIcon },
+  
 ];
 
-export default function Layout({ children, title }: LayoutProps) {
+function Layout({ children }: LayoutProps) {
   // 모바일 사이드바 열림/닫힘 상태
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // 데스크톱 사이드바 접힘/펼침 상태
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   // 현재 페이지 경로 (활성 메뉴 표시용)
   const pathname = usePathname();
+
+  // 현재 경로에 맞는 페이지 제목 찾기
+  const currentPage = navigation.find((item) => item.href === pathname);
+  const pageTitle = currentPage ? currentPage.name : '';
 
   // 클라이언트에서만 localStorage 값을 불러와서 상태 설정
   // 사이드바 접힘 상태를 브라우저 새로고침 후에도 유지
@@ -110,6 +113,7 @@ export default function Layout({ children, title }: LayoutProps) {
                   <li key={item.name}>
                     <Link
                       href={item.href}
+                      prefetch={true}
                       onClick={() => setSidebarOpen(false)}
                       className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                         isActive
@@ -177,6 +181,7 @@ export default function Layout({ children, title }: LayoutProps) {
                   <li key={item.name}>
                     <Link
                       href={item.href}
+                      prefetch={true}
                       className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                         isActive
                           ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
@@ -210,7 +215,7 @@ export default function Layout({ children, title }: LayoutProps) {
               {!sidebarCollapsed && (
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-700">관리자</p>
-                  <p className="text-xs text-gray-500">admin@company.com</p>
+                  <p className="text-xs text-gray-500">최성호 M</p>
                 </div>
               )}
             </div>
@@ -234,9 +239,7 @@ export default function Layout({ children, title }: LayoutProps) {
               >
                 <Bars3Icon className="h-5 w-5" />
               </button>
-              {title && (
-                <h1 className="ml-4 lg:ml-0 text-2xl font-bold text-gray-900">{title}</h1>
-              )}
+              <h1 className="text-2xl font-bold text-gray-900 ml-2 lg:ml-0">{pageTitle}</h1>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -283,3 +286,5 @@ export default function Layout({ children, title }: LayoutProps) {
     </div>
   );
 }
+
+export default memo(Layout);

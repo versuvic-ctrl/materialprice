@@ -11,7 +11,7 @@ export default function AdminAuth({ children }: { children: React.ReactNode }) {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
+    if (password === process.env.ADMIN_PASSWORD) {
       setIsAuthenticated(true);
     } else {
       setError('비밀번호가 올바르지 않습니다.');
@@ -22,7 +22,7 @@ export default function AdminAuth({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <Card className="w-96">
+      <Card className="w-96 mt-[-20vh]">
         <CardHeader>
           <CardTitle>관리자 인증</CardTitle>
         </CardHeader>

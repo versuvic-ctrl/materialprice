@@ -414,8 +414,8 @@ export default function CalculatorPage() {
   };
 
   return (
-    <Layout title="엔지니어링 계산기">
-      <div className="px-0 sm:px-0 lg:px-0 p-6">
+    <>
+      <div className="container mx-auto p-4">
         {/* 상단 계산기 탭 버튼 (2줄 x 5열) */}
         <div className="mb-4">
           <div className="grid grid-cols-5 gap-2">
@@ -836,6 +836,6 @@ export default function CalculatorPage() {
           </div>
         </div>
       </div>
-    </Layout>
+    </>
   );
 }

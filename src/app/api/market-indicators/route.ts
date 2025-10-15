@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { redis } from '@/utils/redis';
+import { fetchMarketIndicators } from '@/utils/redis';
 import { load } from 'cheerio';
-// import * as fs from 'fs';
-// import * as path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 interface MarketIndicator {
   name: string;
@@ -109,29 +114,44 @@ async function updateMarketIndicators(indicators: MarketIndicator[]) {
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-    
-    // 현재 저장된 시장지표 데이터 조회
-    const { data, error } = await supabase
-      .from('market_indicators')
-      .select('*')
-      .order('category', { ascending: true });
+    // 통합된 fetchMarketIndicators 함수 사용 (12시간 캐시)
+    const responseData = await fetchMarketIndicators();
 
-    if (error) {
-      throw error;
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: data || [],
-      lastUpdated: data?.[0]?.updated_at || null
-    });
+    return NextResponse.json(responseData);
   } catch (error) {
-    console.error('Error fetching market indicators:', error);
+    console.error('Error in market indicators API:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch market indicators' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
+  }
+}
+
+async function saveToPublicJson(indicators: MarketIndicator[]) {
+  try {
+    const publicDir = path.join(process.cwd(), 'public');
+    const jsonFilePath = path.join(publicDir, 'market-indicators.json');
+    
+    // public 디렉토리가 없으면 생성
+    if (!fs.existsSync(publicDir)) {
+      fs.mkdirSync(publicDir, { recursive: true });
+    }
+
+    const jsonData = {
+      data: indicators,
+      lastUpdated: new Date().toISOString(),
+      timestamp: Date.now()
+    };
+
+    fs.writeFileSync(jsonFilePath, JSON.stringify(jsonData, null, 2), 'utf8');
+    
+    await logToSupabase('info', `Market indicators JSON saved to public folder: ${indicators.length} items`);
+    
+    return { success: true, path: jsonFilePath };
+  } catch (error) {
+    console.error('Error saving to public JSON:', error);
+    await logToSupabase('error', `Failed to save market indicators JSON: ${error}`);
+    throw error;
   }
 }
 
@@ -152,16 +172,22 @@ export async function POST() {
       );
     }
 
-    // 데이터베이스 업데이트
+    // 1. public 폴더에 JSON 파일 저장 (CDN 캐싱용)
+    await saveToPublicJson(indicators);
+
+    // 2. 데이터베이스 업데이트 (백업용)
     const result = await updateMarketIndicators(indicators);
+
+    await logToSupabase('info', `Market indicators updated successfully: ${result.count} items`);
 
     return NextResponse.json({
       success: true,
-      message: `Successfully updated ${result.count} market indicators`,
+      message: `Successfully updated ${result.count} market indicators and saved to public JSON`,
       data: indicators
     });
   } catch (error) {
     console.error('Error updating market indicators:', error);
+    await logToSupabase('error', `Market indicators update failed: ${error}`);
     return NextResponse.json(
       { success: false, error: 'Failed to update market indicators' },
       { status: 500 }

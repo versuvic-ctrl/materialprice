@@ -17,21 +17,34 @@
  * 
  * 📊 데이터 소스: 샘플 데이터 (향후 Supabase 연동 예정)
  */
-import Layout from '@/components/layout/Layout';
-// [제거] import DashboardCharts from '@/components/dashboard/DashboardCharts';
 import ReferenceSection from '@/components/dashboard/ReferenceSection';
 import CalculatorPreview from '@/components/dashboard/CalculatorPreview';
 import DashboardClient from '@/components/dashboard/DashboardClient';
-import DashboardChartGrid from '@/components/dashboard/DashboardChartGrid'; // [추가] 새로 만든 차트 그리드 컴포넌트를 import 합니다.
-import MarketIndicatorsSummary from '@/components/dashboard/MarketIndicatorsSummary';
 import CronInitializer from '@/components/CronInitializer';
+import { createClient } from '@/utils/supabase/server';
+import { redis } from '@/utils/redis';
+import dynamicImport from 'next/dynamic';
 
 // 빌드 시 프리렌더 오류를 회피하기 위해 동적 렌더링 강제
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-import { createClient } from '@/utils/supabase/server';
-import { redis } from '@/utils/redis';
+// 무거운 차트 컴포넌트들을 동적 import로 최적화
+const DashboardChartGrid = dynamicImport(() => import('@/components/dashboard/DashboardChartGrid'), {
+  loading: () => (
+    <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
+      <div className="text-gray-500">차트 로딩 중...</div>
+    </div>
+  )
+});
+
+const MarketIndicatorsSummary = dynamicImport(() => import('@/components/dashboard/MarketIndicatorsSummary'), {
+  loading: () => (
+    <div className="flex items-center justify-center h-32 bg-gray-50 rounded-lg">
+      <div className="text-gray-500">시장 지표 로딩 중...</div>
+    </div>
+  )
+});
 
 // 서버 컴포넌트에서 대시보드 데이터를 가져오는 함수
 async function getDashboardData() {
@@ -115,7 +128,7 @@ export default async function Dashboard() {
   const dashboardData = await getDashboardData();
   
   return (
-    <Layout title="대시보드">
+    <>
       {/* Cron Job 초기화 (UI 없음) */}
       <CronInitializer />
 
@@ -135,6 +148,6 @@ export default async function Dashboard() {
         <CalculatorPreview title="엔지니어링 계산기 요약" />
         <ReferenceSection title="참고 자료 요약" />
       </div>
-    </Layout>
+    </>
   );
 }

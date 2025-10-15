@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as ReactDOM from 'react-dom';
 
-import Layout from '@/components/layout/Layout';
+
 import { 
   PlusIcon, 
   ArrowLeftIcon, 
@@ -42,6 +42,7 @@ interface Article {
   images?: string[];
   tags?: string; // 태그 필드 추가
   preview_image?: string; // 미리보기 이미지 URL
+  preview_text?: string; // 미리보기 텍스트
   preview_table?: string; // 미리보기 테이블 HTML
 }
 
@@ -62,7 +63,12 @@ export default function TechnicalDataPage() {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('전체');
-  
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false); // 비밀번호 입력창 표시 여부
+  const [inputPassword, setInputPassword] = useState(''); // 입력된 비밀번호
+  const [passwordError, setPasswordError] = useState(''); // 비밀번호 오류 메시지
+  const [articleToDeleteId, setArticleToDeleteId] = useState<string | null>(null); // 삭제할 글의 ID
+  const [articleToEdit, setArticleToEdit] = useState<Article | null>(null); // 수정할 글의 ID
+
 
 
 
@@ -103,7 +109,7 @@ export default function TechnicalDataPage() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       );
       const { data, error } = await supabase.storage
-        .from('technical-data-images')
+        .from('article_images')
         .upload(fileName, file);
 
       if (error) {
@@ -113,7 +119,7 @@ export default function TechnicalDataPage() {
 
       // 업로드된 이미지의 공개 URL 가져오기
       const { data: { publicUrl } } = supabase.storage
-        .from('technical-data-images')
+        .from('article_images')
         .getPublicUrl(fileName);
 
       // Jodit 에디터에 이미지 삽입
@@ -199,6 +205,18 @@ export default function TechnicalDataPage() {
 
   // 새 글 저장
   const handleSave = async () => {
+    // 비밀번호 확인 로직 추가
+    if (!showPasswordPrompt) {
+      setShowPasswordPrompt(true);
+      return;
+    }
+
+    if (inputPassword !== process.env.TECHNICAL_DATA_PASSWORD) {
+      setPasswordError('비밀번호가 올바르지 않습니다.');
+      return;
+    }
+    setPasswordError(''); // 오류 메시지 초기화
+
     if (!title.trim() || !content.trim()) {
       toast.error('제목과 내용을 모두 입력해주세요.');
       return;
@@ -223,52 +241,52 @@ export default function TechnicalDataPage() {
         .select();
 
       if (error) {
-        console.error('Error saving article:', error);
-        toast.error('글 저장에 실패했습니다.');
+        console.error('Error saving new article:', error);
+        toast.error('새 글 저장에 실패했습니다.');
         return;
       }
 
-      alert('새 글이 성공적으로 저장되었습니다!');
-      setArticles([...articles, data[0]]);
-      setIsWriting(false);
+      toast.success('새 글이 성공적으로 저장되었습니다!');
+      setArticles([data[0], ...articles]);
       setTitle('');
       setContent('');
       setCategory('기계/배관');
+      setIsWriting(false);
     } catch (error) {
       console.error('Error:', error);
-      alert('글 저장 중 오류가 발생했습니다.');
+      toast.error('새 글 저장 중 오류가 발생했습니다.');
     } finally {
       setSaving(false);
+      setShowPasswordPrompt(false); // 비밀번호 입력창 닫기
+      setInputPassword(''); // 입력된 비밀번호 초기화
     }
   };
 
   // 글 수정 시작 (상세 내용 로딩 포함)
   const handleEdit = async (article: Article) => {
-    // 이미 content가 있으면 바로 편집 모드로
-    if (article.content) {
-      setEditingArticle(article);
-      setTitle(article.title);
-      setContent(article.content);
-      setCategory(article.category);
-      setIsEditing(true);
-      setViewingArticle(null); // 읽기 모드 숨기기
+    // 비밀번호 확인 로직 추가
+    if (!showPasswordPrompt) {
+      setShowPasswordPrompt(true);
+      setArticleToEdit(article);
       return;
     }
 
-    // content가 없으면 상세 내용 가져오기
-    const content = await fetchArticleDetail(article.id);
-    if (content) {
-      const articleWithContent = { ...article, content };
-      setEditingArticle(articleWithContent);
-      setTitle(articleWithContent.title);
-      setContent(articleWithContent.content);
-      setCategory(articleWithContent.category);
-      setIsEditing(true);
-      setViewingArticle(null); // 읽기 모드 숨기기
-      
-      // articles 배열도 업데이트
-      setArticles(articles.map(a => a.id === article.id ? articleWithContent : a));
+    if (inputPassword !== process.env.TECHNICAL_DATA_PASSWORD) {
+      setPasswordError('비밀번호가 올바르지 않습니다.');
+      return;
     }
+    setPasswordError(''); // 오류 메시지 초기화
+
+    setIsWriting(true);
+    setIsEditing(true);
+    setEditingArticle(article);
+    setTitle(article.title);
+    setContent(article.content);
+    setCategory(article.category);
+    setViewingArticle(null);
+    setShowPasswordPrompt(false); // 비밀번호 입력창 닫기
+    setInputPassword(''); // 입력된 비밀번호 초기화
+    setArticleToEdit(null); // 수정할 글 ID 초기화
   };
 
   // 글 수정 저장
@@ -291,18 +309,17 @@ export default function TechnicalDataPage() {
           title: title.trim(),
           content: content.trim(),
           category: category,
-          updated_at: new Date().toISOString()
         })
         .eq('id', editingArticle!.id)
         .select();
 
       if (error) {
         console.error('Error updating article:', error);
-        alert('글 수정에 실패했습니다.');
+        toast.error('글 수정에 실패했습니다.');
         return;
       }
 
-      alert('글이 성공적으로 수정되었습니다!');
+      toast.success('글이 성공적으로 수정되었습니다!');
       setArticles(articles.map(article => article.id === editingArticle!.id ? data[0] : article));
       setIsEditing(false);
       setEditingArticle(null);
@@ -311,14 +328,33 @@ export default function TechnicalDataPage() {
       setCategory('기계/배관');
     } catch (error) {
       console.error('Error:', error);
-      alert('글 수정 중 오류가 발생했습니다.');
+      toast.error('글 수정 중 오류가 발생했습니다.');
     } finally {
       setSaving(false);
+      setShowPasswordPrompt(false); // 비밀번호 입력창 닫기
+      setInputPassword(''); // 입력된 비밀번호 초기화
     }
   };
 
   // 글 삭제
-  const handleDelete = async (articleId: string) => {
+  const handleDelete = async () => {
+    // 비밀번호 확인 로직을 추가합니다.
+    if (!showPasswordPrompt) {
+      setShowPasswordPrompt(true);
+      return;
+    }
+
+    if (inputPassword !== process.env.TECHNICAL_DATA_PASSWORD) {
+      setPasswordError('비밀번호가 올바르지 않습니다.');
+      return;
+    }
+    setPasswordError(''); // 오류 메시지 초기화
+
+    if (!articleToDeleteId) {
+      toast.error('삭제할 글이 선택되지 않았습니다.');
+      return;
+    }
+
     if (!confirm('정말로 이 글을 삭제하시겠습니까?')) {
       return;
     }
@@ -332,20 +368,25 @@ export default function TechnicalDataPage() {
       const { error } = await supabase
         .from('technical_articles')
         .delete()
-        .eq('id', articleId);
+        .eq('id', articleToDeleteId);
 
       if (error) {
         console.error('Error deleting article:', error);
-        alert('글 삭제에 실패했습니다.');
+        toast.error('글 삭제에 실패했습니다.');
         return;
       }
 
-      alert('글이 성공적으로 삭제되었습니다!');
-      setArticles(articles.filter(article => article.id !== articleId));
+      toast.success('글이 성공적으로 삭제되었습니다!');
+      setArticles(articles.filter(article => article.id !== articleToDeleteId));
       setViewingArticle(null);
     } catch (error) {
       console.error('Error:', error);
-      alert('글 삭제 중 오류가 발생했습니다.');
+      toast.error('글 삭제 중 오류가 발생했습니다.');
+    } finally {
+      // 비밀번호 입력창 닫기 및 비밀번호 초기화
+      setShowPasswordPrompt(false);
+      setInputPassword('');
+      setArticleToDeleteId(null); // 삭제할 글 ID 초기화
     }
   };
 
@@ -421,7 +462,7 @@ export default function TechnicalDataPage() {
 
   return (
     <>
-      <Layout title="기술자료">
+      
         {/* 헤더 섹션 */}
 
         {/* 카테고리 필터 */}
@@ -489,14 +530,20 @@ export default function TechnicalDataPage() {
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
                     <button
-                      onClick={() => handleEdit(viewingArticle)}
+                      onClick={() => {
+                        setArticleToEdit(viewingArticle);
+                        setShowPasswordPrompt(true);
+                      }}
                       className="flex items-center gap-1 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all duration-200 text-sm"
                     >
                       <PencilIcon className="h-4 w-4" />
                       <span className="text-sm font-medium">수정</span>
                     </button>
                     <button
-                      onClick={() => handleDelete(viewingArticle.id)}
+                      onClick={() => {
+                        setArticleToDeleteId(viewingArticle.id);
+                        setShowPasswordPrompt(true);
+                      }}
                       className="flex items-center gap-1 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-all duration-200 text-sm"
                     >
                       <TrashIcon className="h-4 w-4" />
@@ -722,23 +769,10 @@ export default function TechnicalDataPage() {
                     {filteredArticles.map((article) => {
                       // 미리보기 이미지는 데이터베이스에서 가져온 preview_image 사용
                       const previewImage = article.preview_image;
-                      // 목록에서는 간단한 미리보기 텍스트 표시
-                      const preview = `${article.category} 관련 기술자료`;
-
-                      // article.content에서 테이블 미리보기 추출
-                      let previewTable: string | undefined;
-                      if (!previewImage && article.content) {
-                        try {
-                          const parser = new window.DOMParser();
-                          const doc = parser.parseFromString(article.content, 'text/html');
-                          const table = doc.querySelector('table'); // 누락된 table 변수 선언 추가
-                          if (table) {
-                            previewTable = table.outerHTML;
-                          }
-                        } catch (error) {
-                          console.error('Error parsing article content for table preview:', error);
-                        }
-                      }
+                      // API에서 제공하는 preview_text 사용, 없으면 기본 텍스트
+                      const preview = article.preview_text || `${article.category} 관련 기술자료`;
+                      // API에서 제공하는 preview_table 사용
+                      const previewTable = article.preview_table;
 
                       return (
                         <div
@@ -808,7 +842,7 @@ export default function TechnicalDataPage() {
             </div>
           )}
         </div>
-      </Layout>
+      
     </>
   );
 }

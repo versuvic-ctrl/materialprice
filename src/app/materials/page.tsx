@@ -31,28 +31,33 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import Layout from '@/components/layout/Layout';
 import { useQuery } from '@tanstack/react-query';
-import { createClient } from '@/utils/supabase/client'; // [수정]
-import { redis } from '@/utils/redis';
+
 import useMaterialStore from '@/store/materialStore'; // [교체] Zustand 스토어 import
-import MaterialsChart from '@/components/materials/MaterialsChart'; // [교체] 새로운 차트 컴포넌트 import
-import MaterialsPriceTable from '@/components/materials/MaterialsPriceTable'; // [추가] 자재 가격 테이블 컴포넌트 import
+import dynamic from 'next/dynamic';
+
+// 무거운 차트 컴포넌트를 동적 import로 최적화
+const MaterialsChart = dynamic(() => import('@/components/materials/MaterialsChart'), {
+  loading: () => (
+    <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
+      <div className="text-gray-500">차트 로딩 중...</div>
+    </div>
+  )
+});
+
+const MaterialsPriceTable = dynamic(() => import('@/components/materials/MaterialsPriceTable'), {
+  loading: () => (
+    <div className="flex items-center justify-center h-32 bg-gray-50 rounded-lg">
+      <div className="text-gray-500">가격 테이블 로딩 중...</div>
+    </div>
+  )
+});
 // [제거] 탭 구조 제거로 인해 사용하지 않는 컴포넌트들 import 제거
 // import MaterialPropertyComparison from '@/components/materials/MaterialPropertyComparison';
 // import MakeItFromComparison from '@/components/materials/MakeItFromComparison';
 // import type { MakeItFromDatabase } from '@/types/makeItFrom';
 
-// 한글 자음 순서로 배열을 정렬하는 유틸리티 함수
-// 카테고리 목록을 사용자가 찾기 쉽도록 가나다 순으로 정렬
-const sortKorean = (arr: string[]) => {
-  return arr.sort((a, b) => {
-    return a.localeCompare(b, 'ko-KR', { 
-      numeric: true, 
-      sensitivity: 'base' 
-    });
-  });
-};
+
 
 // useCategories 훅의 반환 타입 정의
 interface UseCategoriesReturn {
@@ -69,41 +74,11 @@ const useCategories = (
   const queryResult = useQuery<string[], Error>({
     queryKey: ['categories', level, filters],
     queryFn: async (): Promise<string[]> => {
-      const cacheKey = `categories:${level}:${JSON.stringify(filters)}`;
-      const cachedData = await redis.get(cacheKey);
-      if (cachedData) {
-        return cachedData as string[];
+      const response = await fetch(`/api/categories?level=${level}&filters=${JSON.stringify(filters)}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${level} categories: ${response.statusText}`);
       }
-
-      const supabase = createClient();
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout')), 15000);
-      });
-      const rpcPromise = supabase.rpc('get_distinct_categories', {
-        p_level: level,
-        p_filters: filters
-      });
-
-      try {
-        const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as any;
-        if (error) throw new Error(`Failed to fetch ${level} categories: ${error.message || 'Unknown error'}`);
-
-        let categories: string[] = [];
-        if (Array.isArray(data)) {
-          categories = data.map((item: any) => {
-            if (typeof item === 'string') return item;
-            if (item?.category) return item.category;
-            return String(item);
-          });
-        }
-
-        const uniqueCategories = [...new Set(categories)];
-        const sortedCategories = sortKorean(uniqueCategories);
-        await redis.setex(cacheKey, 43200, sortedCategories); // 12시간 캐시
-        return sortedCategories;
-      } catch (error) {
-        throw error;
-      }
+      return response.json();
     },
     // enabled 옵션: 모든 레벨에서 쿼리를 실행하도록 변경하여 디버깅
     enabled: true,
@@ -173,7 +148,7 @@ const MaterialsPage: React.FC = () => {
   // 상태 관리는 Zustand로, 서버 상태는 React Query로 처리하여 컴포넌트 로직 단순화
 
   return (
-    <Layout title="자재가격 상세">
+    <>
       <div className="space-y-2">
         {/* === 이 아래부터는 기존 UI 구조를 그대로 유지합니다 === */}
 
@@ -336,7 +311,7 @@ const MaterialsPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </Layout>
+    </>
   );
 };
 

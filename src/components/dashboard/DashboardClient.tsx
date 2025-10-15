@@ -18,7 +18,7 @@
  */
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from '@tanstack/react-query';
@@ -218,14 +218,28 @@ const generateCompactCategorySummary = (materials: MaterialChangeData[]): {
 
 
 const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
-  // 카테고리별 가격 변동 데이터 조회
+  // 카테고리별 아이콘 매핑 (메모이제이션)
+  const categoryIcons = useMemo(() => ({
+    '철금속': '🔩',
+    '비철금속': '⚡',
+    '플라스틱': '🧪',
+    '테프론': '🧬',
+    '전기자재': '⚡',
+    '토건자재': '🏗️'
+  }), []);
+
+  // 카테고리별 가격 변동 데이터 조회 (병렬 처리 최적화)
   const { data: summaryData, isLoading: summaryLoading } = useQuery({
     queryKey: ['category-summary'],
     queryFn: async () => {
-      const summaries: (CategorySummary & { trend: ReturnType<typeof getTrendInfo> })[] = [];
+      console.log('🚀 카테고리별 데이터 페칭 시작 (병렬 처리)');
+      const startTime = performance.now();
       
-      for (const [category, materials] of Object.entries(CATEGORY_MATERIALS)) {
+      // 병렬 API 호출을 위한 Promise 배열 생성
+      const categoryPromises = Object.entries(CATEGORY_MATERIALS).map(async ([category, materials]) => {
         try {
+          const categoryStartTime = performance.now();
+          
           const response = await fetch('/api/materials/prices', {
             method: 'POST',
             headers: {
@@ -241,8 +255,12 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
 
           if (!response.ok) {
             const errorData = await response.json();
-            console.error(`카테고리 ${category} API 오류:`, errorData.error);
-            continue;
+            console.error(`❌ 카테고리 ${category} API 오류:`, errorData.error);
+            return {
+              category,
+              summary: '전월대비 데이터 조회 실패',
+              trend: getTrendInfo(0)
+            };
           }
 
           const data = await response.json();
@@ -273,24 +291,34 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
           }
           
           const { trend, summary } = generateCompactCategorySummary(categoryData);
-          summaries.push({
+          const categoryEndTime = performance.now();
+          console.log(`✅ ${category} 처리 완료: ${(categoryEndTime - categoryStartTime).toFixed(2)}ms`);
+          
+          return {
             category,
             summary,
             trend
-          });
+          };
         } catch (error) {
-          console.error(`카테고리 ${category} 처리 중 오류:`, error);
-          summaries.push({
+          console.error(`❌ 카테고리 ${category} 처리 중 오류:`, error);
+          return {
             category,
             summary: '전월대비 데이터 조회 실패',
             trend: getTrendInfo(0)
-          });
+          };
         }
-      }
+      });
+      
+      // 모든 카테고리 병렬 처리
+      const summaries = await Promise.all(categoryPromises);
+      
+      const endTime = performance.now();
+      console.log(`🎯 전체 카테고리 데이터 페칭 완료: ${(endTime - startTime).toFixed(2)}ms`);
       
       return summaries;
     },
     staleTime: 5 * 60 * 1000, // 5분간 캐시
+    gcTime: 10 * 60 * 1000, // 10분간 가비지 컬렉션 방지
   });
 
   // 데이터가 없을 때 스켈레톤 로딩 UI 표시
@@ -334,10 +362,24 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
           <div className="flex-1 px-3 sm:px-4 py-2 sm:py-3 overflow-hidden">
             <div className="h-full space-y-1">
           {summaryLoading ? (
-            <div>
-              <Skeleton className="h-6 w-full" />
-              <Skeleton className="h-6 w-4/5" />
-              <Skeleton className="h-6 w-3/4" />
+            <div className="space-y-3">
+              {/* 로딩 상태 표시 */}
+              <div className="flex items-center gap-2 mb-3">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                <span className="text-sm text-gray-600">자재 가격 데이터 분석 중...</span>
+              </div>
+              
+              {/* 카테고리별 스켈레톤 */}
+              {Object.keys(CATEGORY_MATERIALS).map((category, index) => (
+                <div key={category} className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-gray-200 animate-pulse flex items-center justify-center">
+                    <div className="w-3 h-3 bg-gray-300 rounded"></div>
+                  </div>
+                  <div className="flex-1">
+                    <Skeleton className="h-5 w-full" style={{ animationDelay: `${index * 100}ms` }} />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div>
