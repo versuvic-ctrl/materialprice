@@ -24,6 +24,7 @@ import { ArrowLeft, Plus, Edit, Trash2, Save, X, Upload, Image as ImageIcon } fr
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 
 const Jodit = dynamic(() => import('jodit-react'), { ssr: false });
 import { koLang } from './jodit-ko';
@@ -68,6 +69,7 @@ export default function TechnicalDataPage() {
   const [passwordError, setPasswordError] = useState(''); // 비밀번호 오류 메시지
   const [articleToDeleteId, setArticleToDeleteId] = useState<string | null>(null); // 삭제할 글의 ID
   const [articleToEdit, setArticleToEdit] = useState<Article | null>(null); // 수정할 글의 ID
+  const [pendingAction, setPendingAction] = useState<'save' | 'edit' | 'delete' | null>(null); // 비밀번호 확인 후 실행할 작업
 
 
 
@@ -207,11 +209,12 @@ export default function TechnicalDataPage() {
   const handleSave = async () => {
     // 비밀번호 확인 로직 추가
     if (!showPasswordPrompt) {
+      setPendingAction('save');
       setShowPasswordPrompt(true);
       return;
     }
 
-    if (inputPassword !== process.env.TECHNICAL_DATA_PASSWORD) {
+    if (inputPassword !== process.env.NEXT_PUBLIC_TECHNICAL_DATA_PASSWORD) {
       setPasswordError('비밀번호가 올바르지 않습니다.');
       return;
     }
@@ -268,10 +271,11 @@ export default function TechnicalDataPage() {
     if (!showPasswordPrompt) {
       setShowPasswordPrompt(true);
       setArticleToEdit(article);
+      setPendingAction('edit');
       return;
     }
 
-    if (inputPassword !== process.env.TECHNICAL_DATA_PASSWORD) {
+    if (inputPassword !== process.env.NEXT_PUBLIC_TECHNICAL_DATA_PASSWORD) {
       setPasswordError('비밀번호가 올바르지 않습니다.');
       return;
     }
@@ -341,10 +345,11 @@ export default function TechnicalDataPage() {
     // 비밀번호 확인 로직을 추가합니다.
     if (!showPasswordPrompt) {
       setShowPasswordPrompt(true);
+      setPendingAction('delete');
       return;
     }
 
-    if (inputPassword !== process.env.TECHNICAL_DATA_PASSWORD) {
+    if (inputPassword !== process.env.NEXT_PUBLIC_TECHNICAL_DATA_PASSWORD) {
       setPasswordError('비밀번호가 올바르지 않습니다.');
       return;
     }
@@ -462,6 +467,58 @@ export default function TechnicalDataPage() {
 
   return (
     <>
+      {/* 비밀번호 입력 모달 */}
+      {showPasswordPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-lg w-[90%] max-w-sm p-5">
+            <h3 className="text-lg font-bold text-gray-900 mb-3">관리자 비밀번호 확인</h3>
+            <p className="text-sm text-gray-600 mb-3">해당 작업을 진행하기 위해 비밀번호를 입력하세요.</p>
+            <input
+              type="password"
+              value={inputPassword}
+              onChange={(e) => setInputPassword(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              placeholder="비밀번호"
+              autoFocus
+            />
+            {passwordError && (
+              <p className="mt-2 text-sm text-red-600">{passwordError}</p>
+            )}
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowPasswordPrompt(false);
+                  setInputPassword('');
+                  setPasswordError('');
+                  setArticleToEdit(null);
+                  setArticleToDeleteId(null);
+                  setPendingAction(null);
+                }}
+                className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  // 즉시 검증하지 않고 각 핸들러에게 위임 (핸들러 내부에서 검증)
+                  if (pendingAction === 'save') {
+                    void handleSave();
+                  } else if (pendingAction === 'edit' && articleToEdit) {
+                    void handleEdit(articleToEdit);
+                  } else if (pendingAction === 'delete') {
+                    void handleDelete();
+                  } else {
+                    setPasswordError('진행할 작업이 없습니다. 다시 시도하세요.');
+                  }
+                }}
+                className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
         {/* 헤더 섹션 */}
 
@@ -532,6 +589,7 @@ export default function TechnicalDataPage() {
                     <button
                       onClick={() => {
                         setArticleToEdit(viewingArticle);
+                        setPendingAction('edit');
                         setShowPasswordPrompt(true);
                       }}
                       className="flex items-center gap-1 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all duration-200 text-sm"
@@ -542,6 +600,7 @@ export default function TechnicalDataPage() {
                     <button
                       onClick={() => {
                         setArticleToDeleteId(viewingArticle.id);
+                        setPendingAction('delete');
                         setShowPasswordPrompt(true);
                       }}
                       className="flex items-center gap-1 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-all duration-200 text-sm"
@@ -780,9 +839,15 @@ export default function TechnicalDataPage() {
                           className="group bg-white border border-gray-200 rounded-lg min-h-[150px] hover:shadow-lg transition-all duration-200 cursor-pointer"
                           onClick={() => handleViewArticle(article)}
                         >
-                          <div className="w-full h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
+                          <div className="w-full h-48 bg-gray-100 flex items-center justify-center overflow-hidden relative">
                             {previewImage ? (
-                              <img src={previewImage} alt="미리보기 이미지" className="w-full h-full object-cover" />
+                              <Image
+                                src={previewImage}
+                                alt="미리보기 이미지"
+                                fill
+                                style={{ objectFit: 'cover' }}
+                                className="w-full h-full object-cover"
+                              />
                             ) : previewTable ? (
                               <div
                                 className="w-full h-full p-2"

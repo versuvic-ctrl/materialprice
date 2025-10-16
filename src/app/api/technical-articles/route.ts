@@ -24,8 +24,8 @@ export async function GET() {
   }
 
   // 2. Supabase에서 데이터 가져오기
-  const supabase = createClient();
-  const { data, error } = await (await supabase)
+  const supabase = await createClient();
+  const { data, error } = await supabase
     .from('technical_articles')
     .select('id, title, category, created_at, updated_at, tags, content')
     .order('created_at', { ascending: false });
