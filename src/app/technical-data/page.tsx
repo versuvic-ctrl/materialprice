@@ -136,6 +136,22 @@ export default function TechnicalDataPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const joditInstance = useRef<any>(null);
 
+  // Lazy-load Jodit plugins and language only when editor is needed
+  useEffect(() => {
+    if (isEditing || isWriting) {
+      (async () => {
+        try {
+          await Promise.all([
+            import('jodit/esm/plugins/all.js'),
+            import('jodit/esm/langs/ko.js'),
+          ]);
+        } catch (e) {
+          console.error('Failed to load Jodit plugins/lang:', e);
+        }
+      })();
+    }
+  }, [isEditing, isWriting]);
+
   const editorConfig = useMemo(() => ({
     readonly: false,
     toolbar: true,
@@ -151,6 +167,8 @@ export default function TechnicalDataPage() {
         console.log('Jodit 에디터 초기화 완료');
       },
     },
+    // Prefer text tab in color picker; if unsupported, Jodit will ignore
+    colorPickerDefaultTab: 'text',
     uploader: {
       insertImageAsBase64URI: true,
     },
@@ -166,25 +184,39 @@ export default function TechnicalDataPage() {
 
   // 글 목록 가져오기 (최적화: 목록에 필요한 필드만 선택)
   useEffect(() => {
+    let isMounted = true;
     const fetchArticles = async () => {
       try {
         setIsLoading(true);
         // API 라우트에서 캐싱된 기술 자료 목록을 가져옵니다.
-        const response = await fetch('/api/technical-articles');
+        const response = await fetch('/api/technical-articles', {
+          // 브라우저 캐시 활용 (서버 캐시와 병행)
+          cache: 'force-cache',
+        });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        setArticles(data);
+        // 컴포넌트가 마운트된 상태에서만 상태 업데이트
+        if (isMounted) {
+          setArticles(data);
+        }
       } catch (error) {
-        console.error('Error fetching articles:', error);
-        toast.error('기술 자료를 불러오는 데 실패했습니다.');
+        if (isMounted) {
+          console.error('Error fetching articles:', error);
+          toast.error('기술 자료를 불러오는 데 실패했습니다.');
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchArticles();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // 로딩 중일 때 스크롤 비활성화
@@ -696,7 +728,7 @@ export default function TechnicalDataPage() {
                   <Jodit
                     ref={joditInstance}
                     value={content}
-                    config={editorConfig}
+                    config={editorConfig as any}
                     onBlur={(newContent: string) => setContent(newContent)}
                     onChange={(newContent: string) => {}}
                   />
@@ -781,7 +813,31 @@ export default function TechnicalDataPage() {
                   <Jodit
                     ref={joditInstance}
                     value={content}
-                    config={editorConfig}
+                    config={{
+                      readonly: false,
+                      toolbar: true,
+                      spellcheck: false,
+                      language: 'ko',
+                      height: 500,
+                      buttons: 'paragraph,bold,strikethrough,underline,italic,|,superscript,subscript,|,ul,ol,|,align,outdent,indent,|,font,fontsize,brush,color,|,image,video,link,table,cut,hr,|,symbol,selectall,file,print,about',
+                      buttonsMD: 'paragraph,bold,strikethrough,underline,italic,|,superscript,subscript,|,ul,ol,|,align,outdent,indent,|,font,fontsize,brush,color,|,image,video,link,table,cut,hr,|,symbol,selectall,file,print,about',
+                      buttonsSM: 'paragraph,bold,strikethrough,underline,italic,|,superscript,subscript,|,ul,ol,|,align,outdent,indent,|,font,fontsize,brush,color,|,image,video,link,table,cut,hr,|,symbol,selectall,file,print,about',
+                      buttonsXS: 'paragraph,bold,strikethrough,underline,italic,|,superscript,subscript,|,ul,ol,|,align,outdent,indent,|,font,fontsize,brush,color,|,image,video,link,table,cut,hr,|,symbol,selectall,file,print,about',
+                      events: {
+                        afterInit: (editor: any) => {
+                          console.log('Jodit 에디터 초기화 완료');
+                        },
+                      },
+                      colorPickerDefaultTab: 'color' as const,
+                      uploader: {
+                        insertImageAsBase64URI: true,
+                      },
+                      filebrowser: {
+                        ajax: {
+                          url: '/api/upload',
+                        },
+                      },
+                    }}
                     onBlur={(newContent: string) => setContent(newContent)}
                     onChange={(newContent: string) => {}}
                   />
@@ -845,6 +901,7 @@ export default function TechnicalDataPage() {
                                 src={previewImage}
                                 alt="미리보기 이미지"
                                 fill
+                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                 style={{ objectFit: 'cover' }}
                                 className="w-full h-full object-cover"
                               />

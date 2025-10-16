@@ -6,16 +6,25 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
-  const cacheKey = `technical_article_${id}`;
-  const cacheExpiry = 3600; // 1시간 (초 단위)
+  try {
+    const { id } = await context.params;
+    
+    // ID 유효성 검사
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+      return NextResponse.json({ error: 'Invalid article ID' }, { status: 400 });
+    }
+    
+    const cacheKey = `technical_article_${id}`;
+    const cacheExpiry = 3600; // 1시간 (초 단위)
 
   // 1. Redis 캐시 확인
   try {
     const cachedData = await redis.get(cacheKey);
     if (cachedData) {
       console.log(`Technical article ${id} fetched from Redis cache.`);
-      return NextResponse.json(JSON.parse(cachedData as string));
+      // cachedData가 문자열인 경우에만 JSON.parse를 적용
+      const parsedData = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
+      return NextResponse.json(parsedData);
     }
   } catch (error) {
     console.error('Redis cache read error:', error);
@@ -47,4 +56,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   }
 
   return NextResponse.json(articleData);
+  
+  } catch (error) {
+    console.error('Unexpected error in technical article detail API:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' }, 
+      { status: 500 }
+    );
+  }
 }

@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-/* @import "jodit/es2021/jodit.min.css"; */
+@import "jodit/es2021/jodit.min.css";
 
 /* Line clamp utilities */
 .line-clamp-1 {
