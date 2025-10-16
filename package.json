@@ -9,7 +9,7 @@
     "dev:frontend": "npm run dev:kill3000 && next dev -p 3000",
     "dev:backend": "cd backend && python main.py",
     "dev:all": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
-    "build": "next build --turbopack",
+    "build": "next build",
     "start": "next start -p 3000",
     "lint": "eslint"
   },
