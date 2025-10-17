@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { redis } from '@/utils/redis';
-import { fetchMarketIndicators } from '@/utils/redis';
+// import { fetchMarketIndicators } from '@/utils/redis'; // 이 줄을 주석 처리하거나 삭제합니다.
 import { load } from 'cheerio';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -114,12 +114,18 @@ async function updateMarketIndicators(indicators: MarketIndicator[]) {
 
 export async function GET() {
   try {
-    // 통합된 fetchMarketIndicators 함수 사용 (12시간 캐시)
-    const responseData = await fetchMarketIndicators();
-
-    return NextResponse.json(responseData);
+    const jsonFilePath = path.join(process.cwd(), 'public', 'market-indicators.json');
+    
+    if (fs.existsSync(jsonFilePath)) {
+      const fileContent = fs.readFileSync(jsonFilePath, 'utf8');
+      const jsonData = JSON.parse(fileContent);
+      return NextResponse.json(jsonData.data); // Assuming the data is under a 'data' key as saved by saveToPublicJson
+    } else {
+      console.warn('market-indicators.json not found, returning empty array.');
+      return NextResponse.json([]);
+    }
   } catch (error) {
-    console.error('Error in market indicators API:', error);
+    console.error('Error reading market-indicators.json:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
