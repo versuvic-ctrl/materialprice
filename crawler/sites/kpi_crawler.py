@@ -1002,9 +1002,10 @@ class KpiCrawler:
 
                 # 규격 선택 (대기 시간 최소화)
                 spec_selector = '#ITEM_SPEC_CD'
-                await page.locator(spec_selector).select_option(
-                    value=spec_value)
-                await page.wait_for_load_state('networkidle', timeout=3000)
+                await page.wait_for_selector(spec_selector, timeout=60000) # 요소가 나타날 때까지 60초 대기
+                await page.locator(spec_selector).wait_for(state='visible', timeout=60000) # 요소가 보이는 상태가 될 때까지 60초 대기
+                await page.locator(spec_selector).select_option(value=spec_value, timeout=60000) # select_option 타임아웃 60초로 설정
+                await page.wait_for_load_state('networkidle', timeout=45000)
 
                 # 기간 선택 (첫 번째 규격에서만 설정)
                 if i == 0:
