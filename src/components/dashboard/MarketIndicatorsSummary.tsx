@@ -12,12 +12,6 @@ interface MarketIndicator {
   changerate: number;
 }
 
-interface MarketIndicatorResponse {
-  data: MarketIndicator[];
-  lastUpdated: string;
-  timestamp: number;
-}
-
 async function getMarketIndicators(): Promise<MarketIndicator[]> {
   try {
     console.log('Fetching market indicators from API...');
@@ -33,10 +27,13 @@ async function getMarketIndicators(): Promise<MarketIndicator[]> {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const jsonData: MarketIndicatorResponse = await response.json();
-    console.log('Fetched data from API:', jsonData);
+    const textData = await response.text(); // 먼저 텍스트로 받아서 로그
+    console.log('Raw response text:', textData);
+
+    const jsonData: MarketIndicator[] = JSON.parse(textData); // 텍스트를 JSON으로 파싱
+    console.log('Parsed data from API:', jsonData);
     
-    return jsonData.data || [];
+    return jsonData || [];
   } catch (error) {
     console.error('Error fetching market indicators from API:', error);
     
@@ -80,6 +77,7 @@ export default function MarketIndicatorsSummary() {
     const fetchIndicators = async () => {
       const data = await getMarketIndicators();
       setIndicators(data);
+      console.log('Indicators state after setIndicators:', data);
     };
     fetchIndicators();
   }, []);

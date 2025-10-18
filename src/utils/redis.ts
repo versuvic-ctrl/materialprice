@@ -1,6 +1,8 @@
 import { Redis } from "@upstash/redis";
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import * as fs from 'fs';
+import * as path from 'path';
 
 if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
   console.error("❌ Redis 환경 변수가 누락되었습니다.");
@@ -24,7 +26,7 @@ export async function fetchMaterialPrices(
   // 캐시 키 생성
   const sortedMaterials = [...materials].sort().join(',');
   const cacheKey = `material_prices:${sortedMaterials}:${startDate}:${endDate}:${interval}`;
-  const cacheExpiry = 432000; // 5일 (크롤링 주기와 맞춤)
+  const cacheExpiry = 864000; // 10일 (크롤링 주기 5일 + 5일 여유)
 
   // 1. Redis 캐시 확인
   try {
@@ -105,48 +107,25 @@ export async function fetchMarketIndicators() {
     console.error('Redis 캐시 조회 오류:', error);
   }
 
-  // 2. Supabase에서 데이터 조회
-  try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-        },
+  // 2. public/market-indicators.json에서 데이터 조회
+  const jsonFilePath = path.join(process.cwd(), 'public', 'market-indicators.json');
+
+  if (fs.existsSync(jsonFilePath)) {
+    const fileContent = fs.readFileSync(jsonFilePath, 'utf8');
+    const jsonData = JSON.parse(fileContent);
+    const indicators = jsonData.data; // Assuming the data is under a 'data' key
+
+    if (indicators) {
+      // 3. Redis에 데이터 저장
+      try {
+        await redis.setex(cacheKey, cacheExpiry, JSON.stringify(indicators));
+      } catch (error) {
+        console.error('Redis 캐시 저장 오류:', error);
       }
-    );
-
-    const { data, error } = await supabase
-      .from('market_indicators')
-      .select('*')
-      .order('category', { ascending: true });
-
-    if (error) {
-      console.error('시장지표 조회 오류:', error);
-      throw error;
+      return indicators;
     }
-
-    const responseData = {
-      success: true,
-      data: data || [],
-      lastUpdated: data?.[0]?.updated_at || null
-    };
-
-    // 3. Redis에 데이터 저장
-    try {
-      await redis.setex(cacheKey, cacheExpiry, JSON.stringify(responseData));
-      console.log('✅ 시장지표 데이터 Redis 캐시 저장 (5시간 유지)');
-    } catch (cacheError) {
-      console.error('Redis 캐시 저장 오류:', cacheError);
-    }
-
-    return responseData;
-  } catch (error) {
-    console.error('시장지표 조회 실패:', error);
-    throw error;
   }
+
+  console.warn('market-indicators.json 파일을 찾을 수 없거나 데이터가 비어 있습니다.');
+  return [];
 }

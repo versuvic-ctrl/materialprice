@@ -3,8 +3,7 @@ name: Trigger Market Indicators Update
 on:
   schedule:
     # Run twice daily: 8 AM KST (23:00 UTC) and 1 PM KST (04:00 UTC)
-    - cron: '0 23 * * *'  # 8 AM KST
-    - cron: '0 4 * * *'   # 1 PM KST
+    - cron: '0 0-12,21-23 * * *'   # Run every hour
   workflow_dispatch: # Allows manual triggering
 
 jobs:

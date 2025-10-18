@@ -89,45 +89,83 @@ async function scrapeMarketIndicators(html: string): Promise<MarketIndicator[]> 
   return marketIndicators;
 }
 
-async function updateMarketIndicators(indicators: MarketIndicator[]) {
-  try {
-    const supabase = await createClient();
-    
-    // 기존 데이터 삭제
-    await supabase.from('market_indicators').delete().neq('id', 0);
-
-    // 새 데이터 삽입
-    const { error } = await supabase
-      .from('market_indicators')
-      .insert(indicators);
-
-    if (error) {
-      throw error;
-    }
-
-    return { success: true, count: indicators.length };
-  } catch (error) {
-    console.error('Error updating market indicators:', error);
-    throw error;
-  }
-}
 
 export async function GET() {
+  const CACHE_KEY = 'marketIndicators';
+  const CACHE_EXPIRATION_SECONDS = 3600; // 1 hour
+
   try {
+    // 1. Check Redis cache
+    let cachedData;
+    try {
+      cachedData = await redis.get(CACHE_KEY);
+      if (cachedData) {
+        return NextResponse.json(JSON.parse(cachedData as string));
+      }
+    } catch (redisGetError) {
+      console.error('Error in Redis GET operation:', redisGetError);
+      // Redis 오류가 발생해도 파일 시스템에서 읽는 로직은 계속 진행
+    }
+
+    // 2. If not in cache (or Redis error), read from public/market-indicators.json
     const jsonFilePath = path.join(process.cwd(), 'public', 'market-indicators.json');
     
     if (fs.existsSync(jsonFilePath)) {
-      const fileContent = fs.readFileSync(jsonFilePath, 'utf8');
-      const jsonData = JSON.parse(fileContent);
-      return NextResponse.json(jsonData.data); // Assuming the data is under a 'data' key as saved by saveToPublicJson
+      let fileContent;
+      try {
+        fileContent = fs.readFileSync(jsonFilePath, 'utf8');
+      } catch (readFileError) {
+        console.error('Error reading market-indicators.json:', readFileError);
+        return NextResponse.json(
+          { error: `Internal server error: Failed to read market-indicators.json: ${readFileError instanceof Error ? readFileError.message : String(readFileError)}` },
+          { status: 500 }
+        );
+      }
+
+      let jsonData;
+      try {
+        jsonData = JSON.parse(fileContent);
+      } catch (parseJsonError) {
+        console.error('Error parsing market-indicators.json content:', parseJsonError);
+        return NextResponse.json(
+          { error: `Internal server error: Failed to parse market-indicators.json: ${parseJsonError instanceof Error ? parseJsonError.message : String(parseJsonError)}` },
+          { status: 500 }
+        );
+      }
+      
+      const indicators = jsonData.data; // Assuming the data is under a 'data' key
+      if (!indicators) {
+        console.error('Error: "data" key not found in market-indicators.json or is null/undefined.');
+        return NextResponse.json(
+          { error: 'Internal server error: Market indicators data is missing from JSON file.' },
+          { status: 500 }
+        );
+      }
+
+      // 3. Store in Redis cache (if not already cached and no Redis GET error)
+      if (!cachedData) { // Only attempt to cache if not already served from cache
+        try {
+          await redis.setex(CACHE_KEY, CACHE_EXPIRATION_SECONDS, JSON.stringify(indicators));
+        } catch (redisSetError) {
+          console.error('Error in Redis SETEX operation:', redisSetError);
+          // Redis 캐시 저장 실패는 500 오류를 발생시키지 않고 경고만 로깅
+        }
+      }
+      return NextResponse.json(indicators);
     } else {
       console.warn('market-indicators.json not found, returning empty array.');
       return NextResponse.json([]);
     }
   } catch (error) {
-    console.error('Error reading market-indicators.json:', error);
+    console.error('Error in GET /api/market-indicators (outer catch):', error);
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { error: `Internal server error: ${error.message}` },
+        { status: 500 }
+      );
+    }
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error: An unknown error occurred' },
       { status: 500 }
     );
   }
@@ -181,14 +219,12 @@ export async function POST() {
     // 1. public 폴더에 JSON 파일 저장 (CDN 캐싱용)
     await saveToPublicJson(indicators);
 
-    // 2. 데이터베이스 업데이트 (백업용)
-    const result = await updateMarketIndicators(indicators);
-
-    await logToSupabase('info', `Market indicators updated successfully: ${result.count} items`);
+    // 2. 데이터베이스 업데이트 (백업용) - 이력 관리가 필요 없으므로 제거
+    // await logToSupabase('info', `Market indicators updated successfully: ${indicators.length} items`);
 
     return NextResponse.json({
       success: true,
-      message: `Successfully updated ${result.count} market indicators and saved to public JSON`,
+      message: `Successfully updated ${indicators.length} market indicators and saved to public JSON`,
       data: indicators
     });
   } catch (error) {
