@@ -413,6 +413,14 @@ class KpiCrawler:
                     await self.page.wait_for_load_state(
                         'networkidle')
 
+                    # 중분류 CATE_CD 추출
+                    middle_cate_cd_match = re.search(r'CATE_CD=(\d+)', middle_href)
+                    middle_cate_cd = middle_cate_cd_match.group(1) if middle_cate_cd_match else None
+
+                    if not middle_cate_cd:
+                        log(f"  [SKIP] 중분류 '{middle_name}'의 CATE_CD를 찾을 수 없습니다. 건너뜁니다.")
+                        continue
+
                     # 소분류가 숨겨져 있을 수 있으므로 직접 찾기
                     await self.page.wait_for_timeout(2000)
 
@@ -437,12 +445,20 @@ class KpiCrawler:
                                         sub_href and
                                         'CATE_CD=' in sub_href)
                                     if has_cate_cd:
-                                        sub_categories_info.append({
-                                            'name': sub_name,
-                                            'href': sub_href
-                                        })
-                                        log(f"    발견된 소분류: "
-                                            f"'{sub_name}'")
+                                        sub_cate_cd_match = re.search(r'CATE_CD=(\d+)', sub_href)
+                                        sub_cate_cd = sub_cate_cd_match.group(1) if sub_cate_cd_match else None
+
+                                        # 중분류 CATE_CD와 소분류 CATE_CD가 일치하는지 확인
+                                        if sub_cate_cd and sub_cate_cd.startswith(middle_cate_cd):
+                                            sub_categories_info.append({
+                                                'name': sub_name,
+                                                'href': sub_href
+                                            })
+                                            log(f"    발견된 소분류: "
+                                                f"'{sub_name}' (CATE_CD: {sub_cate_cd})")
+                                        else:
+                                            log(f"    [SKIP] 중분류 '{middle_name}'과 "
+                                                f"연관 없는 소분류 '{sub_name}' (CATE_CD: {sub_cate_cd}) 건너뜜")
                                 except Exception as e:
                                     log(f"    소분류 정보 수집 중 오류: "
                                         f"{str(e)}")
@@ -462,10 +478,20 @@ class KpiCrawler:
                                     sub_href = await link.get_attribute(
                                         'href')
                                     if sub_href and sub_name.strip():
-                                        sub_categories_info.append({
-                                            'name': sub_name.strip(),
-                                            'href': sub_href
-                                        })
+                                        sub_cate_cd_match = re.search(r'CATE_CD=(\d+)', sub_href)
+                                        sub_cate_cd = sub_cate_cd_match.group(1) if sub_cate_cd_match else None
+
+                                        # 중분류 CATE_CD와 소분류 CATE_CD가 일치하는지 확인
+                                        if sub_cate_cd and sub_cate_cd.startswith(middle_cate_cd):
+                                            sub_categories_info.append({
+                                                'name': sub_name.strip(),
+                                                'href': sub_href
+                                            })
+                                            log(f"    발견된 소분류: "
+                                                f"'{sub_name}' (CATE_CD: {sub_cate_cd})")
+                                        else:
+                                            log(f"    [SKIP] 중분류 '{middle_name}'과 "
+                                                f"연관 없는 소분류 '{sub_name}' (CATE_CD: {sub_cate_cd}) 건너뜜")
                                 except Exception:
                                     continue
                         except Exception as e:
