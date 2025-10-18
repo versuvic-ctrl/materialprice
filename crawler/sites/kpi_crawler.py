@@ -100,6 +100,7 @@ class KpiCrawler:
         self.batch_data = []
         self.batch_size = 5  # 소분류 5개마다 처리
         self.processed_count = 0
+        self.default_region = "전국"  # 지역 정보가 없는 경우 기본값
 
         log(f"크롤러 초기화 - 크롤링 모드: {self.crawl_mode}")
         log(f"  타겟 대분류: {self.target_major_category}")
@@ -1280,7 +1281,7 @@ class KpiCrawler:
         """단순 테이블 데이터 추출 (날짜 + 가격 형태)"""
         try:
             extracted_count = 0
-            default_region = "전국"  # 지역 정보가 없는 경우 기본값
+
             
             for row_idx, row in enumerate(all_table_rows):
                 try:
