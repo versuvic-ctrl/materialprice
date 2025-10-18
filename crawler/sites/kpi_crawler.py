@@ -200,8 +200,8 @@ class KpiCrawler:
         # KPI 웹사이트의 로그인 후 상태를 나타내는 고유한 요소를 찾아야 합니다.
         # 여기서는 예시로 "로그아웃" 텍스트가 포함된 요소를 찾습니다.
         # 실제 웹사이트에 맞게 수정해야 합니다.
-        is_logged_in = await page.locator("text=로그아웃").is_visible() or \
-                       await page.locator("text=회원정보").is_visible() # 예시: 회원정보 링크
+        is_logged_in = await page.locator("#right_quick").get_by_text("로그아웃").is_visible() or \
+                       await page.locator("#right_quick").get_by_text("회원정보").is_visible() # 예시: 회원정보 링크
         if is_logged_in:
             log("세션 유효함", "INFO")
             return True
