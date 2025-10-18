@@ -335,6 +335,8 @@ class BaseDataProcessor(ABC):
             # 유효한 지역명이 포함되어 있는지 확인
             if any(valid_region in region_str for valid_region in valid_regions):
                 return region_str
+            if '가격' in region_str or '매입' in region_str or '매출' in region_str:
+                return '전국'
             
             # 공통지역이나 특정 패턴 확인 (예: 날짜와 가격만 있는 경우)
             # 숫자나 특수문자만 있거나, 가격 패턴이 있는 경우 '전국'으로 처리
