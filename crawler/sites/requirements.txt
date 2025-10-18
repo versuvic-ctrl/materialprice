@@ -1,5 +1,9 @@
-psutil
-python-dotenv
+beautifulsoup4
+jsonc-parser
 pandas
 playwright
+psutil
+python-dotenv
+redis
+requests
 supabase
