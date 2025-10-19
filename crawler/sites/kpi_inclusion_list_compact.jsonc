@@ -12,13 +12,17 @@
     "형강": {
       "ㄱ형강": {"unit": "ton"},
       "ㄷ형강": {"unit": "ton"},
-      "I형강": {"unit": "ton"},
+      "I형강": {"unit": "ton",
+        "excluded_specs": [
+          "광산용I형강(GI-BEAM)(KSE4002) - A130×B100×t₁12.0×t₂17.0 단중35.00㎏/m"
+        ]
+      },
       "철골브레이스": {"unit": "Set"},
       "C형강": {"unit": "kg"},
       "HyFo BEAM": {"unit": "ton"},
       "H형강": {"unit": "ton"},
       "용접경량H형강": {"unit": "ton"},
-    "4각강": {"unit": "ton"}
+      "4각강": {"unit": "ton"}
       // "레일": {"unit": "ton"}
       // "TSC BEAM": {"unit": "ton"}
       // "OCFT COLUMN": {"unit": "ton"}

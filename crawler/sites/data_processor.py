@@ -1,5 +1,4 @@
 import os
-import logging
 import json
 import re
 import pandas as pd
@@ -14,6 +13,27 @@ import redis
 from redis.exceptions import TimeoutError
 import hashlib
 import sys
+from unit_validation import UnitValidator
+from api_monitor import create_monitored_supabase_client
+
+# 환경변수 로드
+load_dotenv("../../.env.local")
+# 상대 경로가 작동하지 않을 경우 절대 경로 시도
+if not os.environ.get("NEXT_PUBLIC_SUPABASE_URL"):
+    load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env.local"))
+
+# Supabase 클라이언트 초기화
+SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+_supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# API 모니터링이 적용된 클라이언트 생성
+api_monitor = create_monitored_supabase_client(
+    _supabase_client, 
+    max_calls_per_minute=200,  # 분당 최대 200회
+    max_calls_per_hour=2000    # 시간당 최대 2000회
+)
+supabase = api_monitor.client
 
 def log(message: str, level: str = "INFO"):
     """실행 과정 로그를 출력하는 함수
@@ -22,6 +42,7 @@ def log(message: str, level: str = "INFO"):
         message: 로그 메시지
         level: 로그 레벨 (INFO, SUCCESS, ERROR, SUMMARY)
     """
+
     logger = logging.getLogger("kpi_crawler")
     if not logger.handlers:
         logger.setLevel(logging.DEBUG)
@@ -40,16 +61,15 @@ def log(message: str, level: str = "INFO"):
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
 
+    # 로그 레벨별 출력 제어
     if level == "SUMMARY":
-        logger.info(f"✓ {message}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ {message}")
     elif level == "ERROR":
-        logger.error(f"✗ {message}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✗ {message}")
     elif level == "SUCCESS":
-        logger.info(f"✓ {message}")
-    elif level == "INFO":
-        logger.info(message)
-    elif level == "DEBUG":
-        logger.debug(message)
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ {message}")
+    else:  # INFO
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] {message}")
 
 # from unit_validation import UnitValidator
 # from api_monitor import create_monitored_supabase_client
@@ -135,7 +155,7 @@ class BaseDataProcessor(ABC):
     def __init__(self):
         self.raw_data_list: List[Dict[str, Any]] = []
         self.processed_data_list: List[Dict[str, Any]] = []
-        # self.unit_validator = UnitValidator()  # 단위 검증기 초기화
+        self.unit_validator = UnitValidator()  # 단위 검증기 초기화
     
     def add_raw_data(self, data: Dict[str, Any]):
         """파싱된 원본 데이터를 추가"""
@@ -257,20 +277,13 @@ class BaseDataProcessor(ABC):
     
     def check_existing_data_batch(self, major_category: str, middle_category: str, 
                                  sub_category: str, target_date_range: tuple = None,
-                                 table_name: str = 'kpi_price_data', 
-                                 force_refresh: bool = False) -> dict:
+                                 table_name: str = 'kpi_price_data') -> dict:
         """
         전체 소분류에 대해 1회만 조회하여 기존 데이터를 메모리에 캐시
         API 호출을 규격별 개별 조회에서 전체 소분류 1회 조회로 최적화
-        
-        Args:
-            force_refresh: True일 경우 캐시를 무시하고 항상 새로 조회 (개발/테스트용)
         """
         
-        if force_refresh:
-            log(f"🔄 강제 새로고침 모드: 캐시 무시하고 실시간 조회")
-        else:
-            log(f"🔍 배치 중복 검사: 전체 소분류 데이터 조회 시작")
+        log(f"🔍 배치 중복 검사: 전체 소분류 데이터 조회 시작")
         
         try:
             # 전체 소분류 데이터를 1회만 조회
@@ -298,10 +311,11 @@ class BaseDataProcessor(ABC):
             
             if response.data:
                 for item in response.data:
-                    # 중복 검사용 키 생성 (가격 제외 - 가격 변동 시 업데이트 허용)
+                    # 중복 검사용 키 생성
                     combo_key = (
                         item['date'], 
                         item['region'], 
+                        str(item['price']), 
                         item['specification'], 
                         item['unit']
                     )
@@ -355,10 +369,11 @@ class BaseDataProcessor(ABC):
         log(f"🔄 메모리 기반 중복 필터링 시작: {len(new_data)}개 데이터 처리")
         
         for record in new_data:
-            # 새 데이터의 키 생성 (가격 제외 - 가격 변동 시 업데이트 허용)
+            # 새 데이터의 키 생성
             new_key = (
                 record['date'],
                 record['region'], 
+                str(record['price']),
                 record['specification'],
                 record['unit']
             )
@@ -379,8 +394,9 @@ class BaseDataProcessor(ABC):
     
     def save_to_cache(self, major_category: str, year: int, month: int, data: List[Dict]):
         """
-        데이터를 Redis 캐시에 저장
+        데이터를 캐시에 저장 (현재는 비활성화)
         """
+
         if not _redis_client:
             log("Redis 클라이언트가 없어 캐시 저장을 건너뜁니다", "WARNING")
             return False
@@ -452,6 +468,7 @@ class BaseDataProcessor(ABC):
         except Exception as e:
             log(f"Redis 캐시 삭제 실패: {e}", "ERROR")
             return False
+
     
     def filter_new_data_only(self, df: pd.DataFrame, table_name: str = 'kpi_price_data') -> pd.DataFrame:
         """
@@ -512,7 +529,7 @@ class BaseDataProcessor(ABC):
         
         # 3. 중복 데이터 제거 (같은 날짜, 지역, 규격, 가격, 단위)
         df = df.drop_duplicates(subset=['date', 'region', 'specification', 'price', 'unit'])
-        after_region_check = len(df)
+        after_duplicate_check = len(df)
         if after_region_check != after_duplicate_check:
             log(f"    - 중복 데이터 제거: {after_region_check - after_duplicate_check}개")
         
@@ -607,16 +624,12 @@ class BaseDataProcessor(ABC):
         
         return pd.DataFrame(new_records)
 
-    def save_to_supabase(self, data: List[Dict[str, Any]], table_name: str = 'kpi_price_data', 
-                        force_refresh: bool = False) -> int:
+    def save_to_supabase(self, data: List[Dict[str, Any]], table_name: str = 'kpi_price_data') -> int:
         """
         Supabase에 데이터 저장 - 최적화된 배치 중복 검사 적용
         - 전체 소분류에 대해 1회만 조회하여 메모리 캐시 생성
         - 메모리 기반 O(1) 중복 체크로 성능 최적화
         - API 호출 횟수를 대폭 감소 (93회 → 27회)
-        
-        Args:
-            force_refresh: True일 경우 캐시를 무시하고 항상 새로 조회 (개발/테스트용)
         """
         if not data:
             log("저장할 데이터가 없습니다.")
@@ -652,8 +665,7 @@ class BaseDataProcessor(ABC):
             existing_cache = self.check_existing_data_batch(
                 major_cat, middle_cat, sub_cat, 
                 target_date_range=date_range,
-                table_name=table_name,
-                force_refresh=force_refresh
+                table_name=table_name
             )
             
             # 2. 메모리 기반 중복 필터링 (O(1) 시간복잡도)
@@ -940,6 +952,7 @@ class BaseDataProcessor(ABC):
 class KpiDataProcessor(BaseDataProcessor):
     """한국물가정보(KPI) 사이트 전용 데이터 처리기"""
 
+
     def __init__(self, target_date_range: Optional[Tuple[str, str]] = None):
         super().__init__()
         self.target_date_range = target_date_range
@@ -956,6 +969,7 @@ class KpiDataProcessor(BaseDataProcessor):
         '가⑤격', '가⑥격', '가⑦격', '가⑧격', '가⑨격', '가⑩격', '가격1', '가격2', '가격3', '가격4'
     ]
 
+
     def _normalize_region_name(self, region_name: str) -> str:
         """지역명을 정규화하고 빈 값이나 None을 처리"""
         # None이나 빈 문자열 처리
@@ -966,10 +980,6 @@ class KpiDataProcessor(BaseDataProcessor):
         
         # '공통지역'을 '전국'으로 변환
         if region_str == '공통지역':
-            return '전국'
-            
-        # GENERIC_PRICE_HEADERS에 포함된 값일 경우 '전국'으로 변환
-        if region_str in self.GENERIC_PRICE_HEADERS:
             return '전국'
             
         # 패턴: 지역명 첫글자 + 숫자 + 지역명 나머지 (예: 서1울 → 서울1)
@@ -986,7 +996,82 @@ class KpiDataProcessor(BaseDataProcessor):
         """SPECIFICATION에서 자재명을 추출하는 규칙"""
         if not specification:
             return specification
-        return specification
+        
+        spec_str = str(specification).strip()
+        
+        # 규칙 1: HDPE DC 고압관 관련
+        if 'HDPE' in spec_str and 'DC' in spec_str and '고압관' in spec_str:
+            return f"{spec_str} - DC고압관"
+        
+        # 규칙 2: PVC 관련
+        if 'PVC' in spec_str:
+            if '상수도관' in spec_str:
+                return f"{spec_str} - PVC상수도관"
+            elif '하수도관' in spec_str:
+                return f"{spec_str} - PVC하수도관"
+            elif '배수관' in spec_str:
+                return f"{spec_str} - PVC배수관"
+        
+        # 규칙 3: 철근 관련
+        if '철근' in spec_str:
+            if 'SD' in spec_str:
+                return f"{spec_str} - SD철근"
+            elif '이형' in spec_str:
+                return f"{spec_str} - 이형철근"
+        
+        # 규칙 4: 레미콘 관련
+        if '레미콘' in spec_str or '콘크리트' in spec_str:
+            if '고강도' in spec_str:
+                return f"{spec_str} - 고강도콘크리트"
+            elif '일반' in spec_str:
+                return f"{spec_str} - 일반콘크리트"
+        
+        # 규칙 5: 아스팔트 관련
+        if '아스팔트' in spec_str:
+            if '포장용' in spec_str:
+                return f"{spec_str} - 포장용아스팔트"
+            elif '방수용' in spec_str:
+                return f"{spec_str} - 방수용아스팔트"
+        
+        # 규칙 6: 골재 관련
+        if '골재' in spec_str:
+            if '쇄석' in spec_str:
+                return f"{spec_str} - 쇄석골재"
+            elif '모래' in spec_str:
+                return f"{spec_str} - 모래골재"
+        
+        # 규칙 7: 시멘트 관련
+        if '시멘트' in spec_str:
+            if '포틀랜드' in spec_str:
+                return f"{spec_str} - 포틀랜드시멘트"
+            elif '혼합' in spec_str:
+                return f"{spec_str} - 혼합시멘트"
+        
+        # 규칙 8: 형강 관련
+        if '형강' in spec_str:
+            if 'H형강' in spec_str or 'H-' in spec_str:
+                return f"{spec_str} - H형강"
+            elif 'I형강' in spec_str or 'I-' in spec_str:
+                return f"{spec_str} - I형강"
+        
+        # 규칙 9: 강관 관련
+        if '강관' in spec_str:
+            if '배관용' in spec_str:
+                return f"{spec_str} - 배관용강관"
+            elif '구조용' in spec_str:
+                return f"{spec_str} - 구조용강관"
+        
+        # 규칙 10: 전선 관련
+        if '전선' in spec_str or '케이블' in spec_str:
+            if 'CV' in spec_str:
+                return f"{spec_str} - CV케이블"
+            elif 'HIV' in spec_str:
+                return f"{spec_str} - HIV케이블"
+            elif '통신' in spec_str:
+                return f"{spec_str} - 통신케이블"
+        
+        # 기본값: 원본 specification 반환
+        return spec_str
 
     async def process_data(self, major_category: str, middle_category: str, sub_category: str) -> List[Dict[str, Any]]:
         """배치 처리를 위한 데이터 가공 메서드"""
@@ -1012,25 +1097,17 @@ class KpiDataProcessor(BaseDataProcessor):
             log(f"데이터 가공 중 오류 발생: {str(e)}", "ERROR")
             return []
     
-    async def save_to_supabase(self, processed_data: List[Dict[str, Any]], table_name: str = 'kpi_price_data', 
-                              check_duplicates: bool = True, force_refresh: bool = False) -> int:
-        """가공된 데이터를 Supabase에 저장
-        
-        Args:
-            force_refresh: True일 경우 캐시를 무시하고 항상 새로 조회 (개발/테스트용)
-        """
+    async def save_to_supabase(self, processed_data: List[Dict[str, Any]], table_name: str = 'kpi_price_data', check_duplicates: bool = True) -> int:
+        """가공된 데이터를 Supabase에 저장"""
         if not processed_data:
             log("저장할 데이터가 없습니다.")
             return 0
         
         try:
-            if force_refresh:
-                log(f"📊 저장 시도 (캐시 무시): {len(processed_data)}개 데이터 → '{table_name}' 테이블")
-            else:
-                log(f"📊 저장 시도: {len(processed_data)}개 데이터 → '{table_name}' 테이블")
+            log(f"📊 저장 시도: {len(processed_data)}개 데이터 → '{table_name}' 테이블")
             
             # 부모 클래스의 save_to_supabase 메서드를 호출하여 중복 제거 및 저장 로직 실행
-            actual_saved_count = super().save_to_supabase(processed_data, table_name, force_refresh)
+            actual_saved_count = super().save_to_supabase(processed_data, table_name)
             
             # 실제 저장된 개수를 기준으로 메시지 출력
             if actual_saved_count > 0:
@@ -1061,13 +1138,14 @@ class KpiDataProcessor(BaseDataProcessor):
                     except (ValueError, TypeError):
                         price_value = None
                 
-                # 개별 규격명 사용 (spec_data에서 추출)
-                original_spec = spec_data.get('spec_name', raw_data.get('specification', ''))
+                # SPECIFICATION에서 자재명 추출 적용
+                original_spec = spec_data['spec_name']
                 enhanced_spec = self._extract_material_name_from_specification(original_spec)
                 
                 # 크롤링된 실제 단위 정보 사용 (하드코딩된 '원/톤' 대신)
-                actual_unit = raw_data.get('unit')
+                actual_unit = raw_data.get('unit', '원/톤')
                 
+
                 # region과 item_type 처리 로직
                 current_region_header = spec_data['region']
                 if current_region_header in self.GENERIC_PRICE_HEADERS:
@@ -1085,60 +1163,18 @@ class KpiDataProcessor(BaseDataProcessor):
                         final_region = self._normalize_region_name(current_region_header)
                         final_specification = f"{enhanced_spec} - {current_item_type}" if current_item_type and current_item_type != '기타' else enhanced_spec
 
+
                 transformed_items.append({
                     'major_category': raw_data['major_category_name'],
                     'middle_category': raw_data['middle_category_name'],
                     'sub_category': raw_data['sub_category_name'],
-                    'specification': final_specification,
+                    'specification': enhanced_spec,
                     'unit': actual_unit,
-                    'region': final_region,
+                    'region': self._normalize_region_name(spec_data['region']),
                     'date': spec_data['date'],
                     'price': price_value,
                     'detail_spec': detail_spec
                 })
-            elif spec_data.get('sub_category'):
-                for price_info in spec_data['sub_category']:
-                    price_value = None
-                    if price_info.get('price'):
-                        try:
-                            price_value = float(str(price_info['price']).replace(',', ''))
-                        except (ValueError, AttributeError):
-                            price_value = None
-
-                    original_spec = raw_data['specification']
-                    enhanced_spec = original_spec
-
-                    actual_unit = raw_data.get('unit')
-
-                    # region과 item_type 처리 로직
-                    current_sub_category = raw_data['sub_category_name']
-                    current_region_header = price_info.get('region', '전국')
-                    
-                    if current_region_header in self.GENERIC_PRICE_HEADERS:
-                        final_region = '전국'
-                        final_item_type = None
-                        final_specification = enhanced_spec
-                    elif current_sub_category in self.SUB_CATEGORY_SPECIAL_HANDLING:
-                        final_item_type = current_region_header
-                        final_region = '전국'
-                        final_specification = f"{enhanced_spec} - {final_item_type}" if final_item_type != '기타' else enhanced_spec
-                    else:
-                        final_item_type = price_info.get('item_type', None)
-                        final_region = self._normalize_region_name(current_region_header)
-                        # item_type을 specification에 포함
-                        final_specification = f"{enhanced_spec} - {current_item_type}" if current_item_type and current_item_type != '기타' else enhanced_spec
-
-                    transformed_items.append({
-                        'major_category': raw_data['major_category_name'],
-                        'middle_category': raw_data['middle_category_name'],
-                        'sub_category': raw_data['sub_category_name'],
-                        'specification': final_specification,
-                        'unit': actual_unit,
-                        'region': final_region,
-                        'date': price_info['date'],
-                        'price': price_value,
-                        'item_type': final_item_type
-                    })
             else:
                 for price_info in spec_data.get('prices', []):
                     price_value = None
@@ -1148,32 +1184,20 @@ class KpiDataProcessor(BaseDataProcessor):
                         except (ValueError, AttributeError):
                             price_value = None
                     
-                    # specification_name에서 select 옵션 텍스트와 상세 규격을 분리
-                    specification_name = spec_data.get('specification_name', '')
+                    # SPECIFICATION에서 자재명 추출 적용
+                    original_spec = spec_data['specification_name']
+                    enhanced_spec = self._extract_material_name_from_specification(original_spec)
                     
-                    # " - " 기준으로 분리하여 앞부분은 specification, 뒷부분은 detail_spec으로 사용
-                    if ' - ' in specification_name:
-                        spec_parts = specification_name.split(' - ', 1)
-                        final_specification = spec_parts[0].strip()  # select 옵션의 앞부분 (예: "FW-CVV-AMS")
-                        detail_spec = spec_parts[1].strip()  # select 옵션의 뒷부분 (예: "1pair")
-                    else:
-                        final_specification = specification_name
-                        detail_spec = None
+                    # 크롤링된 실제 단위 정보 사용 (spec_data의 unit이 없으면 raw_data의 unit 사용)
+                    actual_unit = spec_data.get('unit') or raw_data.get('unit', '원/톤')
                     
-                    # 크롤링된 실제 단위 정보 사용
-                    actual_unit = raw_data.get('unit')
-                    
-                    # region 처리
-                    final_region = self._normalize_region_name(price_info.get('region', '전국'))
-
                     transformed_items.append({
                         'major_category': raw_data['major_category_name'],
                         'middle_category': raw_data['middle_category_name'],
                         'sub_category': raw_data['sub_category_name'],
-                        'specification': final_specification,
-                        'detail_spec': detail_spec,
+                        'specification': enhanced_spec,
                         'unit': actual_unit,
-                        'region': final_region,
+                        'region': self._normalize_region_name(price_info['region']),
                         'date': price_info['date'],
                         'price': price_value
                     })

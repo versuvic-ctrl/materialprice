@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as cron from 'node-cron';
+import { redis } from '@/utils/redis'; // Redis 임포트 추가
 
 let cronJobs: cron.ScheduledTask[] = [];
 
@@ -19,6 +20,8 @@ async function updateMarketIndicators() {
     if (response.ok) {
       const data = await response.json();
       console.log('시장지표 데이터 업데이트 성공:', data);
+      await redis.del('market_indicators'); // Redis 캐시 삭제
+      console.log("Redis 캐시 'market_indicators' 삭제 완료");
     } else {
       console.error('시장지표 데이터 업데이트 실패:', response.status, response.statusText);
     }
