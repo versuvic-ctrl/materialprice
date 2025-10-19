@@ -163,6 +163,7 @@ class KpiCrawler:
         # GitHub Actions 환경에서 더 안정적인 로그인 처리
         await self.page.wait_for_load_state('networkidle', timeout=45000)
         await asyncio.sleep(2)  # 추가 안정화 대기
+        await self.page.wait_for_selector("#user_id", timeout=60000) # user_id 필드가 나타날 때까지 기다립니다.
 
         await self.page.locator("#user_id").fill(username)
         await asyncio.sleep(1)
