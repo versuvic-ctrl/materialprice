@@ -8,7 +8,9 @@ import sys
 import re
 import time
 import psutil
+from data_processor import clear_redis_cache
 from datetime import datetime
+from typing import Optional, Tuple
 from dotenv import load_dotenv
 import pandas as pd
 from playwright.async_api import async_playwright, Page
@@ -131,8 +133,25 @@ class KpiCrawler:
         self.start_year = start_year or str(datetime.now().year)
         self.start_month = start_month or str(datetime.now().month)
         self.force_refresh = force_refresh  # 캐시 우회 옵션 저장
-        
-        self.processor = create_data_processor('kpi')
+
+        # 크롤링 시작 전 Redis 캐시 초기화
+
+
+        # target_date_range 생성
+        if self.start_year and self.start_month:
+            start_date_str = f"{self.start_year}-{int(self.start_month):02d}-01"
+            # 해당 월의 마지막 날짜 계산
+            from calendar import monthrange
+            last_day = monthrange(int(self.start_year), int(self.start_month))[1]
+            end_date_str = f"{self.start_year}-{int(self.start_month):02d}-{last_day:02d}"
+            target_date_range = (start_date_str, end_date_str)
+        else:
+            target_date_range = None
+
+        self.processor = create_data_processor('kpi', target_date_range)
+        if self.force_refresh:
+            log("크롤링 시작 전 Redis 캐시 초기화", "INFO")
+            self.processor.clear_cache(major_category=self.target_major)
         
         # JSONC 포함 항목 캐싱
         self.included_categories_cache = self._build_included_categories_cache()
@@ -198,13 +217,17 @@ class KpiCrawler:
                 return self.processor
         except Exception as e:
             log(f"크롤링 중 오류 발생: {str(e)}", "ERROR")
-            # 페이지 풀 정리 제거 - 페이지 풀 관리 방식 변경
-            if browser:
-                try:
-                    await browser.close()
-                except:
-                    pass
-            raise
+            if isinstance(e, SystemExit):
+                # SystemExit는 이미 data_processor에서 처리되었으므로, 여기서는 다시 발생시키지 않고 종료
+                pass
+            else:
+                # 페이지 풀 정리 제거 - 페이지 풀 관리 방식 변경
+                if browser:
+                    try:
+                        await browser.close()
+                    except:
+                        pass
+                raise
 
     # 페이지 풀 관리 함수들 제거 - category_extractor_optimized.py 방식 사용
     # async def _get_page_from_pool(self):
@@ -1781,6 +1804,7 @@ class KpiCrawler:
         try:
             extracted_count = 0
             default_region = "전국"  # spec_name 기반 테이블은 지역 구분이 없으므로 전국으로 설정
+            raw_item_data['region'] = default_region # region 컬럼에 "전국" 명시적으로 저장
             
             # 첫 번째 행에서 헤더 정보 추출
             if not all_table_rows:
@@ -1790,6 +1814,9 @@ class KpiCrawler:
             header_cells = await header_row.locator("th").all()
             if not header_cells:
                 header_cells = await header_row.locator("td").all()
+            
+            # 상세규격 헤더 추출하여 detail_spec에 저장
+            raw_item_data['detail_spec'] = [await cell.inner_text().strip() for cell in header_cells[1:]]
             
             if len(header_cells) < 2:
                 log(f"'{spec_name}' (spec_name형): 헤더가 부족함")
@@ -2019,8 +2046,7 @@ class KpiCrawler:
             r'^SCS13\s+\d+LB\s+HUB$',  # SCS13 150LB HUB
             r'^\([^)]+\)$',  # (단판), (보온) 등 괄호로 둘러싸인 패턴
             r'^분말식\s+PE\s+3층\s+피복강관',  # 분말식 PE 3층 피복강관 관련
-            r'^폴리우레탄강관',  # 폴리우레탄강관 관련
-            r'^고급형$', r'^보온$'  # 고급형, 보온
+            r'^폴리우레탄강관'  # 폴리우레탄강관 관련
         ]
         
         # '가격1', '가격2', '가1격', '가2격' 등의 패턴은 '전국'으로 변환
@@ -2989,6 +3015,10 @@ class KpiCrawler:
 async def main():
     # 로그 파일 설정
     log_file_path = "c:\\JAJE\\materials-dashboard\\crawler\\kpi_crawler_debug.log"
+    log("KPI 크롤러 시작", "INFO")
+    clear_redis_cache('technical_articles_list')  # Redis 캐시 초기화
+    log("Redis 캐시 초기화 완료", "INFO")
+    time.sleep(5) # 로그 출력 대기
     log("DEBUG: main 함수 시작 (kpi_crawler.py)", "DEBUG")
     log(f"DEBUG: 로그 파일 경로: {log_file_path}", "DEBUG")
     """메인 실행 로직: 명령행 인자 파싱 및 크롤러 실행"""

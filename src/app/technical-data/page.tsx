@@ -4,15 +4,17 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as ReactDOM from 'react-dom';
 
 
-import { 
-  PlusIcon, 
-  ArrowLeftIcon, 
-  TagIcon, 
+import {
+  PlusIcon,
+  ArrowLeftIcon,
+  TagIcon,
   CalendarIcon,
   DocumentTextIcon,
   PhotoIcon,
   PencilIcon,
   TrashIcon,
+  Squares2X2Icon,
+  Bars3Icon,
 } from '@heroicons/react/24/outline';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,10 +25,13 @@ import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Plus, Edit, Trash2, Save, X, Upload, Image as ImageIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import dynamic from 'next/dynamic';
+
 import Image from 'next/image';
 
-const Jodit = dynamic(() => import('jodit-react'), { ssr: false });
+
+import dynamic from 'next/dynamic';
+const Jodit = dynamic(() => import('jodit-react').then(mod => mod.default), { ssr: false });
+
 import { koLang } from './jodit-ko';
 import { createClient } from '@supabase/supabase-js';
 
@@ -64,6 +69,7 @@ export default function TechnicalDataPage() {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('전체');
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card'); // 'card' 또는 'list' 모드
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false); // 비밀번호 입력창 표시 여부
   const [inputPassword, setInputPassword] = useState(''); // 입력된 비밀번호
   const [passwordError, setPasswordError] = useState(''); // 비밀번호 오류 메시지
@@ -136,23 +142,12 @@ export default function TechnicalDataPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const joditInstance = useRef<any>(null);
 
-  // Lazy-load Jodit plugins and language only when editor is needed
-  useEffect(() => {
-    if (isEditing || isWriting) {
-      (async () => {
-        try {
-          await Promise.all([
-            import('jodit/esm/plugins/all.js'),
-            import('jodit/esm/langs/ko.js'),
-          ]);
-        } catch (e) {
-          console.error('Failed to load Jodit plugins/lang:', e);
-        }
-      })();
-    }
-  }, [isEditing, isWriting]);
 
-  const editorConfig = useMemo(() => ({
+
+
+
+const editorConfig = useMemo(() => ({
+  plugins: ['passiveEvents'],
     readonly: false,
     toolbar: true,
     spellcheck: false,
@@ -165,6 +160,10 @@ export default function TechnicalDataPage() {
     events: {
       afterInit: (editor: any) => {
         console.log('Jodit 에디터 초기화 완료');
+        const events = ['touchstart', 'touchmove', 'wheel', 'mousewheel'];
+        events.forEach((event) => {
+          editor.e.on(editor.editor, event, (e: Event) => {}, { passive: true });
+        });
       },
     },
     // Prefer text tab in color picker; if unsupported, Jodit will ignore
@@ -191,7 +190,7 @@ export default function TechnicalDataPage() {
         // API 라우트에서 캐싱된 기술 자료 목록을 가져옵니다.
         const response = await fetch('/api/technical-articles', {
           // 브라우저 캐시 활용 (서버 캐시와 병행)
-          cache: 'force-cache',
+          cache: 'no-store',
         });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -859,7 +858,7 @@ export default function TechnicalDataPage() {
                     총 {filteredArticles.length}개의 글이 있습니다
                   </p>
                 </div>
-                <div className="flex-shrink-0">
+                <div className="flex items-center gap-2">
                   <input
                     type="text"
                     value={searchTerm}
@@ -867,6 +866,20 @@ export default function TechnicalDataPage() {
                     className="w-full sm:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     placeholder="검색..."
                   />
+                  <button
+                    onClick={() => setViewMode('card')}
+                    className={`p-2 rounded-lg ${viewMode === 'card' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'} hover:bg-blue-600 hover:text-white transition-colors duration-200`}
+                    title="카드뷰"
+                  >
+                    <Squares2X2Icon className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'} hover:bg-blue-600 hover:text-white transition-colors duration-200`}
+                    title="리스트뷰"
+                  >
+                    <Bars3Icon className="h-5 w-5" />
+                  </button>
                 </div>
               </div>
 
@@ -879,69 +892,105 @@ export default function TechnicalDataPage() {
                 </div>
               ) : filteredArticles.length > 0 ? (
                 <>
-                  {/* 글 목록 그리드 */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-                    {filteredArticles.map((article) => {
-                      // 미리보기 이미지는 데이터베이스에서 가져온 preview_image 사용
-                      const previewImage = article.preview_image;
-                      // API에서 제공하는 preview_text 사용, 없으면 기본 텍스트
-                      const preview = article.preview_text || `${article.category} 관련 기술자료`;
-                      // API에서 제공하는 preview_table 사용
-                      const previewTable = article.preview_table;
+                  {viewMode === 'card' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+                      {filteredArticles.map((article) => {
+                        const previewImage = article.preview_image;
+                        const preview = article.preview_text || `${article.category} 관련 기술자료`;
+                        const previewTable = article.preview_table;
 
-                      return (
-                        <div
-                          key={article.id}
-                          className="group bg-white border border-gray-200 rounded-lg min-h-[150px] hover:shadow-lg transition-all duration-200 cursor-pointer"
-                          onClick={() => handleViewArticle(article)}
-                        >
-                          <div className="w-full h-48 bg-gray-100 flex items-center justify-center overflow-hidden relative">
-                            {previewImage ? (
-                              <Image
-                                src={previewImage}
-                                alt="미리보기 이미지"
-                                fill
-                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                style={{ objectFit: 'cover' }}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : previewTable ? (
-                              <div
-                                className="w-full h-full p-2"
-                                dangerouslySetInnerHTML={{ __html: previewTable }}
-                              />
-                            ) : (
-                                // 이미지가 없을 경우 기본 이미지 표시
-                                <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                </svg>
+                        return (
+                          <div
+                            key={article.id}
+                            className="group bg-white border border-gray-200 rounded-lg min-h-[150px] hover:shadow-lg transition-all duration-200 cursor-pointer"
+                            onClick={() => handleViewArticle(article)}
+                          >
+                            <div className="w-full h-48 bg-gray-100 flex items-center justify-center overflow-hidden relative">
+                              {previewImage ? (
+                                <Image
+                                  src={previewImage}
+                                  alt="미리보기 이미지"
+                                  fill
+                                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                  style={{ objectFit: 'cover' }}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : previewTable ? (
+                                <div
+                                  className="w-full h-full p-2"
+                                  dangerouslySetInnerHTML={{ __html: previewTable }}
+                                />
+                              ) : (
+                                <DocumentTextIcon className="h-16 w-16 text-gray-400" />
                               )}
-                          </div>
-                          <div className="p-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {article.category}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {new Date(article.created_at).toLocaleDateString('ko-KR')}
-                              </span>
                             </div>
-                            <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-200 line-clamp-2">
-                              {article.title}
-                            </h3>
-                            <p className="text-sm text-gray-600 mb-3 line-clamp-3">
-                              {preview}
-                            </p>
-                            <div className="flex items-center justify-between">
+                            <div className="p-4">
+                              <h3 className="font-bold text-gray-900 group-hover:text-blue-600 line-clamp-2 mb-2">
+                                {article.title}
+                              </h3>
+                              <p className="text-sm text-gray-600 line-clamp-3 mb-4">
+                                {preview}
+                              </p>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-blue-600 group-hover:text-blue-700 font-medium">
+                                  자세히 보기 →
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="space-y-4 w-full">
+                      {filteredArticles.map((article) => {
+                        const previewImage = article.preview_image;
+                        const preview = article.preview_text || `${article.category} 관련 기술자료`;
+                        const previewTable = article.preview_table;
+
+                        return (
+                          <div
+                            key={article.id}
+                            className="group bg-white border border-gray-200 rounded-lg flex items-center p-4 hover:shadow-lg transition-all duration-200 cursor-pointer"
+                            onClick={() => handleViewArticle(article)}
+                          >
+                            <div className="flex-shrink-0 w-32 h-20 bg-gray-100 flex items-center justify-center overflow-hidden relative rounded-md mr-4">
+                              {previewImage ? (
+                                <Image
+                                  src={previewImage}
+                                  alt="미리보기 이미지"
+                                  fill
+                                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                  style={{ objectFit: 'cover' }}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : previewTable ? (
+                                <div
+                                  className="w-full h-full p-1 text-xs"
+                                  dangerouslySetInnerHTML={{ __html: previewTable }}
+                                />
+                              ) : (
+                                <DocumentTextIcon className="h-8 w-8 text-gray-400" />
+                              )}
+                            </div>
+                            <div className="flex-grow">
+                              <h3 className="font-bold text-gray-900 group-hover:text-blue-600 line-clamp-1 mb-1">
+                                {article.title}
+                              </h3>
+                              <p className="text-sm text-gray-600 line-clamp-2">
+                                {preview}
+                              </p>
+                            </div>
+                            <div className="flex-shrink-0 ml-4">
                               <span className="text-sm text-blue-600 group-hover:text-blue-700 font-medium">
                                 자세히 보기 →
                               </span>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="text-center py-12">

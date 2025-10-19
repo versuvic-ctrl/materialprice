@@ -6,46 +6,14 @@ import pandas as pd
 import requests
 from datetime import datetime
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from urllib.parse import urlparse
 import redis
+from redis.exceptions import TimeoutError
 import hashlib
-# from unit_validation import UnitValidator
-# from api_monitor import create_monitored_supabase_client
-
-# 환경변수 로드
-load_dotenv("../../.env.local")
-# 상대 경로가 작동하지 않을 경우 절대 경로 시도
-if not os.environ.get("NEXT_PUBLIC_SUPABASE_URL"):
-    load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env.local"))
-
-# Supabase 클라이언트 초기화
-SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-_supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# Redis 클라이언트 초기화
-REDIS_URL = os.environ.get("REDIS_URL")
-_redis_client = None
-
-if REDIS_URL:
-    try:
-        _redis_client = redis.from_url(REDIS_URL, decode_responses=True)
-        # Redis 연결 테스트
-        _redis_client.ping()
-        log("Redis 클라이언트 초기화 성공", "SUCCESS")
-    except Exception as e:
-        log(f"Redis 연결 실패: {e}", "ERROR")
-        _redis_client = None
-else:
-    log("REDIS_URL 환경변수가 설정되지 않음", "WARNING")
-
-# API 모니터링이 적용된 클라이언트 생성
-
-
-
+import sys
 
 def log(message: str, level: str = "INFO"):
     """실행 과정 로그를 출력하는 함수
@@ -60,7 +28,8 @@ def log(message: str, level: str = "INFO"):
         formatter = logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s')
 
         # 파일 핸들러 (디버그 로그 전체 기록)
-        file_handler = logging.FileHandler('kpi_crawler_debug.log', encoding='utf-8')
+        log_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../crawler_debug.log"))
+        file_handler = logging.FileHandler(log_file_path, encoding='utf-8')
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
@@ -81,6 +50,83 @@ def log(message: str, level: str = "INFO"):
         logger.info(message)
     elif level == "DEBUG":
         logger.debug(message)
+
+# from unit_validation import UnitValidator
+# from api_monitor import create_monitored_supabase_client
+
+# 환경변수 로드
+env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env.local"))
+load_dotenv(env_path)
+log(f".env.local loaded from: {env_path}", "DEBUG")
+if not os.environ.get("NEXT_PUBLIC_SUPABASE_URL"):
+    log("Failed to load .env.local", "ERROR")
+
+# Supabase 클라이언트 초기화
+SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# Redis 클라이언트 초기화
+REDIS_URL = os.environ.get("REDIS_URL")
+log(f"Loaded REDIS_URL: {REDIS_URL.split('@')[0]}@..." if REDIS_URL else "REDIS_URL not set", "DEBUG")
+
+if REDIS_URL:
+    try:
+        # REDIS_URL 파싱 및 호스트/포트 출력
+        parsed_url = urlparse(REDIS_URL)
+        redis_host = parsed_url.hostname
+        redis_port = parsed_url.port
+        redis_password = parsed_url.password
+        redis_username = parsed_url.username if parsed_url.username else 'default' # Upstash Redis는 'default' 사용자 이름을 사용
+
+        print(f"DEBUG: Parsed Redis Host: {redis_host}, Port: {redis_port}, Username: {redis_username}")
+
+        log("DEBUG: Redis 클라이언트 생성 시도...", "DEBUG")
+        print("DEBUG: Attempting to create Redis client...") # Added print
+        _redis_client = redis.Redis(
+                host=redis_host,
+                port=redis_port,
+                password=redis_password,
+                username=redis_username,
+                decode_responses=True,
+                ssl=True,
+                ssl_cert_reqs=None,
+                socket_connect_timeout=5,
+                socket_timeout=5
+            )
+        log("DEBUG: Redis 클라이언트 생성 완료.", "DEBUG")
+        print("DEBUG: Redis client created successfully.") # Added print
+
+        # Redis 연결 테스트
+        log("DEBUG: Redis 연결 테스트 (ping) 시도...", "DEBUG")
+        print("DEBUG: Attempting Redis ping test...") # Added print
+        _redis_client.ping() # 5초 타임아웃 추가
+        log("Redis 클라이언트 초기화 성공", "SUCCESS")
+        print("SUCCESS: Redis client initialized successfully.") # Added print
+    except (TimeoutError, ConnectionError) as e:
+        log(f"Redis 연결 테스트 타임아웃: {e}", "ERROR")
+        print(f"ERROR: Redis connection test timed out: {e}") # Modified print
+        _redis_client = None
+        sys.exit(1) # 예외를 다시 발생시켜 크롤러 중단
+    except Exception as e:
+        log(f"Redis 클라이언트 생성 실패: {e}", "ERROR") # Modified log message
+        print(f"ERROR: Redis client creation or connection failed: {e}") # Modified print message
+        _redis_client = None
+        sys.exit(1) # 예외를 다시 발생시켜 크롤러 중단
+else:
+    log("REDIS_URL 환경변수가 설정되지 않음", "WARNING")
+
+def clear_redis_cache(cache_key: str):
+    if _redis_client:
+        try:
+            _redis_client.delete(cache_key)
+            log(f"Redis 캐시 삭제 성공: {cache_key}", "SUCCESS")
+        except Exception as e:
+            log(f"Redis 캐시 삭제 실패: {cache_key} - {e}", "ERROR")
+    else:
+        log("Redis 클라이언트가 초기화되지 않아 캐시를 삭제할 수 없습니다.", "WARNING")
+
+# API 모니터링이 적용된 클라이언트 생성
 
 
 class BaseDataProcessor(ABC):
@@ -375,7 +421,7 @@ class BaseDataProcessor(ABC):
                 log(f"✅ Redis 캐시 히트: {cache_key} ({cache_obj.get('count', 0)}개 항목)", "SUCCESS")
                 return cache_obj.get('data', [])
             else:
-                log(f"❌ Redis 캐시 미스: {cache_key}", "INFO")
+                log(f"✅ Redis 캐시 미스: {cache_key}", "INFO")
                 return None
                 
         except Exception as e:
@@ -738,12 +784,19 @@ class BaseDataProcessor(ABC):
                         # 날짜, 지역, 가격, 규격, 단위 조합으로 기존 데이터 조회
                         existing_query = supabase.table(table_name).select('*')
                         
-                        # 청크의 날짜 범위로 필터링하여 성능 최적화
-                        chunk_dates = list(set(record['date'] for record in chunk))
-                        if len(chunk_dates) == 1:
-                            existing_query = existing_query.eq('date', chunk_dates[0])
+                        # 날짜 범위 필터 적용 (target_date_range가 있으면 우선 적용)
+                        if self.target_date_range:
+                            start_date, end_date = self.target_date_range
+                            existing_query = existing_query.gte('date', start_date).lte('date', end_date)
+                            logger.debug(f"    📅 target_date_range 필터 적용: {start_date} ~ {end_date}")
                         else:
-                            existing_query = existing_query.in_('date', chunk_dates)
+                            # 청크의 날짜 범위로 필터링하여 성능 최적화
+                            chunk_dates = list(set(record['date'] for record in chunk))
+                            if len(chunk_dates) == 1:
+                                existing_query = existing_query.eq('date', chunk_dates[0])
+                            else:
+                                existing_query = existing_query.in_('date', chunk_dates)
+                            logger.debug(f"    📅 청크 날짜 범위 필터 적용: {min(chunk_dates)} ~ {max(chunk_dates)}")
                         
                         existing_response = existing_query.execute()
                         
@@ -887,9 +940,15 @@ class BaseDataProcessor(ABC):
 class KpiDataProcessor(BaseDataProcessor):
     """한국물가정보(KPI) 사이트 전용 데이터 처리기"""
 
+    def __init__(self, target_date_range: Optional[Tuple[str, str]] = None):
+        super().__init__()
+        self.target_date_range = target_date_range
+
     SUB_CATEGORY_SPECIAL_HANDLING = {
         "FRP DUCT 성형관 및 이음관",
-        "파이프슈", # 필요시 추가
+        "파이프슈",  # 필요시 추가
+        "스테인리스물탱크(1)-1",
+        "재생재료(2)"
     }
 
     GENERIC_PRICE_HEADERS = [
@@ -1019,7 +1078,8 @@ class KpiDataProcessor(BaseDataProcessor):
                     current_item_type = spec_data.get('item_type', None)
                     if current_sub_category in self.SUB_CATEGORY_SPECIAL_HANDLING:
                         final_region = '전국'
-                        final_specification = f"{enhanced_spec} - {current_region_header}" if current_region_header != '기타' else enhanced_spec
+                        detail_spec = current_region_header if current_region_header != '기타' else None
+                        final_specification = enhanced_spec
                     else:
                         current_item_type = spec_data.get('item_type', None)
                         final_region = self._normalize_region_name(current_region_header)
@@ -1033,7 +1093,8 @@ class KpiDataProcessor(BaseDataProcessor):
                     'unit': actual_unit,
                     'region': final_region,
                     'date': spec_data['date'],
-                    'price': price_value
+                    'price': price_value,
+                    'detail_spec': detail_spec
                 })
             elif spec_data.get('sub_category'):
                 for price_info in spec_data['sub_category']:
@@ -1135,6 +1196,9 @@ class KpiDataProcessor(BaseDataProcessor):
 
 
 class MaterialDataProcessor(BaseDataProcessor):
+    def __init__(self, target_date_range: Optional[Tuple[str, str]] = None):
+        super().__init__()
+        self.target_date_range = target_date_range
     """다른 자재 사이트용 데이터 처리기 (예시)"""
     
     def transform_to_standard_format(self, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -1157,15 +1221,15 @@ class MaterialDataProcessor(BaseDataProcessor):
         return transformed_items
 
 
-def create_data_processor(site_type: str) -> BaseDataProcessor:
+def create_data_processor(site_type: str, target_date_range: Optional[Tuple[str, str]] = None) -> BaseDataProcessor:
     """사이트 타입에 따른 데이터 처리기 생성"""
     processors = {
-        'kpi': KpiDataProcessor,
-        'material': MaterialDataProcessor,
+        'kpi': lambda range: KpiDataProcessor(range),
+        'material': lambda range: MaterialDataProcessor(range),
     }
     
     processor_class = processors.get(site_type)
     if not processor_class:
         raise ValueError(f"지원하지 않는 사이트 타입: {site_type}")
     
-    return processor_class()
+    return processor_class(target_date_range)
