@@ -2347,11 +2347,30 @@ class KpiCrawler:
 # --- 4. 메인 실행 함수 ---
 # <<< 파일 맨 아래 부분을 이 코드로 전체 교체 (5/5) >>>
 
+import redis
+import os
+
+def clear_dashboard_cache():
+    """대시보드 차트용 Redis 캐시 삭제"""
+    try:
+        redis_client = redis.Redis(
+            host=os.getenv('UPSTASH_REDIS_REST_URL').split('//')[1].split(':')[0],
+            port=443,
+            ssl=True,
+            password=os.getenv('UPSTASH_REDIS_REST_TOKEN')
+        )
+        keys = redis_client.keys("material_prices:*")
+        if keys:
+            redis_client.delete(*keys)
+            log("✅ 대시보드 캐시가 성공적으로 삭제되었습니다", "SUCCESS")
+    except Exception as e:
+        log(f"❌ 대시보드 캐시 삭제 실패: {str(e)}", "ERROR")
+
 async def main():
     # 로그 파일 설정
     log_file_path = "c:\\JAJE\\materials-dashboard\\crawler\\kpi_crawler_debug.log"
     log("KPI 크롤러 시작", "INFO")
-    clear_redis_cache('technical_articles_list')  # Redis 캐시 초기화
+
     log("Redis 캐시 초기화 완료", "INFO")
     time.sleep(5) # 로그 출력 대기
     log("DEBUG: main 함수 시작 (kpi_crawler.py)", "DEBUG")
@@ -2562,16 +2581,13 @@ async def test_unit_extraction():
 
 
 if __name__ == "__main__":
-    # 명령행 인수 확인
-    if len(sys.argv) > 1 and sys.argv[1] == "test":
-        # 단위 추출 테스트 실행
-        asyncio.run(test_unit_extraction())
-    else:
-        # 일반 크롤링 실행
-        # running_crawlers = check_running_crawler()
-        running_crawlers = []
-        if running_crawlers:
-            log(f"이미 실행 중인 크롤러 {len(running_crawlers)}개 발견. 기존 크롤러 완료 후 재실행하세요.", "ERROR")
-            sys.exit(1)
-
+    try:
+        # 명령행 인자 파싱 및 크롤러 실행
+        # test_unit_extraction()은 main 함수 내에서 처리되므로 별도 호출 불필요
         asyncio.run(main())
+        clear_dashboard_cache()
+    except Exception as e:
+        log(f"크롤링 실패: {str(e)}", "ERROR")
+        import traceback
+        log(f"상세 오류: {traceback.format_exc()}", "ERROR")
+        sys.exit(1)
