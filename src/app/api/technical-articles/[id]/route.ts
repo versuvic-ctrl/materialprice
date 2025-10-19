@@ -31,19 +31,24 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   }
 
   // 2. Supabase에서 데이터 가져오기
-  const supabase = await createClient();
-  const { data: articleData, error: articleError } = await supabase
+  const supabase = createClient(); // createClient() 호출을 try 블록 안으로 이동
+  const { data: articleData, error: articleError } = await (await supabase)
     .from('technical_articles')
     .select('*') // 모든 필드 가져오기
     .eq('id', id)
     .single();
 
   if (articleError) {
-    console.error(`Error fetching article ${id}:`, articleError); 
-    console.error('Supabase error details:', articleError); 
+    console.error(`Error fetching article ${id}:`, articleError);
+    console.error('Supabase error details:', articleError);
+    // PGRST116 에러는 데이터가 없음을 의미하므로 404 Not Found로 처리
+    if (articleError.code === 'PGRST116') {
+      return NextResponse.json({ error: 'Article not found' }, { status: 404 });
+    }
     return NextResponse.json({ error: articleError.message }, { status: 500 });
   }
 
+  // articleData가 null인 경우 (위에서 PGRST116으로 처리되므로 이 블록은 사실상 도달하지 않음)
   if (!articleData) {
     return NextResponse.json({ error: 'Article not found' }, { status: 404 });
   }

@@ -92,7 +92,6 @@ class KpiCrawler:
         self.crawl_mode = crawl_mode
         self.start_year = start_year or str(datetime.now().year)
         self.start_month = start_month or str(datetime.now().month)
-        self.auth_file = os.path.join(current_dir, "auth.json")
 
         self.processor = create_data_processor('kpi')
 
@@ -100,7 +99,6 @@ class KpiCrawler:
         self.batch_data = []
         self.batch_size = 5  # 소분류 5개마다 처리
         self.processed_count = 0
-        self.default_region = "전국"  # 지역 정보가 없는 경우 기본값
 
         log(f"크롤러 초기화 - 크롤링 모드: {self.crawl_mode}")
         log(f"  타겟 대분류: {self.target_major_category}")
@@ -163,7 +161,6 @@ class KpiCrawler:
         # GitHub Actions 환경에서 더 안정적인 로그인 처리
         await self.page.wait_for_load_state('networkidle', timeout=45000)
         await asyncio.sleep(2)  # 추가 안정화 대기
-        await self.page.wait_for_selector("#user_id", timeout=60000) # user_id 필드가 나타날 때까지 기다립니다.
 
         await self.page.locator("#user_id").fill(username)
         await asyncio.sleep(1)
@@ -174,84 +171,6 @@ class KpiCrawler:
         # 로그인 완료 대기시간 증가
         await self.page.wait_for_load_state('networkidle', timeout=45000)
         await asyncio.sleep(3)  # 로그인 후 추가 대기
-        log("로그인 완료", "SUCCESS")
-
-    async def _load_session(self, context):
-        if os.path.exists(self.auth_file):
-            with open(self.auth_file, "r") as f:
-                session_data = json.load(f)
-                await context.add_cookies(session_data['cookies'])
-                log("세션 로드 완료", "INFO")
-            return True
-        return False
-
-    async def _save_session(self, context):
-        session_data = {
-            'cookies': await context.cookies()
-        }
-        with open(self.auth_file, "w") as f:
-            json.dump(session_data, f)
-        log("세션 저장 완료", "INFO")
-
-    async def _is_session_valid(self, page):
-        # 로그인 여부를 확인하는 URL로 이동
-        await page.goto(f"{self.base_url}/www/member/login.asp")
-        await page.wait_for_load_state('networkidle', timeout=10000)
-
-        # 로그인 성공 시 나타나는 요소 확인 (예: 로그아웃 버튼, 사용자 이름 등)
-        # KPI 웹사이트의 로그인 후 상태를 나타내는 고유한 요소를 찾아야 합니다.
-        # 여기서는 예시로 "로그아웃" 텍스트가 포함된 요소를 찾습니다.
-        # 실제 웹사이트에 맞게 수정해야 합니다.
-        is_logged_in = await page.locator("#right_quick").get_by_text("로그아웃").is_visible() or \
-                       await page.locator("#right_quick").get_by_text("회원정보").is_visible() # 예시: 회원정보 링크
-        if is_logged_in:
-            log("세션 유효함", "INFO")
-            return True
-        else:
-            log("세션 유효하지 않음", "WARNING")
-            return False
-
-    async def _login(self):
-        """로그인 페이지로 이동하여 로그인 수행"""
-        # 세션 로드 시도
-        if await self._load_session(self.context):
-            # 세션이 유효한지 확인
-            if await self._is_session_valid(self.page):
-                log("유효한 세션이 있어 로그인을 건너뜁니다.", "INFO")
-                return
-            else:
-                log("세션이 유효하지 않아 다시 로그인합니다.", "WARNING")
-                # 유효하지 않은 세션 파일 삭제
-                if os.path.exists(self.auth_file):
-                    os.remove(self.auth_file)
-                    log("유효하지 않은 세션 파일 삭제 완료", "INFO")
-        
-        # 로그인 페이지로 이동
-        await self.page.goto(f"{self.base_url}/www/member/login.asp")
-
-        username = os.environ.get("KPI_USERNAME")
-        password = os.environ.get("KPI_PASSWORD")
-
-        if not username or not password:
-            raise ValueError(".env.local 파일에 KPI_USERNAME과 "
-                             "KPI_PASSWORD를 설정해야 합니다.")
-
-        # GitHub Actions 환경에서 더 안정적인 로그인 처리
-        await self.page.wait_for_load_state('networkidle', timeout=45000)
-        await asyncio.sleep(2)  # 추가 안정화 대기
-
-        await self.page.locator("#user_id").fill(username)
-        await asyncio.sleep(1)
-        await self.page.locator("#user_pw").fill(password)
-        await asyncio.sleep(1)
-        await self.page.locator("#sendLogin").click()
-
-        # 로그인 완료 대기시간 증가
-        await self.page.wait_for_load_state('networkidle', timeout=45000)
-        await asyncio.sleep(3)  # 로그인 후 추가 대기
-        
-        # 로그인 성공 후 세션 저장
-        await self._save_session(self.context)
         log("로그인 완료", "SUCCESS")
 
     async def _navigate_to_category(self):
@@ -1282,7 +1201,7 @@ class KpiCrawler:
         """단순 테이블 데이터 추출 (날짜 + 가격 형태)"""
         try:
             extracted_count = 0
-
+            default_region = "전국"  # 지역 정보가 없는 경우 기본값
             
             for row_idx, row in enumerate(all_table_rows):
                 try:
@@ -1364,30 +1283,18 @@ class KpiCrawler:
                 log(f"      - 규격 '{spec_name}': 지역 헤더를 찾을 수 없음")
                 return
 
-            # 지역 헤더 및 detail_spec 추출
+            # 지역 헤더 추출 (첫 번째 컬럼 '구분' 제외, 유효한 지역만)
             regions = []
             valid_region_indices = []
-            detail_specs = {} # 컬럼 인덱스별 detail_spec 저장
-            
             for i in range(1, len(region_header_elements)):
                 header_text = await region_header_elements[i].inner_text()
-                clean_header_text = header_text.strip()
-                
-                if self._is_valid_region_name(clean_header_text):
-                    regions.append(clean_header_text)
+                region_name = self._clean_region_name(header_text.strip())
+                if self._is_valid_region_name(region_name):
+                    regions.append(region_name)
                     valid_region_indices.append(i)
-                elif self._is_price_header(clean_header_text):
-                    regions.append(self.default_region) # 가격 헤더는 지역을 전국으로
-                    valid_region_indices.append(i)
-                    detail_specs[i] = clean_header_text # 가격 헤더를 detail_spec으로 저장
-                else: # 지역명도 아니고 가격 헤더도 아니면 detail_spec으로 간주
-                    regions.append(self.default_region) # 지역을 전국으로
-                    valid_region_indices.append(i)
-                    detail_specs[i] = clean_header_text # 해당 헤더를 detail_spec으로 저장
 
             if not regions:
-                regions = [self.default_region]
-                valid_region_indices = [1]
+                return
 
             # 데이터 행 추출 (두 번째 행부터)
             data_rows = all_table_rows[1:] if len(all_table_rows) >= 2 else []
@@ -1429,7 +1336,7 @@ class KpiCrawler:
 
                     # 각 지역별 가격 처리
                     for region_idx, region_name in enumerate(regions):
-                        cell_idx = valid_region_indices[region_idx] # 실제 컬럼 인덱스 사용
+                        cell_idx = region_idx + 1
                         if cell_idx >= len(price_cells):
                             continue
                             
@@ -1453,8 +1360,7 @@ class KpiCrawler:
                                     'region': region_name,
                                     'date': formatted_date,
                                     'price': price_value,
-                                    'unit': unit_info,
-                                    'detail_spec': detail_specs.get(cell_idx, None) # detail_spec 추가
+                                    'unit': unit_info
                                 }
                                 spec_data = raw_item_data['spec_data']
                                 spec_data.append(price_data)
@@ -1498,17 +1404,6 @@ class KpiCrawler:
             clean_region = f"{first_char}{rest}{number}"
         
         return clean_region
-
-    def _is_price_header(self, header_text):
-        """가격 관련 헤더인지 확인"""
-        price_patterns = [
-            '가격', '가①격', '가②격', '가③격', '가④격', '가⑤격',
-            '가⑥격', '가⑦격', '가⑧격', '가⑨격', '가⑩격'
-        ]
-        for pattern in price_patterns:
-            if pattern in header_text:
-                return True
-        return False
 
     def _is_valid_date_header(self, header_text):
         """날짜 헤더 유효성 검증 함수"""
@@ -1627,7 +1522,7 @@ class KpiCrawler:
         valid_regions = [
             '강원', '경기', '경남', '경북', '광주', '대구', '대전', '부산',
             '서울', '세종', '울산', '인천', '전남', '전북', '제주', '충남', '충북',
-            '수원', '성남', '춘천', '창원'  # 추가 지역명
+            '수원', '성남', '춘천'  # 추가 지역명
         ]
 
         # 숫자가 포함된 지역명도 허용 (예: 서울1, 부산2)
@@ -1659,7 +1554,7 @@ class KpiCrawler:
 
         # 기타 잘못된 값 체크 (더 포괄적으로)
         invalid_patterns = [
-            '구분', '평균', '기준', '합계', '총계', '소계',
+            '구분', '평균', '전국', '기준', '합계', '총계', '소계',
             '단위', '원', '천원', '만원', '억원',
             '년', '월', '일', '기간',
             '-', '/', '\\', '|', '+', '='

@@ -101,3 +101,15 @@ export async function GET() {
 
   return NextResponse.json(articlesWithEmptyContent);
 }
+
+export async function DELETE() {
+  const cacheKey = 'technical_articles_list';
+  try {
+    await redis.del(cacheKey);
+    console.log('Technical articles list cache invalidated from Redis.');
+    return NextResponse.json({ message: 'Cache invalidated successfully.' });
+  } catch (error) {
+    console.error('Redis cache invalidation error:', error);
+    return NextResponse.json({ error: 'Failed to invalidate cache.' }, { status: 500 });
+  }
+}

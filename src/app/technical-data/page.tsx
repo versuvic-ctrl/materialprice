@@ -26,6 +26,9 @@ import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 
+import '/public/jodit-plugins/debug/debug.min.css';
+import '/public/jodit-plugins/speech-recognize/speech-recognize.min.css';
+
 const Jodit = dynamic(() => import('jodit-react'), { ssr: false });
 import { koLang } from './jodit-ko';
 import { createClient } from '@supabase/supabase-js';
@@ -162,6 +165,8 @@ export default function TechnicalDataPage() {
     buttonsMD: 'paragraph,bold,strikethrough,underline,italic,|,superscript,subscript,|,ul,ol,|,align,outdent,indent,|,font,fontsize,brush,color,|,image,video,link,table,cut,hr,|,symbol,selectall,file,print,about',
     buttonsSM: 'paragraph,bold,strikethrough,underline,italic,|,superscript,subscript,|,ul,ol,|,align,outdent,indent,|,font,fontsize,brush,color,|,image,video,link,table,cut,hr,|,symbol,selectall,file,print,about',
     buttonsXS: 'paragraph,bold,strikethrough,underline,italic,|,superscript,subscript,|,ul,ol,|,align,outdent,indent,|,font,fontsize,brush,color,|,image,video,link,table,cut,hr,|,symbol,selectall,file,print,about',
+    extraPlugins: ['debug', 'speech-recognize'],
+    basePath: '/jodit-plugins/',
     events: {
       afterInit: (editor: any) => {
         console.log('Jodit 에디터 초기화 완료');
@@ -190,8 +195,8 @@ export default function TechnicalDataPage() {
         setIsLoading(true);
         // API 라우트에서 캐싱된 기술 자료 목록을 가져옵니다.
         const response = await fetch('/api/technical-articles', {
-          // 브라우저 캐시 활용 (서버 캐시와 병행)
-          cache: 'force-cache',
+          // 항상 최신 데이터를 가져오도록 캐시 비활성화
+          cache: 'no-store',
         });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -408,16 +413,22 @@ export default function TechnicalDataPage() {
         .eq('id', articleToDeleteId);
 
       if (error) {
-        console.error('Error deleting article:', error);
+        console.error('Supabase delete error details:', error); // 상세 에러 로깅 추가
         toast.error('글 삭제에 실패했습니다.');
         return;
       }
+      console.log('Article successfully deleted from Supabase:', articleToDeleteId); // 성공 로깅 추가
+
+      // Redis 캐시 무효화 API 호출
+      await fetch('/api/technical-articles', {
+        method: 'DELETE',
+      });
 
       toast.success('글이 성공적으로 삭제되었습니다!');
-      setArticles(articles.filter(article => article.id !== articleToDeleteId));
+      setArticles(prevArticles => prevArticles.filter(article => article.id !== articleToDeleteId));
       setViewingArticle(null);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error during article deletion process:', error); // catch 블록 에러 로깅 수정
       toast.error('글 삭제 중 오류가 발생했습니다.');
     } finally {
       // 비밀번호 입력창 닫기 및 비밀번호 초기화
@@ -432,7 +443,8 @@ export default function TechnicalDataPage() {
     try {
       const response = await fetch(`/api/technical-articles/${articleId}`);
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // console.error(`HTTP error! status: ${response.status} for article ID: ${articleId}`); // 404는 예상된 상황이므로 콘솔 에러 제거
+        return null; // 에러를 throw하는 대신 null 반환
       }
       const data = await response.json();
       return data.content;
@@ -455,9 +467,13 @@ export default function TechnicalDataPage() {
     if (content) {
       const articleWithContent = { ...article, content };
       setViewingArticle(articleWithContent);
-      
       // articles 배열도 업데이트하여 다음에는 바로 표시되도록 함
-      setArticles(articles.map(a => a.id === article.id ? articleWithContent : a));
+      setArticles(prevArticles =>
+        prevArticles.map(a => (a.id === article.id ? articleWithContent : a))
+      );
+    } else {
+      alert('게시글을 찾을 수 없습니다.');
+      setViewingArticle(null); // 게시글을 찾을 수 없을 때 viewingArticle 초기화
     }
   };
 
@@ -728,7 +744,10 @@ export default function TechnicalDataPage() {
                   <Jodit
                     ref={joditInstance}
                     value={content}
-                    config={editorConfig as any}
+                    config={{
+                      ...editorConfig,
+                      attributes: { 'data-grammarly-disable': 'true' }
+                    } as any}
                     onBlur={(newContent: string) => setContent(newContent)}
                     onChange={(newContent: string) => {}}
                   />
@@ -819,14 +838,14 @@ export default function TechnicalDataPage() {
                       spellcheck: false,
                       language: 'ko',
                       height: 500,
-                      buttons: 'paragraph,bold,strikethrough,underline,italic,|,superscript,subscript,|,ul,ol,|,align,outdent,indent,|,font,fontsize,brush,color,|,image,video,link,table,cut,hr,|,symbol,selectall,file,print,about',
-                      buttonsMD: 'paragraph,bold,strikethrough,underline,italic,|,superscript,subscript,|,ul,ol,|,align,outdent,indent,|,font,fontsize,brush,color,|,image,video,link,table,cut,hr,|,symbol,selectall,file,print,about',
-                      buttonsSM: 'paragraph,bold,strikethrough,underline,italic,|,superscript,subscript,|,ul,ol,|,align,outdent,indent,|,font,fontsize,brush,color,|,image,video,link,table,cut,hr,|,symbol,selectall,file,print,about',
-                      buttonsXS: 'paragraph,bold,strikethrough,underline,italic,|,superscript,subscript,|,ul,ol,|,align,outdent,indent,|,font,fontsize,brush,color,|,image,video,link,table,cut,hr,|,symbol,selectall,file,print,about',
+                      buttons: 'bold,italic,underline,strikethrough,eraser,ul,ol,font,fontsize,paragraph,lineHeight,superscript,subscript,file,image,video,spellcheck,cut,copy',
+                      buttonsMD: 'bold,italic,underline,strikethrough,eraser,ul,ol,font,fontsize,paragraph,lineHeight,superscript,subscript,file,image,video,spellcheck,cut,copy',
+                      buttonsSM: 'bold,italic,underline,strikethrough,eraser,ul,ol,font,fontsize,paragraph,lineHeight,superscript,subscript,file,image,video,spellcheck,cut,copy',
+                      buttonsXS: 'bold,italic,underline,strikethrough,eraser,ul,ol,font,fontsize,paragraph,lineHeight,superscript,subscript,file,image,video,spellcheck,cut,copy',
                       events: {
                         afterInit: (editor: any) => {
                           console.log('Jodit 에디터 초기화 완료');
-                        },
+                        }
                       },
                       colorPickerDefaultTab: 'color' as const,
                       uploader: {
@@ -837,6 +856,7 @@ export default function TechnicalDataPage() {
                           url: '/api/upload',
                         },
                       },
+                      // attributes: { 'data-grammarly-disable': 'true' } // removed: not supported by Jodit component
                     }}
                     onBlur={(newContent: string) => setContent(newContent)}
                     onChange={(newContent: string) => {}}
