@@ -1,5 +1,8 @@
 
 
+import time
+from typing import Any
+import jsonc_parser
 import os
 import asyncio
 import json
@@ -65,7 +68,7 @@ INCLUSION_LIST = parse_jsonc(jsonc_content)
 class KpiCrawler:
     def __init__(self, target_major: str = None, target_middle: str = None,
                  target_sub: str = None, crawl_mode: str = "all",
-                 start_year: str = None, start_month: str = None, max_concurrent=3):
+                 start_year: str = None, start_month: str = None, max_concurrent=3, force_refresh: bool = False):
         """
         KPI 크롤러 초기화
 
@@ -117,7 +120,7 @@ class KpiCrawler:
         
         # JSONC 포함 항목 캐싱
         self.included_categories_cache = self._build_included_categories_cache()
-        
+
         # 타임아웃 감지 및 강제 재생성 설정
         self.page_timeout_threshold = 30  # 30초 이상 응답 없으면 강제 재생성
         self.page_last_activity = {}  # 페이지별 마지막 활동 시간 추적
@@ -125,6 +128,54 @@ class KpiCrawler:
         # 배치 처리용 변수
         self.batch_data = []
         self.batch_size = 5  # 소분류 5개마다 처리
+
+    def _build_included_categories_cache(self) -> dict[str, Any]:
+        """
+        kpi_inclusion_list_compact.jsonc 파일을 파싱하여 포함될 카테고리 목록을 캐시합니다.
+        """
+        try:
+            inclusion_list_path = os.path.join(os.path.dirname(__file__), 'kpi_inclusion_list_compact.jsonc')
+            log(f"포함 목록 파일 경로: {inclusion_list_path}", "DEBUG")
+            if not os.path.exists(inclusion_list_path):
+                log(f"오류: 포함 목록 파일이 존재하지 않습니다: {inclusion_list_path}", "ERROR")
+                return {}
+
+            with open(inclusion_list_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # JSONC 파싱
+            parsed_data = jsonc_parser.parse_jsonc(content)
+            log("kpi_inclusion_list_compact.jsonc 파일 파싱 완료", "DEBUG")
+            
+            cache = {}
+            for major_item in parsed_data.get("major_categories", []):
+                major_name = major_item.get("name")
+                if major_name:
+                    cache[major_name] = {"middle_categories": {}}
+                    for middle_item in major_item.get("middle_categories", []):
+                        middle_name = middle_item.get("name")
+                        if middle_name:
+                            cache[major_name]["middle_categories"][middle_name] = {
+                                "sub_categories": set(middle_item.get("sub_categories", []))
+                            }
+            log("포함 카테고리 캐시 빌드 완료", "DEBUG")
+            return cache
+        except Exception as e:
+            log(f"포함 카테고리 캐시 빌드 중 오류 발생: {e}", "ERROR")
+            return {}
+
+    async def _initialize_browser(self):
+        """
+        브라우저를 초기화하고 새 페이지를 생성합니다.
+        """
+        log("브라우저 초기화 중", "INFO")
+        try:
+            self.browser = await chromium.launch(headless=True)
+            self.page = await self.browser.new_page()
+            log("브라우저 및 페이지 초기화 완료", "INFO")
+        except Exception as e:
+            log(f"브라우저 초기화 실패: {e}", "ERROR")
+            raise
         self.processed_count = 0
 
         log(f"크롤러 초기화 - 크롤링 모드: {self.crawl_mode}")
