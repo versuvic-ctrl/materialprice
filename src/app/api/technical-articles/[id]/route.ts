@@ -40,6 +40,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
 
   if (articleError) {
     console.error(`Error fetching article ${id}:`, articleError); 
+    console.error('Supabase error details:', articleError); 
     return NextResponse.json({ error: articleError.message }, { status: 500 });
   }
 
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   
   } catch (error) {
     console.error('Unexpected error in technical article detail API:', error);
+    console.error('Full error object:', error);
     return NextResponse.json(
       { error: 'Internal server error' }, 
       { status: 500 }
