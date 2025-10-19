@@ -168,21 +168,21 @@ class KpiCrawler:
         """
         브라우저를 초기화하고 새 페이지를 생성합니다.
         """
-        log("브라우저 초기화 중", "INFO")
+        log("브라우저 초기화 중", "START")
         try:
             self.browser = await chromium.launch(headless=True)
             self.page = await self.browser.new_page()
-            log("브라우저 및 페이지 초기화 완료", "INFO")
+            log("브라우저 및 페이지 초기화 완료", "SUCCESS")
         except Exception as e:
             log(f"브라우저 초기화 실패: {e}", "ERROR")
             raise
         self.processed_count = 0
 
-        log(f"크롤러 초기화 - 크롤링 모드: {self.crawl_mode}")
-        log(f"  타겟 대분류: {self.target_major_category}")
-        log(f"  타겟 중분류: {self.target_middle_category}")
-        log(f"  타겟 소분류: {self.target_sub_category}")
-        log(f"  시작날짜: {self.start_year}-{self.start_month}")
+        log(f"크롤러 초기화 - 크롤링 모드: {self.crawl_mode}", "START")
+        log(f"  타겟 대분류: {self.target_major_category}", "INFO")
+        log(f"  타겟 중분류: {self.target_middle_category}", "INFO")
+        log(f"  타겟 소분류: {self.target_sub_category}", "INFO")
+        log(f"  시작날짜: {self.start_year}-{self.start_month}", "INFO")
 
     async def run(self):
         """크롤링 프로세스 실행"""
@@ -212,7 +212,7 @@ class KpiCrawler:
                 # 마지막 남은 배치 데이터 처리
                 await self._process_final_batch()
 
-                log(f"\n🟢 === 크롤링 완료: 총 {self.processed_count}개 소분류 처리됨 === 🟢\n")
+                log(f"=== 크롤링 완료: 총 {self.processed_count}개 소분류 처리됨 ===", "COMPLETE")
 
                 await browser.close()
                 return self.processor
@@ -2373,7 +2373,7 @@ async def main():
 
     log("Redis 캐시 초기화 완료", "INFO")
     time.sleep(5) # 로그 출력 대기
-    log("DEBUG: main 함수 시작 (kpi_crawler.py)", "DEBUG")
+    log("main 함수 시작 (kpi_crawler.py)", "DEBUG")
     log(f"DEBUG: 로그 파일 경로: {log_file_path}", "DEBUG")
     """메인 실행 로직: 명령행 인자 파싱 및 크롤러 실행"""
     # 명령행 인자 파싱 - 두 가지 방식 지원
@@ -2424,16 +2424,16 @@ async def main():
         log(f"크롤링할 대분류: {all_major_categories}", "INFO")
         
         for major in all_major_categories:
-            log(f"=== {major} 크롤링 시작 ===", "SUMMARY")
+            log(f"=== {major} 크롤링 시작 ===", "START")
             crawler = KpiCrawler(target_major=major, crawl_mode="all", 
                                start_year=start_year, start_month=start_month)
             await crawler.run()
-            log(f"🟢 {major} 크롤링 완료", "SUCCESS")
+            log(f"{major} 크롤링 완료", "SUCCESS")
         
-        log("🟢 전체 대분류 크롤링 완료", "SUCCESS")
+        log("전체 대분류 크롤링 완료", "COMPLETE")
     else:
         # 선택적 크롤링
-        log(f"=== {crawl_mode} 모드 크롤링 시작 ===", "SUMMARY")
+        log(f"=== {crawl_mode} 모드 크롤링 시작 ===", "START")
         crawler = KpiCrawler(
             target_major=target_major,
             target_middle=target_middle,
@@ -2443,7 +2443,7 @@ async def main():
             start_month=start_month
         )
         await crawler.run()
-        log(f"🟢 {crawl_mode} 모드 크롤링 완료", "SUCCESS")
+        log(f"{crawl_mode} 모드 크롤링 완료", "COMPLETE")
 
 
 async def test_unit_extraction():

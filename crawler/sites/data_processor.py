@@ -58,22 +58,34 @@ def log(message: str, level: str = "INFO"):
 
         # 콘솔 핸들러 (INFO 레벨 이상만 콘솔 출력)
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(logging.DEBUG)
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
 
-    # 로그 레벨별 출력 제어
+    # 로그 레벨별 출력 제어 (중요한 로그만 이모지 표시)
     if level == "SUMMARY":
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ {message}")
+        logger.info(f"📊 {message}")
     elif level == "ERROR":
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✗ {message}")
+        logger.error(f"❌ {message}")
     elif level == "SUCCESS":
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ {message}")
+        logger.info(f"✅ {message}")
+    elif level == "WARNING":
+        logger.warning(f"⚠️ {message}")
+    elif level == "START":
+        logger.info(f"🚀 {message}")
+    elif level == "COMPLETE":
+        logger.info(f"🏁 {message}")
+    elif level == "DEBUG":
+        logger.debug(f"{message}")
+    elif level == "PROGRESS":
+        logger.info(f"{message}")
     else:  # INFO
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] {message}")
+        logger.info(f"{message}")
 
 # from unit_validation import UnitValidator
 # from api_monitor import create_monitored_supabase_client
+
+_redis_client = None  # _redis_client를 전역적으로 None으로 초기화
 
 # 환경변수 로드
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env.local"))
@@ -100,38 +112,22 @@ if REDIS_URL:
         redis_password = parsed_url.password
         redis_username = parsed_url.username if parsed_url.username else 'default' # Upstash Redis는 'default' 사용자 이름을 사용
 
-        print(f"DEBUG: Parsed Redis Host: {redis_host}, Port: {redis_port}, Username: {redis_username}")
+        log(f"Parsed Redis Host: {redis_host}, Port: {redis_port}, Username: {redis_username}", "DEBUG")
 
-        log("DEBUG: Redis 클라이언트 생성 시도...", "DEBUG")
-        print("DEBUG: Attempting to create Redis client...") # Added print
-        _redis_client = redis.Redis(
-                host=redis_host,
-                port=redis_port,
-                password=redis_password,
-                username=redis_username,
-                decode_responses=True,
-                ssl=True,
-                ssl_cert_reqs=None,
-                socket_connect_timeout=5,
-                socket_timeout=5
-            )
-        log("DEBUG: Redis 클라이언트 생성 완료.", "DEBUG")
-        print("DEBUG: Redis client created successfully.") # Added print
+        log("Redis 클라이언트 생성 시도...", "DEBUG")
+        _redis_client = redis.StrictRedis(host=redis_host, port=redis_port, password=redis_password, username=redis_username, decode_responses=True, socket_connect_timeout=5, ssl=True, ssl_cert_reqs=None)
+        log("Redis 클라이언트 생성 완료.", "DEBUG")
 
         # Redis 연결 테스트
-        log("DEBUG: Redis 연결 테스트 (ping) 시도...", "DEBUG")
-        print("DEBUG: Attempting Redis ping test...") # Added print
+        log("Redis 연결 테스트 (ping) 시도...", "DEBUG")
         _redis_client.ping() # 5초 타임아웃 추가
         log("Redis 클라이언트 초기화 성공", "SUCCESS")
-        print("SUCCESS: Redis client initialized successfully.") # Added print
     except (TimeoutError, ConnectionError) as e:
         log(f"Redis 연결 테스트 타임아웃: {e}", "ERROR")
-        print(f"ERROR: Redis connection test timed out: {e}") # Modified print
         _redis_client = None
         sys.exit(1) # 예외를 다시 발생시켜 크롤러 중단
     except Exception as e:
         log(f"Redis 클라이언트 생성 실패: {e}", "ERROR") # Modified log message
-        print(f"ERROR: Redis client creation or connection failed: {e}") # Modified print message
         _redis_client = None
         sys.exit(1) # 예외를 다시 발생시켜 크롤러 중단
 else:
@@ -640,10 +636,10 @@ class BaseDataProcessor(ABC):
         valid_records = [record for record in data if self._is_valid_record(record)]
         
         if not valid_records:
-            log("❌ 유효한 레코드가 없습니다.")
+            log("유효한 레코드가 없습니다.", "ERROR")
             return 0
         
-        log(f"✅ 유효성 검증 완료: {len(valid_records)}개")
+        log(f"유효성 검증 완료: {len(valid_records)}개", "SUCCESS")
         
         # 카테고리별로 그룹화
         category_groups = {}
@@ -657,7 +653,7 @@ class BaseDataProcessor(ABC):
         
         # 각 카테고리별로 최적화된 배치 처리
         for (major_cat, middle_cat, sub_cat), group_records in category_groups.items():
-            log(f"🔍 카테고리 처리: {major_cat} > {middle_cat} > {sub_cat} ({len(group_records)}개)")
+            log(f"카테고리 처리: {major_cat} > {middle_cat} > {sub_cat} ({len(group_records)}개)", "PROGRESS")
             
             # 1. 전체 소분류에 대해 1회만 배치 조회하여 메모리 캐시 생성
             target_dates = list(set(record['date'] for record in group_records))
@@ -673,7 +669,7 @@ class BaseDataProcessor(ABC):
             filtered_records = self.filter_duplicates_from_cache(group_records, existing_cache)
             
             if not filtered_records:
-                log(f"    📭 신규 데이터 없음: 모든 데이터가 중복")
+                log(f"    신규 데이터 없음: 모든 데이터가 중복", "WARNING")
                 continue
             
             # 3. 청크 단위로 배치 저장 (1000개씩)
@@ -690,18 +686,18 @@ class BaseDataProcessor(ABC):
                     if insert_response.data:
                         chunk_saved = len(insert_response.data)
                         category_saved += chunk_saved
-                        log(f"    ✅ 청크 {i}: {chunk_saved}개 저장 완료")
+                        log(f"    청크 {i}: {chunk_saved}개 저장 완료", "SUCCESS")
                     else:
-                        log(f"    ❌ 청크 {i}: 저장 실패 - 응답 데이터 없음")
+                        log(f"    청크 {i}: 저장 실패 - 응답 데이터 없음", "ERROR")
                 
                 except Exception as e:
-                    log(f"❌ 청크 {i} 저장 실패: {str(e)}")
+                    log(f"청크 {i} 저장 실패: {str(e)}", "ERROR")
                     continue
             
             total_saved += category_saved
-            log(f"    📊 카테고리 저장 완료: {category_saved}개")
+            log(f"    카테고리 저장 완료: {category_saved}개", "SUMMARY")
         
-        log(f"🎉 최적화된 배치 저장 완료: 총 {total_saved}개 데이터")
+        log(f"최적화된 배치 저장 완료: 총 {total_saved}개 데이터", "COMPLETE")
         return total_saved
 
     def save_to_supabase_legacy(self, data: List[Dict[str, Any]], table_name: str = 'kpi_price_data') -> int:
@@ -1147,6 +1143,9 @@ class KpiDataProcessor(BaseDataProcessor):
                 actual_unit = raw_data.get('unit', '원/톤')
                 
 
+                # detail_spec 변수 초기화
+                detail_spec = None
+                
                 # region과 item_type 처리 로직
                 current_region_header = spec_data['region']
                 if current_region_header in self.GENERIC_PRICE_HEADERS:

@@ -239,10 +239,10 @@ const PumpVisualization: React.FC<PumpVisualizationProps> = ({
     performanceDiv.style.pointerEvents = 'none';
     performanceDiv.innerHTML = `
       <div><strong>펌프 성능</strong></div>
-      <div>유량: ${flowRate} m³/h</div>
-      <div>양정: ${head} m</div>
-      <div>동력: ${power} kW</div>
-      <div>회전수: ${speed} rpm</div>
+      <div>유량: ${flowRate} m³/h (계산 결과)</div>
+      <div>양정: ${head} m (NPSH 기반 예측)</div>
+      <div>동력: ${power} kW (효율 75% 가정)</div>
+      <div>회전수: ${speed} rpm (펌프 사양)</div>
       <div>효율: ${efficiency}%</div>
       <div style="margin-top: 8px;"><strong>NPSH</strong></div>
       <div>필요: ${npshRequired} m</div>
@@ -328,7 +328,7 @@ const PumpVisualization: React.FC<PumpVisualizationProps> = ({
       }
       renderer.dispose();
     };
-  }, [flowRate, head, power, speed, efficiency, npshRequired, npshAvailable, isRotating]);
+  }, []);
 
   return (
     <div className="relative w-full h-full">

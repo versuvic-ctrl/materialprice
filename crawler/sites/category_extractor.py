@@ -24,8 +24,8 @@ except ImportError:
     def log(message, level="INFO"):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{timestamp}] [{level}] {message}")
-log(f"DEBUG: KPI_USERNAME: {os.environ.get('KPI_USERNAME')}", "DEBUG")
-log(f"DEBUG: KPI_PASSWORD: {os.environ.get('KPI_PASSWORD')}", "DEBUG")
+log(f"KPI_USERNAME: {os.environ.get('KPI_USERNAME')}", "DEBUG")
+log(f"KPI_PASSWORD: {os.environ.get('KPI_PASSWORD')}", "DEBUG")
 class CategoryExtractor:
     def __init__(self):
         self.base_url = "https://www.kpi.or.kr"

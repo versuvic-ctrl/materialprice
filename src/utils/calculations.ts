@@ -144,27 +144,23 @@ export function calculateNPSH(input: NPSHCalculationInput): CalculationResult {
     throw new Error('압력 값이 올바르지 않습니다.');
   }
   
-  // NPSHA = (Pa - Pv) / (ρ × g) + Hs - Hf
-  // 물의 밀도 = 1000 kg/m³, 중력가속도 = 9.81 m/s²
+  // NPSHA = (Pa - Pv)/(ρ×g) + Hs - Hf
   const waterDensity = 1000; // kg/m³
   const gravity = 9.81; // m/s²
   
-  // 압력을 수두로 변환 (kPa → m)
   const pressureHead = (atmospheric_pressure - vapor_pressure) * 1000 / (waterDensity * gravity);
-  
-  // NPSH Available 계산
   const npshAvailable = pressureHead + static_head - friction_loss;
   
   return {
     npsh: Math.round(npshAvailable * 100) / 100,
     unit: 'm',
-    formula: `NPSHA = (Pa - Pv) / (ρ × g) + Hs - Hf\n` +
-             `NPSHA = (${atmospheric_pressure} - ${vapor_pressure}) × 1000 / (${waterDensity} × ${gravity}) + ${static_head} - ${friction_loss}\n` +
-             `NPSHA = ${pressureHead.toFixed(2)} + ${static_head} - ${friction_loss} = ${npshAvailable.toFixed(2)} m`,
+    formula: `NPSHA = (Pa - Pv)/(ρ×g) + Hs - Hf
+= (${atmospheric_pressure} - ${vapor_pressure})×1000/(1000×9.81) + ${static_head} - ${friction_loss}
+= ${pressureHead.toFixed(2)} + ${static_head} - ${friction_loss} = ${npshAvailable.toFixed(2)} m`,
     inputs: {
       atmospheric_pressure: `${atmospheric_pressure} kPa`,
       vapor_pressure: `${vapor_pressure} kPa`,
-      static_head: `${static_head} m`,
+      static_head: `${static_head} m (펌프보다 액체가 높으면 양수)`,
       friction_loss: `${friction_loss} m`,
       water_density: `${waterDensity} kg/m³`,
       gravity: `${gravity} m/s²`

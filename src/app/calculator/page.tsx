@@ -23,6 +23,7 @@
 'use client';
 
 import { useState } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
 import { Calculator, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { calculateTankVolumeExport, calculateNPSHExport, calculateAffinityExport, CalculationResult } from '@/lib/api';
@@ -51,6 +52,9 @@ const PumpVisualization = dynamic(() => import('@/components/calculator/PumpVisu
   )
 });
 
+type TankHeadType = 'flat' | 'elliptical' | 'hemispherical';
+const TANK_HEAD_TYPES: TankHeadType[] = ['flat', 'elliptical', 'hemispherical'];
+
 export default function CalculatorPage() {
   // 선택된 계산기 타입 상태
   const [selectedCalculator, setSelectedCalculator] = useState<string>('');
@@ -61,11 +65,13 @@ export default function CalculatorPage() {
   
   // Tank 계산기 입력값 상태
   const [tankInputs, setTankInputs] = useState({
-    diameter: '',           // 직경 (m)
+  density: 7850,
+    thickness: '10',           // 두께 (mm)
+      diameter: '',           // 직경 (m)
     height: '',            // 높이 (m)
     topHeadType: 'flat',   // 상부 헤드 타입
     bottomHeadType: 'flat', // 하부 헤드 타입
-    material: 'carbon'     // 재질
+    material: 'carbon', // 재질 (기본값: Carbon Steel)
   });
   
   // NPSH 계산기 입력값 상태
@@ -85,6 +91,20 @@ export default function CalculatorPage() {
     n2: ''  // 새 회전수 (rpm)
   });
 
+  const [npshResult, setNpshResult] = useState<{
+    npsha: number;
+    flowRate: number;
+    head: number;
+    power: number;
+    speed: number;
+  } | null>({
+    npsha: 5,
+    flowRate: 100,
+    head: 50,
+    power: 15,
+    speed: 1750,
+  });
+
   // 선택된 계산기에 따라 해당 계산 함수를 호출하는 핸들러
   const handleCalculate = async () => {
     setIsLoading(true);
@@ -93,9 +113,21 @@ export default function CalculatorPage() {
       
       // Tank 부피/무게 계산
       if (selectedCalculator === 'tank') {
+        const diameter = parseFloat(tankInputs.diameter);
+        const height = parseFloat(tankInputs.height);
+
+        if (isNaN(diameter) || diameter <= 0) {
+          toast.error('유효한 직경을 입력해주세요.');
+          return;
+        }
+        if (isNaN(height) || height <= 0) {
+          toast.error('유효한 높이를 입력해주세요.');
+          return;
+        }
+
         calculationResult = await calculateTankVolumeExport({
-          diameter: parseFloat(tankInputs.diameter),
-          height: parseFloat(tankInputs.height),
+          diameter: diameter,
+          height: height,
           topHeadType: tankInputs.topHeadType,
           bottomHeadType: tankInputs.bottomHeadType,
           material: tankInputs.material
@@ -153,10 +185,10 @@ export default function CalculatorPage() {
     
     if (selectedCalculator === 'tank') {
       return (
-        <div className="space-y-4">
+        <div className="space-y-2">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 직경 (m)
               </label>
               <input
@@ -164,11 +196,11 @@ export default function CalculatorPage() {
                 value={tankInputs.diameter}
                 onChange={(e) => setTankInputs({...tankInputs, diameter: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                placeholder="3.0"
+                placeholder="예: 3.0"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 높이 (m)
               </label>
               <input
@@ -176,48 +208,63 @@ export default function CalculatorPage() {
                 value={tankInputs.height}
                 onChange={(e) => setTankInputs({...tankInputs, height: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                placeholder="5.0"
+                placeholder="예: 5.0"
               />
             </div>
           </div>
+            <div className="flex space-x-4">
+              <div className="w-1/2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  상부 헤드 타입
+                </label>
+                <select
+                  value={tankInputs.topHeadType}
+                  onChange={(e) => setTankInputs({...tankInputs, topHeadType: e.target.value as TankHeadType})}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                >
+                  {TANK_HEAD_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-1/2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  하부 헤드 타입
+                </label>
+                <select
+                  value={tankInputs.bottomHeadType}
+                  onChange={(e) => setTankInputs({...tankInputs, bottomHeadType: e.target.value as TankHeadType})}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                >
+                  {TANK_HEAD_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              상부 헤드 타입
-            </label>
-            <select
-              title="상부 헤드 타입 선택"
-              value={tankInputs.topHeadType}
-              onChange={(e) => setTankInputs({...tankInputs, topHeadType: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="flat">Flat Head</option>
-              <option value="elliptical">Elliptical Head</option>
-              <option value="hemispherical">Hemispherical Head</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              하부 헤드 타입
-            </label>
-            <select
-              title="하부 헤드 타입 선택"
-              value={tankInputs.bottomHeadType}
-              onChange={(e) => setTankInputs({...tankInputs, bottomHeadType: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="flat">Flat Head</option>
-              <option value="elliptical">Elliptical Head</option>
-              <option value="hemispherical">Hemispherical Head</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               재질
             </label>
             <select
               title="재질 선택"
               value={tankInputs.material}
-              onChange={(e) => setTankInputs({...tankInputs, material: e.target.value})}
+              onChange={(e) => {
+                const newMaterial = e.target.value;
+                let newDensity = 0;
+                if (newMaterial === 'carbon') {
+                  newDensity = 7850;
+                } else if (newMaterial === 'stainless') {
+                  newDensity = 8000;
+                } else if (newMaterial === 'aluminum') {
+                  newDensity = 2700;
+                }
+                setTankInputs({...tankInputs, material: newMaterial, density: newDensity});
+              }}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
             >
               <option value="carbon">Carbon Steel</option>
@@ -226,23 +273,26 @@ export default function CalculatorPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               두께 (mm)
             </label>
             <input
               type="number"
+              value={tankInputs.thickness}
+              onChange={(e) => setTankInputs({...tankInputs, thickness: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="10"
+              placeholder="예: 10"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               밀도 (kg/m³)
             </label>
             <input
               type="number"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="7850"
+              value={tankInputs.density}
+              readOnly
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
             />
           </div>
           <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900 dark:bg-opacity-20 rounded-lg">
@@ -264,9 +314,21 @@ export default function CalculatorPage() {
     
     if (selectedCalculator === 'npsh') {
       return (
-        <div className="space-y-4">
+        <div className='space-y-2'>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+              액체 표면-펌프 높이 차 (m)
+              <small className='text-gray-500 dark:text-gray-400 ml-1'>(펌프보다 액체가 높으면 양수)</small>
+            </label>
+            <input
+              type='number'
+              value={npshInputs.staticHead}
+              onChange={(e) => setNpshInputs({...npshInputs, staticHead: e.target.value})}
+              className='w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:border-gray-700'
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               대기압 (kPa)
             </label>
             <input
@@ -274,11 +336,11 @@ export default function CalculatorPage() {
               value={npshInputs.atmosphericPressure}
               onChange={(e) => setNpshInputs({...npshInputs, atmosphericPressure: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="101.325"
+              placeholder="예: 101.325"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               증기압 (kPa)
             </label>
             <input
@@ -286,7 +348,7 @@ export default function CalculatorPage() {
               value={npshInputs.vaporPressure}
               onChange={(e) => setNpshInputs({...npshInputs, vaporPressure: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="2.34"
+              placeholder="예: 2.339"
             />
           </div>
           <div>
@@ -298,7 +360,7 @@ export default function CalculatorPage() {
               value={npshInputs.staticHead}
               onChange={(e) => setNpshInputs({...npshInputs, staticHead: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="5.0"
+              placeholder="예: 5.0"
             />
           </div>
           <div>
@@ -310,7 +372,7 @@ export default function CalculatorPage() {
               value={npshInputs.frictionLoss}
               onChange={(e) => setNpshInputs({...npshInputs, frictionLoss: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="1.5"
+              placeholder="예: 1.5"
             />
           </div>
           <div className="mt-6 p-4 bg-green-50 dark:bg-green-900 dark:bg-opacity-20 rounded-lg">
@@ -392,7 +454,7 @@ export default function CalculatorPage() {
               value={affinityInputs.n2}
               onChange={(e) => setAffinityInputs({...affinityInputs, n2: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="1750"
+              placeholder="예: 1000"
             />
           </div>
           <div className="mt-6 p-4 bg-purple-50 dark:bg-purple-900 dark:bg-opacity-20 rounded-lg">
@@ -415,6 +477,7 @@ export default function CalculatorPage() {
 
   return (
     <>
+      <Toaster />
       <div className="container mx-auto p-4">
         {/* 상단 계산기 탭 버튼 (2줄 x 5열) */}
         <div className="mb-4">
@@ -656,11 +719,17 @@ export default function CalculatorPage() {
                         />
                       </div>
                     )}
-                    {(selectedCalculator === 'npsh' || selectedCalculator === 'affinity') && (
+                    {(selectedCalculator === 'npsh' || selectedCalculator === 'affinity') && npshResult && (
                        <div className="h-96">
-                         <PumpVisualization />
+                         <PumpVisualization
+                           flowRate={npshResult.flowRate}
+                           head={npshResult.head}
+                           power={npshResult.power}
+                           speed={npshResult.speed}
+                           npshAvailable={npshResult.npsha}
+                         />
                        </div>
-                     )}
+                    )}
                      {!['tank', 'npsh', 'affinity'].includes(selectedCalculator) && (
                        <div className="h-96 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
                          <div className="text-center">

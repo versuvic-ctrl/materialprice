@@ -278,8 +278,8 @@ export default function TankVisualization({
         // 텍스트 라벨
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d')!;
-        canvas.width = 256;
-        canvas.height = 64;
+        canvas.width = 512;
+        canvas.height = 128;
         
         // 배경
         context.fillStyle = 'rgba(255, 255, 255, 0.95)';
@@ -292,7 +292,7 @@ export default function TankVisualization({
         
         // 텍스트
         context.fillStyle = '#374151';
-        context.font = 'bold 24px Arial';
+        context.font = 'bold 48px Arial';
         context.textAlign = 'center';
         context.textBaseline = 'middle';
         context.fillText(text, canvas.width / 2, canvas.height / 2);
@@ -304,7 +304,7 @@ export default function TankVisualization({
         // 라벨 위치
         const midPoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
         sprite.position.copy(midPoint);
-        sprite.scale.set(1.2 * scaleFactor, 0.3 * scaleFactor, 1);
+        sprite.scale.set(2.4 * scaleFactor, 0.6 * scaleFactor, 1);
         
         lineGroup.add(sprite);
         return lineGroup;
