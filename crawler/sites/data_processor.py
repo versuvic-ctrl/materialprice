@@ -1,4 +1,3 @@
-import logging
 import os
 import json
 import re
@@ -6,14 +5,10 @@ import pandas as pd
 import requests
 from datetime import datetime
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from urllib.parse import urlparse
-import redis
-from redis.exceptions import TimeoutError
-import hashlib
-import sys
 from unit_validation import UnitValidator
 from api_monitor import create_monitored_supabase_client
 
@@ -36,6 +31,7 @@ api_monitor = create_monitored_supabase_client(
 )
 supabase = api_monitor.client
 
+
 def log(message: str, level: str = "INFO"):
     """실행 과정 로그를 출력하는 함수
     
@@ -43,107 +39,15 @@ def log(message: str, level: str = "INFO"):
         message: 로그 메시지
         level: 로그 레벨 (INFO, SUCCESS, ERROR, SUMMARY)
     """
-
-    logger = logging.getLogger("kpi_crawler")
-    if not logger.handlers:
-        logger.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s')
-
-        # 파일 핸들러 (디버그 로그 전체 기록)
-        log_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../crawler_debug.log"))
-        file_handler = logging.FileHandler(log_file_path, encoding='utf-8')
-        file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
-        # 콘솔 핸들러 (INFO 레벨 이상만 콘솔 출력)
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.DEBUG)
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
-
-    # 로그 레벨별 출력 제어 (중요한 로그만 이모지 표시)
+    # 로그 레벨별 출력 제어
     if level == "SUMMARY":
-        logger.info(f"📊 {message}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ {message}")
     elif level == "ERROR":
-        logger.error(f"❌ {message}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✗ {message}")
     elif level == "SUCCESS":
-        logger.info(f"✅ {message}")
-    elif level == "WARNING":
-        logger.warning(f"⚠️ {message}")
-    elif level == "START":
-        logger.info(f"🚀 {message}")
-    elif level == "COMPLETE":
-        logger.info(f"🏁 {message}")
-    elif level == "DEBUG":
-        logger.debug(f"{message}")
-    elif level == "PROGRESS":
-        logger.info(f"{message}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ {message}")
     else:  # INFO
-        logger.info(f"{message}")
-
-# from unit_validation import UnitValidator
-# from api_monitor import create_monitored_supabase_client
-
-_redis_client = None  # _redis_client를 전역적으로 None으로 초기화
-
-# 환경변수 로드
-env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env.local"))
-load_dotenv(env_path)
-log(f".env.local loaded from: {env_path}", "DEBUG")
-if not os.environ.get("NEXT_PUBLIC_SUPABASE_URL"):
-    log("Failed to load .env.local", "ERROR")
-
-# Supabase 클라이언트 초기화
-SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# Redis 클라이언트 초기화
-REDIS_URL = os.environ.get("REDIS_URL")
-log(f"Loaded REDIS_URL: {REDIS_URL.split('@')[0]}@..." if REDIS_URL else "REDIS_URL not set", "DEBUG")
-
-if REDIS_URL:
-    try:
-        # REDIS_URL 파싱 및 호스트/포트 출력
-        parsed_url = urlparse(REDIS_URL)
-        redis_host = parsed_url.hostname
-        redis_port = parsed_url.port
-        redis_password = parsed_url.password
-        redis_username = parsed_url.username if parsed_url.username else 'default' # Upstash Redis는 'default' 사용자 이름을 사용
-
-        log(f"Parsed Redis Host: {redis_host}, Port: {redis_port}, Username: {redis_username}", "DEBUG")
-
-        log("Redis 클라이언트 생성 시도...", "DEBUG")
-        _redis_client = redis.StrictRedis(host=redis_host, port=redis_port, password=redis_password, username=redis_username, decode_responses=True, socket_connect_timeout=5, ssl=True, ssl_cert_reqs=None)
-        log("Redis 클라이언트 생성 완료.", "DEBUG")
-
-        # Redis 연결 테스트
-        log("Redis 연결 테스트 (ping) 시도...", "DEBUG")
-        _redis_client.ping() # 5초 타임아웃 추가
-        log("Redis 클라이언트 초기화 성공", "SUCCESS")
-    except (TimeoutError, ConnectionError) as e:
-        log(f"Redis 연결 테스트 타임아웃: {e}", "ERROR")
-        _redis_client = None
-        sys.exit(1) # 예외를 다시 발생시켜 크롤러 중단
-    except Exception as e:
-        log(f"Redis 클라이언트 생성 실패: {e}", "ERROR") # Modified log message
-        _redis_client = None
-        sys.exit(1) # 예외를 다시 발생시켜 크롤러 중단
-else:
-    log("REDIS_URL 환경변수가 설정되지 않음", "WARNING")
-
-def clear_redis_cache(cache_key: str):
-    if _redis_client:
-        try:
-            _redis_client.delete(cache_key)
-            log(f"Redis 캐시 삭제 성공: {cache_key}", "SUCCESS")
-        except Exception as e:
-            log(f"Redis 캐시 삭제 실패: {cache_key} - {e}", "ERROR")
-    else:
-        log("Redis 클라이언트가 초기화되지 않아 캐시를 삭제할 수 없습니다.", "WARNING")
-
-# API 모니터링이 적용된 클라이언트 생성
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] {message}")
 
 
 class BaseDataProcessor(ABC):
@@ -393,79 +297,8 @@ class BaseDataProcessor(ABC):
         """
         데이터를 캐시에 저장 (현재는 비활성화)
         """
-
-        if not _redis_client:
-            log("Redis 클라이언트가 없어 캐시 저장을 건너뜁니다", "WARNING")
-            return False
-            
-        try:
-            cache_key = f"kpi_data:{major_category}:{year}:{month}"
-            
-            # 데이터를 JSON으로 직렬화하여 저장
-            cache_data = {
-                'data': data,
-                'timestamp': datetime.now().isoformat(),
-                'count': len(data)
-            }
-            
-            # 7일간 캐시 유지 (604800초)
-            _redis_client.setex(cache_key, 604800, json.dumps(cache_data, ensure_ascii=False))
-            
-            log(f"✅ Redis 캐시 저장 완료: {cache_key} ({len(data)}개 항목)", "SUCCESS")
-            return True
-            
-        except Exception as e:
-             log(f"Redis 캐시 저장 실패: {e}", "ERROR")
-             return False
-    
-    def get_from_cache(self, major_category: str, year: int, month: int) -> Optional[List[Dict]]:
-        """
-        Redis 캐시에서 데이터를 조회
-        """
-        if not _redis_client:
-            return None
-            
-        try:
-            cache_key = f"kpi_data:{major_category}:{year}:{month}"
-            cached_data = _redis_client.get(cache_key)
-            
-            if cached_data:
-                cache_obj = json.loads(cached_data)
-                log(f"✅ Redis 캐시 히트: {cache_key} ({cache_obj.get('count', 0)}개 항목)", "SUCCESS")
-                return cache_obj.get('data', [])
-            else:
-                log(f"✅ Redis 캐시 미스: {cache_key}", "INFO")
-                return None
-                
-        except Exception as e:
-            log(f"Redis 캐시 조회 실패: {e}", "ERROR")
-            return None
-    
-    def clear_cache(self, major_category: str = None):
-        """
-        Redis 캐시를 삭제 (특정 카테고리 또는 전체)
-        """
-        if not _redis_client:
-            return False
-            
-        try:
-            if major_category:
-                pattern = f"kpi_data:{major_category}:*"
-            else:
-                pattern = "kpi_data:*"
-                
-            keys = _redis_client.keys(pattern)
-            if keys:
-                _redis_client.delete(*keys)
-                log(f"✅ Redis 캐시 삭제 완료: {len(keys)}개 키", "SUCCESS")
-            else:
-                log("삭제할 캐시가 없습니다", "INFO")
-            return True
-            
-        except Exception as e:
-            log(f"Redis 캐시 삭제 실패: {e}", "ERROR")
-            return False
-
+        # Redis 캐시 사용을 중단하고 프론트엔드에서 사용하도록 변경
+        return True
     
     def filter_new_data_only(self, df: pd.DataFrame, table_name: str = 'kpi_price_data') -> pd.DataFrame:
         """
@@ -636,10 +469,10 @@ class BaseDataProcessor(ABC):
         valid_records = [record for record in data if self._is_valid_record(record)]
         
         if not valid_records:
-            log("유효한 레코드가 없습니다.", "ERROR")
+            log("❌ 유효한 레코드가 없습니다.")
             return 0
         
-        log(f"유효성 검증 완료: {len(valid_records)}개", "SUCCESS")
+        log(f"✅ 유효성 검증 완료: {len(valid_records)}개")
         
         # 카테고리별로 그룹화
         category_groups = {}
@@ -653,7 +486,7 @@ class BaseDataProcessor(ABC):
         
         # 각 카테고리별로 최적화된 배치 처리
         for (major_cat, middle_cat, sub_cat), group_records in category_groups.items():
-            log(f"카테고리 처리: {major_cat} > {middle_cat} > {sub_cat} ({len(group_records)}개)", "PROGRESS")
+            log(f"🔍 카테고리 처리: {major_cat} > {middle_cat} > {sub_cat} ({len(group_records)}개)")
             
             # 1. 전체 소분류에 대해 1회만 배치 조회하여 메모리 캐시 생성
             target_dates = list(set(record['date'] for record in group_records))
@@ -669,7 +502,7 @@ class BaseDataProcessor(ABC):
             filtered_records = self.filter_duplicates_from_cache(group_records, existing_cache)
             
             if not filtered_records:
-                log(f"    신규 데이터 없음: 모든 데이터가 중복", "WARNING")
+                log(f"    📭 신규 데이터 없음: 모든 데이터가 중복")
                 continue
             
             # 3. 청크 단위로 배치 저장 (1000개씩)
@@ -686,18 +519,18 @@ class BaseDataProcessor(ABC):
                     if insert_response.data:
                         chunk_saved = len(insert_response.data)
                         category_saved += chunk_saved
-                        log(f"    청크 {i}: {chunk_saved}개 저장 완료", "SUCCESS")
+                        log(f"    ✅ 청크 {i}: {chunk_saved}개 저장 완료")
                     else:
-                        log(f"    청크 {i}: 저장 실패 - 응답 데이터 없음", "ERROR")
+                        log(f"    ❌ 청크 {i}: 저장 실패 - 응답 데이터 없음")
                 
                 except Exception as e:
-                    log(f"청크 {i} 저장 실패: {str(e)}", "ERROR")
+                    log(f"❌ 청크 {i} 저장 실패: {str(e)}")
                     continue
             
             total_saved += category_saved
-            log(f"    카테고리 저장 완료: {category_saved}개", "SUMMARY")
+            log(f"    📊 카테고리 저장 완료: {category_saved}개")
         
-        log(f"최적화된 배치 저장 완료: 총 {total_saved}개 데이터", "COMPLETE")
+        log(f"🎉 최적화된 배치 저장 완료: 총 {total_saved}개 데이터")
         return total_saved
 
     def save_to_supabase_legacy(self, data: List[Dict[str, Any]], table_name: str = 'kpi_price_data') -> int:
@@ -793,19 +626,12 @@ class BaseDataProcessor(ABC):
                         # 날짜, 지역, 가격, 규격, 단위 조합으로 기존 데이터 조회
                         existing_query = supabase.table(table_name).select('*')
                         
-                        # 날짜 범위 필터 적용 (target_date_range가 있으면 우선 적용)
-                        if self.target_date_range:
-                            start_date, end_date = self.target_date_range
-                            existing_query = existing_query.gte('date', start_date).lte('date', end_date)
-                            logger.debug(f"    📅 target_date_range 필터 적용: {start_date} ~ {end_date}")
+                        # 청크의 날짜 범위로 필터링하여 성능 최적화
+                        chunk_dates = list(set(record['date'] for record in chunk))
+                        if len(chunk_dates) == 1:
+                            existing_query = existing_query.eq('date', chunk_dates[0])
                         else:
-                            # 청크의 날짜 범위로 필터링하여 성능 최적화
-                            chunk_dates = list(set(record['date'] for record in chunk))
-                            if len(chunk_dates) == 1:
-                                existing_query = existing_query.eq('date', chunk_dates[0])
-                            else:
-                                existing_query = existing_query.in_('date', chunk_dates)
-                            logger.debug(f"    📅 청크 날짜 범위 필터 적용: {min(chunk_dates)} ~ {max(chunk_dates)}")
+                            existing_query = existing_query.in_('date', chunk_dates)
                         
                         existing_response = existing_query.execute()
                         
@@ -948,25 +774,7 @@ class BaseDataProcessor(ABC):
 
 class KpiDataProcessor(BaseDataProcessor):
     """한국물가정보(KPI) 사이트 전용 데이터 처리기"""
-
-
-    def __init__(self, target_date_range: Optional[Tuple[str, str]] = None):
-        super().__init__()
-        self.target_date_range = target_date_range
-
-    SUB_CATEGORY_SPECIAL_HANDLING = {
-        "FRP DUCT 성형관 및 이음관",
-        "파이프슈",  # 필요시 추가
-        "스테인리스물탱크(1)-1",
-        "재생재료(2)"
-    }
-
-    GENERIC_PRICE_HEADERS = [
-        '가격', '가①격', '가②격', '가③격', '가④격', 
-        '가⑤격', '가⑥격', '가⑦격', '가⑧격', '가⑨격', '가⑩격', '가격1', '가격2', '가격3', '가격4'
-    ]
-
-
+    
     def _normalize_region_name(self, region_name: str) -> str:
         """지역명을 정규화하고 빈 값이나 None을 처리"""
         # None이나 빈 문자열 처리
@@ -1142,28 +950,6 @@ class KpiDataProcessor(BaseDataProcessor):
                 # 크롤링된 실제 단위 정보 사용 (하드코딩된 '원/톤' 대신)
                 actual_unit = raw_data.get('unit', '원/톤')
                 
-
-                # detail_spec 변수 초기화
-                detail_spec = None
-                
-                # region과 item_type 처리 로직
-                current_region_header = spec_data['region']
-                if current_region_header in self.GENERIC_PRICE_HEADERS:
-                    final_region = '전국'
-                    final_specification = enhanced_spec
-                else:
-                    current_sub_category = raw_data['sub_category_name']
-                    current_item_type = spec_data.get('item_type', None)
-                    if current_sub_category in self.SUB_CATEGORY_SPECIAL_HANDLING:
-                        final_region = '전국'
-                        detail_spec = current_region_header if current_region_header != '기타' else None
-                        final_specification = enhanced_spec
-                    else:
-                        current_item_type = spec_data.get('item_type', None)
-                        final_region = self._normalize_region_name(current_region_header)
-                        final_specification = f"{enhanced_spec} - {current_item_type}" if current_item_type and current_item_type != '기타' else enhanced_spec
-
-
                 transformed_items.append({
                     'major_category': raw_data['major_category_name'],
                     'middle_category': raw_data['middle_category_name'],
@@ -1172,8 +958,7 @@ class KpiDataProcessor(BaseDataProcessor):
                     'unit': actual_unit,
                     'region': self._normalize_region_name(spec_data['region']),
                     'date': spec_data['date'],
-                    'price': price_value,
-                    'detail_spec': detail_spec
+                    'price': price_value
                 })
             else:
                 for price_info in spec_data.get('prices', []):
@@ -1220,9 +1005,6 @@ class KpiDataProcessor(BaseDataProcessor):
 
 
 class MaterialDataProcessor(BaseDataProcessor):
-    def __init__(self, target_date_range: Optional[Tuple[str, str]] = None):
-        super().__init__()
-        self.target_date_range = target_date_range
     """다른 자재 사이트용 데이터 처리기 (예시)"""
     
     def transform_to_standard_format(self, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -1245,15 +1027,15 @@ class MaterialDataProcessor(BaseDataProcessor):
         return transformed_items
 
 
-def create_data_processor(site_type: str, target_date_range: Optional[Tuple[str, str]] = None) -> BaseDataProcessor:
+def create_data_processor(site_type: str) -> BaseDataProcessor:
     """사이트 타입에 따른 데이터 처리기 생성"""
     processors = {
-        'kpi': lambda range: KpiDataProcessor(range),
-        'material': lambda range: MaterialDataProcessor(range),
+        'kpi': KpiDataProcessor,
+        'material': MaterialDataProcessor,
     }
     
     processor_class = processors.get(site_type)
     if not processor_class:
         raise ValueError(f"지원하지 않는 사이트 타입: {site_type}")
     
-    return processor_class(target_date_range)
+    return processor_class()

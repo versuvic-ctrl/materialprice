@@ -1,20 +1,16 @@
 
 
-import time
-from typing import Any
-import jsonc_parser
 import os
 import asyncio
 import json
 import sys
 import re
 import psutil
-from data_processor import clear_redis_cache
 from datetime import datetime
-from typing import Optional, Tuple
 from dotenv import load_dotenv
 import pandas as pd
 from playwright.async_api import async_playwright
+from upstash_redis import AsyncRedis
 
 # 절대 import를 위한 경로 설정
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -68,7 +64,7 @@ INCLUSION_LIST = parse_jsonc(jsonc_content)
 class KpiCrawler:
     def __init__(self, target_major: str = None, target_middle: str = None,
                  target_sub: str = None, crawl_mode: str = "all",
-                 start_year: str = None, start_month: str = None, max_concurrent=3, force_refresh: bool = False):
+                 start_year: str = None, start_month: str = None, max_concurrent=3):
         """
         KPI 크롤러 초기화
 
@@ -97,92 +93,36 @@ class KpiCrawler:
         self.crawl_mode = crawl_mode
         self.start_year = start_year or str(datetime.now().year)
         self.start_month = start_month or str(datetime.now().month)
-        self.force_refresh = force_refresh  # 캐시 우회 옵션 저장
 
-        # 크롤링 시작 전 Redis 캐시 초기화
+        self.processor = create_data_processor('kpi')
 
-
-        # target_date_range 생성
-        if self.start_year and self.start_month:
-            start_date_str = f"{self.start_year}-{int(self.start_month):02d}-01"
-            # 해당 월의 마지막 날짜 계산
-            from calendar import monthrange
-            last_day = monthrange(int(self.start_year), int(self.start_month))[1]
-            end_date_str = f"{self.start_year}-{int(self.start_month):02d}-{last_day:02d}"
-            target_date_range = (start_date_str, end_date_str)
-        else:
-            target_date_range = None
-
-        self.processor = create_data_processor('kpi', target_date_range)
-        if self.force_refresh:
-            log("크롤링 시작 전 Redis 캐시 초기화", "INFO")
-            self.processor.clear_cache(major_category=self.target_major)
-        
-        # JSONC 포함 항목 캐싱
-        self.included_categories_cache = self._build_included_categories_cache()
-
-        # 타임아웃 감지 및 강제 재생성 설정
-        self.page_timeout_threshold = 30  # 30초 이상 응답 없으면 강제 재생성
-        self.page_last_activity = {}  # 페이지별 마지막 활동 시간 추적
-        
         # 배치 처리용 변수
         self.batch_data = []
         self.batch_size = 5  # 소분류 5개마다 처리
-
-    def _build_included_categories_cache(self) -> dict[str, Any]:
-        """
-        kpi_inclusion_list_compact.jsonc 파일을 파싱하여 포함될 카테고리 목록을 캐시합니다.
-        """
-        try:
-            inclusion_list_path = os.path.join(os.path.dirname(__file__), 'kpi_inclusion_list_compact.jsonc')
-            log(f"포함 목록 파일 경로: {inclusion_list_path}", "DEBUG")
-            if not os.path.exists(inclusion_list_path):
-                log(f"오류: 포함 목록 파일이 존재하지 않습니다: {inclusion_list_path}", "ERROR")
-                return {}
-
-            with open(inclusion_list_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            # JSONC 파싱
-            parsed_data = jsonc_parser.parse_jsonc(content)
-            log("kpi_inclusion_list_compact.jsonc 파일 파싱 완료", "DEBUG")
-            
-            cache = {}
-            for major_item in parsed_data.get("major_categories", []):
-                major_name = major_item.get("name")
-                if major_name:
-                    cache[major_name] = {"middle_categories": {}}
-                    for middle_item in major_item.get("middle_categories", []):
-                        middle_name = middle_item.get("name")
-                        if middle_name:
-                            cache[major_name]["middle_categories"][middle_name] = {
-                                "sub_categories": set(middle_item.get("sub_categories", []))
-                            }
-            log("포함 카테고리 캐시 빌드 완료", "DEBUG")
-            return cache
-        except Exception as e:
-            log(f"포함 카테고리 캐시 빌드 중 오류 발생: {e}", "ERROR")
-            return {}
-
-    async def _initialize_browser(self):
-        """
-        브라우저를 초기화하고 새 페이지를 생성합니다.
-        """
-        log("브라우저 초기화 중", "START")
-        try:
-            self.browser = await chromium.launch(headless=True)
-            self.page = await self.browser.new_page()
-            log("브라우저 및 페이지 초기화 완료", "SUCCESS")
-        except Exception as e:
-            log(f"브라우저 초기화 실패: {e}", "ERROR")
-            raise
         self.processed_count = 0
 
-        log(f"크롤러 초기화 - 크롤링 모드: {self.crawl_mode}", "START")
-        log(f"  타겟 대분류: {self.target_major_category}", "INFO")
-        log(f"  타겟 중분류: {self.target_middle_category}", "INFO")
-        log(f"  타겟 소분류: {self.target_sub_category}", "INFO")
-        log(f"  시작날짜: {self.start_year}-{self.start_month}", "INFO")
+        self.redis = AsyncRedis(
+            url=os.environ.get("UPSTASH_REDIS_REST_URL"),
+            token=os.environ.get("UPSTASH_REDIS_REST_TOKEN")
+        )
+
+        log(f"크롤러 초기화 - 크롤링 모드: {self.crawl_mode}")
+        log(f"  타겟 대분류: {self.target_major_category}")
+        log(f"  타겟 중분류: {self.target_middle_category}")
+        log(f"  타겟 소분류: {self.target_sub_category}")
+        log(f"  시작날짜: {self.start_year}-{self.start_month}")
+
+    async def clear_redis_cache(self):
+        try:
+            # 시장지표 캐시 삭제
+            await self.redis.delete("market_indicators")
+            # 자재 가격 캐시 삭제
+            keys = await self.redis.keys("material_prices:*")
+            if keys:
+                await self.redis.delete(*keys)
+            log("✅ Redis 캐시가 초기화되었습니다.", "SUCCESS")
+        except Exception as e:
+            log(f"Redis 캐시 초기화 실패: {str(e)}", "ERROR")
 
     async def run(self):
         """크롤링 프로세스 실행"""
@@ -212,23 +152,20 @@ class KpiCrawler:
                 # 마지막 남은 배치 데이터 처리
                 await self._process_final_batch()
 
-                log(f"=== 크롤링 완료: 총 {self.processed_count}개 소분류 처리됨 ===", "COMPLETE")
+                await self.clear_redis_cache()  # 캐시 초기화 추가
+
+                log(f"\n🟢 === 크롤링 완료: 총 {self.processed_count}개 소분류 처리됨 === 🟢\n")
 
                 await browser.close()
                 return self.processor
         except Exception as e:
             log(f"크롤링 중 오류 발생: {str(e)}", "ERROR")
-            if isinstance(e, SystemExit):
-                # SystemExit는 이미 data_processor에서 처리되었으므로, 여기서는 다시 발생시키지 않고 종료
-                pass
-            else:
-                # 페이지 풀 정리 제거 - 페이지 풀 관리 방식 변경
-                if browser:
-                    try:
-                        await browser.close()
-                    except:
-                        pass
-                raise
+            if browser:
+                try:
+                    await browser.close()
+                except:
+                    pass
+            raise
 
     async def _login(self):
         """로그인 페이지로 이동하여 로그인 수행"""
@@ -1349,112 +1286,6 @@ class KpiCrawler:
         except Exception as e:
             log(f"단순 테이블 처리 오류: {str(e)}", "ERROR")
 
-    async def _extract_spec_name_table_data(self, all_table_rows, spec_name, 
-                                          raw_item_data, existing_dates, unit_info=None):
-        """spec_name 기반 테이블 데이터 추출 (구분 + 상세규격들)"""
-        try:
-            extracted_count = 0
-            default_region = "전국"  # spec_name 기반 테이블은 지역 구분이 없으므로 전국으로 설정
-            raw_item_data['region'] = default_region # region 컬럼에 "전국" 명시적으로 저장
-            
-            # 첫 번째 행에서 헤더 정보 추출
-            if not all_table_rows:
-                return
-                
-            header_row = all_table_rows[0]
-            header_cells = await header_row.locator("th").all()
-            if not header_cells:
-                header_cells = await header_row.locator("td").all()
-            
-            # 상세규격 헤더 추출하여 detail_spec에 저장
-            raw_item_data['detail_spec'] = [await cell.inner_text().strip() for cell in header_cells[1:]]
-            
-            if len(header_cells) < 2:
-                log(f"'{spec_name}' (spec_name형): 헤더가 부족함")
-                return
-            
-            # 헤더에서 spec_name들 추출 (첫 번째는 '구분', 나머지는 상세규격들)
-            spec_names = []
-            for i in range(1, len(header_cells)):
-                header_text = await header_cells[i].inner_text()
-                spec_names.append(header_text.strip())
-            
-            log(f"'{spec_name}' (spec_name형): 발견된 상세규격들: {spec_names}")
-            
-            # 데이터 행들 처리 (첫 번째 행은 헤더이므로 제외)
-            for row_idx, row in enumerate(all_table_rows[1:], 1):
-                try:
-                    # 행의 모든 셀 추출
-                    cells = await row.locator("td").all()
-                    if not cells:
-                        cells = await row.locator("th").all()
-                    
-                    if len(cells) < 2:  # 최소 날짜와 가격 1개 필요
-                        continue
-                    
-                    # 첫 번째 셀에서 날짜 추출
-                    date_str = await cells[0].inner_text()
-                    date_clean = date_str.strip()
-                    
-                    # 날짜 유효성 검증
-                    if not self._is_valid_date_value(date_clean):
-                        continue
-                    
-                    formatted_date = self._format_date_header(date_clean)
-                    if not formatted_date:
-                        continue
-                    
-                    # 각 상세규격별로 가격 추출
-                    for spec_idx, current_spec_name in enumerate(spec_names):
-                        cell_idx = spec_idx + 1  # 첫 번째 셀은 날짜이므로 +1
-                        
-                        if cell_idx >= len(cells):
-                            continue
-                        
-                        price_str = await cells[cell_idx].inner_text()
-                        
-                        if self._is_valid_price(price_str):
-                            clean_price = price_str.strip().replace(',', '')
-                            try:
-                                price_value = float(clean_price)
-                                
-                                # 중복 체크 (6개 필드: major_category, middle_category, sub_category, specification, region, date - 가격 제외)
-                                duplicate_key = (raw_item_data['major_category_name'], 
-                                               raw_item_data['middle_category_name'], 
-                                               raw_item_data['sub_category_name'], 
-                                               spec_name, default_region, formatted_date)
-                                if existing_dates and duplicate_key in existing_dates:
-                                    continue
-                                
-                                if not unit_info:
-                                    raise ValueError(f"단위 정보가 없습니다. spec_name: {spec_name}")
-                                
-                                price_data = {
-                                    'spec_name': current_spec_name,  # 상세규격명 사용
-                                    'region': default_region,
-                                    'date': formatted_date,
-                                    'price': price_value,
-                                    'unit': unit_info
-                                }
-                                spec_data = raw_item_data['spec_data']
-                                spec_data.append(price_data)
-                                extracted_count += 1
-                                
-                                if extracted_count % 50 == 0:
-                                    log(f"진행: {extracted_count}개 추출됨")
-                            except ValueError:
-                                continue
-                
-                except Exception as e:
-                    log(f"      - 행 처리 중 오류: {str(e)}")
-                    continue
-            
-            if extracted_count > 0:
-                log(f"'{spec_name}' (spec_name형): {extracted_count}개 완료", "SUCCESS")
-                
-        except Exception as e:
-            log(f"spec_name 테이블 처리 오류: {str(e)}", "ERROR")
-
     async def _extract_complex_table_data(self, all_table_rows, spec_name, 
                                         raw_item_data, existing_dates, unit_info=None):
         """복합 테이블 데이터 추출 (지역 헤더 + 날짜별 데이터)"""
@@ -1583,34 +1414,6 @@ class KpiCrawler:
         clean_region = region_str.strip()
         for circle, num in circle_to_num.items():
             clean_region = clean_region.replace(circle, num)
-        
-        # 상세규격명 패턴들을 '전국'으로 변환
-        spec_patterns = [
-            'PVC', 'STS304', 'STS316', 'PTFE', 'Coil', 'Sheet',
-            r'^\d+\.\d+mm$',  # 2.0mm, 2.5mm 등
-            r'^Cover두께\s*\d+㎜$',  # Cover두께 25㎜ 등
-            r'^SCS13\s+\d+K\s+(BLFF|SOFF)$',  # SCS13 10K BLFF 등
-            r'^SCS13\s+\d+LB\s+HUB$',  # SCS13 150LB HUB
-            r'^\([^)]+\)$',  # (단판), (보온) 등 괄호로 둘러싸인 패턴
-            r'^분말식\s+PE\s+3층\s+피복강관',  # 분말식 PE 3층 피복강관 관련
-            r'^폴리우레탄강관'  # 폴리우레탄강관 관련
-        ]
-        
-        # '가격1', '가격2', '가1격', '가2격' 등의 패턴은 '전국'으로 변환
-        price_pattern1 = r'^가격\d*$'
-        price_pattern2 = r'^가\d+격$'
-        
-        if re.match(price_pattern1, clean_region) or re.match(price_pattern2, clean_region):
-            return "전국"
-        
-        # 상세규격명 패턴 체크
-        for pattern in spec_patterns:
-            if isinstance(pattern, str):
-                if clean_region == pattern:
-                    return "전국"
-            else:
-                if re.match(pattern, clean_region):
-                    return "전국"
         
         # '서1울' → '서울1' 형태로 변환
         pattern = r'^([가-힣])(\d+)([가-힣]+)$'
@@ -2347,34 +2150,7 @@ class KpiCrawler:
 # --- 4. 메인 실행 함수 ---
 # <<< 파일 맨 아래 부분을 이 코드로 전체 교체 (5/5) >>>
 
-import redis
-import os
-
-def clear_dashboard_cache():
-    """대시보드 차트용 Redis 캐시 삭제"""
-    try:
-        redis_client = redis.Redis(
-            host=os.getenv('UPSTASH_REDIS_REST_URL').split('//')[1].split(':')[0],
-            port=443,
-            ssl=True,
-            password=os.getenv('UPSTASH_REDIS_REST_TOKEN')
-        )
-        keys = redis_client.keys("material_prices:*")
-        if keys:
-            redis_client.delete(*keys)
-            log("✅ 대시보드 캐시가 성공적으로 삭제되었습니다", "SUCCESS")
-    except Exception as e:
-        log(f"❌ 대시보드 캐시 삭제 실패: {str(e)}", "ERROR")
-
 async def main():
-    # 로그 파일 설정
-    log_file_path = "c:\\JAJE\\materials-dashboard\\crawler\\kpi_crawler_debug.log"
-    log("KPI 크롤러 시작", "INFO")
-
-    log("Redis 캐시 초기화 완료", "INFO")
-    time.sleep(5) # 로그 출력 대기
-    log("main 함수 시작 (kpi_crawler.py)", "DEBUG")
-    log(f"DEBUG: 로그 파일 경로: {log_file_path}", "DEBUG")
     """메인 실행 로직: 명령행 인자 파싱 및 크롤러 실행"""
     # 명령행 인자 파싱 - 두 가지 방식 지원
     # 방식 1: --major="공통자재" --middle="비철금속" --sub="알루미늄" --mode="sub_only"
@@ -2424,16 +2200,16 @@ async def main():
         log(f"크롤링할 대분류: {all_major_categories}", "INFO")
         
         for major in all_major_categories:
-            log(f"=== {major} 크롤링 시작 ===", "START")
+            log(f"=== {major} 크롤링 시작 ===", "SUMMARY")
             crawler = KpiCrawler(target_major=major, crawl_mode="all", 
                                start_year=start_year, start_month=start_month)
             await crawler.run()
-            log(f"{major} 크롤링 완료", "SUCCESS")
+            log(f"🟢 {major} 크롤링 완료", "SUCCESS")
         
-        log("전체 대분류 크롤링 완료", "COMPLETE")
+        log("🟢 전체 대분류 크롤링 완료", "SUCCESS")
     else:
         # 선택적 크롤링
-        log(f"=== {crawl_mode} 모드 크롤링 시작 ===", "START")
+        log(f"=== {crawl_mode} 모드 크롤링 시작 ===", "SUMMARY")
         crawler = KpiCrawler(
             target_major=target_major,
             target_middle=target_middle,
@@ -2443,7 +2219,7 @@ async def main():
             start_month=start_month
         )
         await crawler.run()
-        log(f"{crawl_mode} 모드 크롤링 완료", "COMPLETE")
+        log(f"🟢 {crawl_mode} 모드 크롤링 완료", "SUCCESS")
 
 
 async def test_unit_extraction():
@@ -2581,13 +2357,16 @@ async def test_unit_extraction():
 
 
 if __name__ == "__main__":
-    try:
-        # 명령행 인자 파싱 및 크롤러 실행
-        # test_unit_extraction()은 main 함수 내에서 처리되므로 별도 호출 불필요
+    # 명령행 인수 확인
+    if len(sys.argv) > 1 and sys.argv[1] == "test":
+        # 단위 추출 테스트 실행
+        asyncio.run(test_unit_extraction())
+    else:
+        # 일반 크롤링 실행
+        # running_crawlers = check_running_crawler()
+        running_crawlers = []
+        if running_crawlers:
+            log(f"이미 실행 중인 크롤러 {len(running_crawlers)}개 발견. 기존 크롤러 완료 후 재실행하세요.", "ERROR")
+            sys.exit(1)
+
         asyncio.run(main())
-        clear_dashboard_cache()
-    except Exception as e:
-        log(f"크롤링 실패: {str(e)}", "ERROR")
-        import traceback
-        log(f"상세 오류: {traceback.format_exc()}", "ERROR")
-        sys.exit(1)
