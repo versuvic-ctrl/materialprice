@@ -46,10 +46,10 @@ interface Article {
   created_at: string;
   updated_at: string;
   images?: string[];
-  tags?: string; // 태그 필드 추가
-  preview_image?: string; // 미리보기 이미지 URL
-  preview_text?: string; // 미리보기 텍스트
-  preview_table?: string; // 미리보기 테이블 HTML
+  tags?: string;
+  preview_image?: string;
+  preview_text?: string;
+  preview_table?: string;
 }
 
 // 카테고리 목록
@@ -69,20 +69,39 @@ export default function TechnicalDataPage() {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('전체');
-  const [viewMode, setViewMode] = useState<'card' | 'list'>('card'); // 'card' 또는 'list' 모드
-  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false); // 비밀번호 입력창 표시 여부
-  const [inputPassword, setInputPassword] = useState(''); // 입력된 비밀번호
-  const [passwordError, setPasswordError] = useState(''); // 비밀번호 오류 메시지
-  const [articleToDeleteId, setArticleToDeleteId] = useState<string | null>(null); // 삭제할 글의 ID
-  const [articleToEdit, setArticleToEdit] = useState<Article | null>(null); // 수정할 글의 ID
-  const [pendingAction, setPendingAction] = useState<'save' | 'edit' | 'delete' | null>(null); // 비밀번호 확인 후 실행할 작업
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [inputPassword, setInputPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [articleToDeleteId, setArticleToDeleteId] = useState<string | null>(null);
+  const [articleToEdit, setArticleToEdit] = useState<Article | null>(null);
+  const [pendingAction, setPendingAction] = useState<'save' | 'edit' | 'delete' | null>(null);
 
+  // [추가] Redis 캐시 무효화를 위한 헬퍼 함수
+  const invalidateCaches = async (articleId?: string) => {
+    try {
+      // 1. 목록 캐시 무효화
+      await fetch('/api/technical-articles', {
+        method: 'DELETE',
+      });
+      console.log('Requested to invalidate articles list cache.');
 
+      // 2. (필요 시) 상세 페이지 캐시 무효화
+      if (articleId) {
+        await fetch(`/api/technical-articles/${articleId}`, {
+          method: 'DELETE',
+        });
+        console.log(`Requested to invalidate article detail cache for ID: ${articleId}`);
+      }
+    } catch (error) {
+      console.error('Failed to request cache invalidation:', error);
+      toast.error('캐시를 새로고침하는 데 실패했습니다. 변경사항이 즉시 반영되지 않을 수 있습니다.');
+    }
+  };
 
 
   // 이미지 업로드 핸들러
   const handleImageUpload = useCallback(async (file: File) => {
-    // 파일이 없으면 파일 선택 다이얼로그 열기
     if (!file) {
       const input = document.createElement('input');
       input.type = 'file';
@@ -94,23 +113,20 @@ export default function TechnicalDataPage() {
         }
       };
       input.click();
-      return false; // 기본 업로드 동작 방지
+      return false;
     }
 
-    // 드래그 앤 드롭이나 붙여넣기로 파일이 들어온 경우
     if (file && file.type.startsWith('image/')) {
       await uploadImageToSupabase(file);
-      return false; // 기본 업로드 동작 방지
+      return false;
     }
   }, []);
 
   // Supabase에 이미지 업로드하는 함수
   const uploadImageToSupabase = async (file: File) => {
     try {
-      // 파일명 생성 (타임스탬프 + 원본 파일명)
       const fileName = `${Date.now()}_${file.name}`;
       
-      // Supabase Storage에 업로드
       const { createClient } = await import('@supabase/supabase-js');
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -125,12 +141,10 @@ export default function TechnicalDataPage() {
         return;
       }
 
-      // 업로드된 이미지의 공개 URL 가져오기
       const { data: { publicUrl } } = supabase.storage
         .from('article_images')
         .getPublicUrl(fileName);
 
-      // Jodit 에디터에 이미지 삽입
       setContent((prevContent) => prevContent + `<img src="${publicUrl}" alt="업로드된 이미지" style="max-width: 100%; height: auto;" />`);
     } catch (error) {
       console.error('Image upload error:', error);
@@ -138,13 +152,8 @@ export default function TechnicalDataPage() {
     }
   };
 
-  // Jodit 에디터 참조
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const joditInstance = useRef<any>(null);
-
-
-
-
 
 const editorConfig = useMemo(() => ({
   plugins: ['passiveEvents'],
@@ -168,7 +177,6 @@ const editorConfig = useMemo(() => ({
         });
       },
     },
-    // Prefer text tab in color picker; if unsupported, Jodit will ignore
     colorPickerDefaultTab: 'text',
     uploader: {
       insertImageAsBase64URI: true,
@@ -180,25 +188,19 @@ const editorConfig = useMemo(() => ({
     },
   }), []);
 
-
-
-
-  // 글 목록 가져오기 (최적화: 목록에 필요한 필드만 선택)
+  // 글 목록 가져오기
   useEffect(() => {
     let isMounted = true;
     const fetchArticles = async () => {
       try {
         setIsLoading(true);
-        // API 라우트에서 캐싱된 기술 자료 목록을 가져옵니다.
         const response = await fetch('/api/technical-articles', {
-          // 브라우저 캐시 활용 (서버 캐시와 병행)
-          cache: 'no-store',
+          cache: 'no-store', // Redis를 사용하므로 Next.js의 fetch 캐시는 사용 안함
         });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        // 컴포넌트가 마운트된 상태에서만 상태 업데이트
         if (isMounted) {
           setArticles(data);
         }
@@ -229,8 +231,6 @@ const editorConfig = useMemo(() => ({
         document.body.style.overflow = 'unset';
       }
     }
-
-    // 컴포넌트 언마운트 시 정리
     return () => {
       if (typeof window !== 'undefined') {
         document.body.style.overflow = 'unset';
@@ -238,9 +238,8 @@ const editorConfig = useMemo(() => ({
     };
   }, [isLoading]);
 
-  // 새 글 저장
+  // 새 글 저장 (수정됨)
   const handleSave = async () => {
-    // 비밀번호 확인 로직 추가
     if (!showPasswordPrompt) {
       setPendingAction('save');
       setShowPasswordPrompt(true);
@@ -251,7 +250,7 @@ const editorConfig = useMemo(() => ({
       setPasswordError('비밀번호가 올바르지 않습니다.');
       return;
     }
-    setPasswordError(''); // 오류 메시지 초기화
+    setPasswordError('');
 
     if (!title.trim() || !content.trim()) {
       toast.error('제목과 내용을 모두 입력해주세요.');
@@ -267,13 +266,7 @@ const editorConfig = useMemo(() => ({
       );
       const { data, error } = await supabase
         .from('technical_articles')
-        .insert([
-          {
-            title: title.trim(),
-            content: content.trim(),
-            category: category
-          }
-        ])
+        .insert([{ title: title.trim(), content: content.trim(), category: category }])
         .select();
 
       if (error) {
@@ -283,6 +276,10 @@ const editorConfig = useMemo(() => ({
       }
 
       toast.success('새 글이 성공적으로 저장되었습니다!');
+      
+      // [수정] DB 저장 성공 후, 목록 캐시 무효화
+      await invalidateCaches();
+
       setArticles([data[0], ...articles]);
       setTitle('');
       setContent('');
@@ -293,14 +290,13 @@ const editorConfig = useMemo(() => ({
       toast.error('새 글 저장 중 오류가 발생했습니다.');
     } finally {
       setSaving(false);
-      setShowPasswordPrompt(false); // 비밀번호 입력창 닫기
-      setInputPassword(''); // 입력된 비밀번호 초기화
+      setShowPasswordPrompt(false);
+      setInputPassword('');
     }
   };
 
-  // 글 수정 시작 (상세 내용 로딩 포함)
+  // 글 수정 시작
   const handleEdit = async (article: Article) => {
-    // 비밀번호 확인 로직 추가
     if (!showPasswordPrompt) {
       setShowPasswordPrompt(true);
       setArticleToEdit(article);
@@ -312,7 +308,7 @@ const editorConfig = useMemo(() => ({
       setPasswordError('비밀번호가 올바르지 않습니다.');
       return;
     }
-    setPasswordError(''); // 오류 메시지 초기화
+    setPasswordError('');
 
     setIsWriting(true);
     setIsEditing(true);
@@ -321,12 +317,12 @@ const editorConfig = useMemo(() => ({
     setContent(article.content);
     setCategory(article.category);
     setViewingArticle(null);
-    setShowPasswordPrompt(false); // 비밀번호 입력창 닫기
-    setInputPassword(''); // 입력된 비밀번호 초기화
-    setArticleToEdit(null); // 수정할 글 ID 초기화
+    setShowPasswordPrompt(false);
+    setInputPassword('');
+    setArticleToEdit(null);
   };
 
-  // 글 수정 저장
+  // 글 수정 저장 (수정됨)
   const handleUpdate = async () => {
     if (!title.trim() || !content.trim()) {
       alert('제목과 내용을 모두 입력해주세요.');
@@ -335,6 +331,7 @@ const editorConfig = useMemo(() => ({
 
     setSaving(true);
     try {
+      const articleToUpdateId = editingArticle!.id; // ID 미리 저장
       const { createClient } = await import('@supabase/supabase-js');
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -342,12 +339,8 @@ const editorConfig = useMemo(() => ({
       );
       const { data, error } = await supabase
         .from('technical_articles')
-        .update({
-          title: title.trim(),
-          content: content.trim(),
-          category: category,
-        })
-        .eq('id', editingArticle!.id)
+        .update({ title: title.trim(), content: content.trim(), category: category })
+        .eq('id', articleToUpdateId)
         .select();
 
       if (error) {
@@ -357,7 +350,11 @@ const editorConfig = useMemo(() => ({
       }
 
       toast.success('글이 성공적으로 수정되었습니다!');
-      setArticles(articles.map(article => article.id === editingArticle!.id ? data[0] : article));
+      
+      // [수정] DB 수정 성공 후, 목록 캐시와 상세 페이지 캐시 모두 무효화
+      await invalidateCaches(articleToUpdateId);
+
+      setArticles(articles.map(article => article.id === articleToUpdateId ? data[0] : article));
       setIsEditing(false);
       setEditingArticle(null);
       setTitle('');
@@ -368,14 +365,13 @@ const editorConfig = useMemo(() => ({
       toast.error('글 수정 중 오류가 발생했습니다.');
     } finally {
       setSaving(false);
-      setShowPasswordPrompt(false); // 비밀번호 입력창 닫기
-      setInputPassword(''); // 입력된 비밀번호 초기화
+      setShowPasswordPrompt(false);
+      setInputPassword('');
     }
   };
 
-  // 글 삭제
+  // 글 삭제 (수정됨)
   const handleDelete = async () => {
-    // 비밀번호 확인 로직을 추가합니다.
     if (!showPasswordPrompt) {
       setShowPasswordPrompt(true);
       setPendingAction('delete');
@@ -386,7 +382,7 @@ const editorConfig = useMemo(() => ({
       setPasswordError('비밀번호가 올바르지 않습니다.');
       return;
     }
-    setPasswordError(''); // 오류 메시지 초기화
+    setPasswordError('');
 
     if (!articleToDeleteId) {
       toast.error('삭제할 글이 선택되지 않았습니다.');
@@ -409,38 +405,34 @@ const editorConfig = useMemo(() => ({
         .eq('id', articleToDeleteId);
 
       if (error) {
-        console.error('Supabase delete error details:', error); // 상세 에러 로깅 추가
+        console.error('Supabase delete error details:', error);
         toast.error('글 삭제에 실패했습니다.');
         return;
       }
-      console.log('Article successfully deleted from Supabase:', articleToDeleteId); // 성공 로깅 추가
-
-      // Redis 캐시 무효화 API 호출
-      await fetch('/api/technical-articles', {
-        method: 'DELETE',
-      });
-
+      
       toast.success('글이 성공적으로 삭제되었습니다!');
+      
+      // [수정] DB 삭제 성공 후, 목록 캐시와 상세 페이지 캐시 모두 무효화
+      await invalidateCaches(articleToDeleteId);
+
       setArticles(prevArticles => prevArticles.filter(article => article.id !== articleToDeleteId));
       setViewingArticle(null);
     } catch (error) {
-      console.error('Error during article deletion process:', error); // catch 블록 에러 로깅 수정
+      console.error('Error during article deletion process:', error);
       toast.error('글 삭제 중 오류가 발생했습니다.');
     } finally {
-      // 비밀번호 입력창 닫기 및 비밀번호 초기화
       setShowPasswordPrompt(false);
       setInputPassword('');
-      setArticleToDeleteId(null); // 삭제할 글 ID 초기화
+      setArticleToDeleteId(null);
     }
   };
 
-  // 글 상세 내용 가져오기 (최적화: 필요할 때만 content 로딩)
+  // 글 상세 내용 가져오기
   const fetchArticleDetail = async (articleId: string) => {
     try {
       const response = await fetch(`/api/technical-articles/${articleId}`);
       if (!response.ok) {
-        // console.error(`HTTP error! status: ${response.status} for article ID: ${articleId}`); // 404는 예상된 상황이므로 콘솔 에러 제거
-        return null; // 에러를 throw하는 대신 null 반환
+        return null;
       }
       const data = await response.json();
       return data.content;
@@ -450,26 +442,23 @@ const editorConfig = useMemo(() => ({
     }
   };
 
-  // 글 보기 (상세 내용 로딩 포함)
+  // 글 보기
   const handleViewArticle = async (article: Article) => {
-    // 이미 content가 있으면 바로 표시
     if (article.content) {
       setViewingArticle(article);
       return;
     }
 
-    // content가 없으면 상세 내용 가져오기
     const content = await fetchArticleDetail(article.id);
     if (content) {
       const articleWithContent = { ...article, content };
       setViewingArticle(articleWithContent);
-      // articles 배열도 업데이트하여 다음에는 바로 표시되도록 함
       setArticles(prevArticles =>
         prevArticles.map(a => (a.id === article.id ? articleWithContent : a))
       );
     } else {
       alert('게시글을 찾을 수 없습니다.');
-      setViewingArticle(null); // 게시글을 찾을 수 없을 때 viewingArticle 초기화
+      setViewingArticle(null);
     }
   };
 
@@ -492,12 +481,10 @@ const editorConfig = useMemo(() => ({
   const filteredArticles = useMemo(() => {
     let filtered = articles;
     
-    // 카테고리 필터
     if (selectedCategory !== '전체') {
       filtered = filtered.filter(article => article.category === selectedCategory);
     }
     
-    // 검색 필터
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(article => 
@@ -544,7 +531,6 @@ const editorConfig = useMemo(() => ({
               </button>
               <button
                 onClick={() => {
-                  // 즉시 검증하지 않고 각 핸들러에게 위임 (핸들러 내부에서 검증)
                   if (pendingAction === 'save') {
                     void handleSave();
                   } else if (pendingAction === 'edit' && articleToEdit) {
@@ -565,8 +551,6 @@ const editorConfig = useMemo(() => ({
       )}
       
         {/* 헤더 섹션 */}
-
-        {/* 카테고리 필터 */}
         {!isWriting && !viewingArticle && !isEditing && (
           <div className="mx-auto w-full py-3">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 w-full">
@@ -606,7 +590,6 @@ const editorConfig = useMemo(() => ({
           {/* 글 상세 보기 */}
           {viewingArticle && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden w-full max-w-full">
-              {/* 글 헤더 */}
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 sm:px-8 py-6 text-white">
                 <button
                   onClick={() => setViewingArticle(null)}
@@ -656,7 +639,6 @@ const editorConfig = useMemo(() => ({
                 </div>
               </div>
 
-              {/* 글 내용 */}
               <div className="px-4 sm:px-8 py-8">
                 <div 
                   className="prose prose-lg max-w-none w-full overflow-x-auto prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-strong:text-gray-900 prose-code:text-pink-600 prose-code:bg-pink-50 prose-pre:bg-gray-50 prose-pre:overflow-x-auto prose-blockquote:border-blue-200 prose-blockquote:bg-blue-50/50 prose-th:bg-gray-50 prose-td:border-gray-200 prose-table:overflow-x-auto prose-table:block prose-table:whitespace-nowrap sm:prose-table:whitespace-normal"
@@ -669,7 +651,6 @@ const editorConfig = useMemo(() => ({
           {/* 글 수정 */}
           {isEditing && editingArticle && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              {/* 수정 헤더 */}
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 text-white">
                 <div className="flex items-center justify-between mb-0">
                   <button
@@ -689,10 +670,8 @@ const editorConfig = useMemo(() => ({
                 </div>
               </div>
 
-              {/* 수정 폼 */}
               <div className="px-8 py-8 space-y-0">
                 <div className="flex gap-4 mb-4">
-                  {/* 제목 입력 */}
                   <div className="flex-grow">
                     <input
                       type="text"
@@ -704,7 +683,6 @@ const editorConfig = useMemo(() => ({
                     />
                   </div>
 
-                  {/* 카테고리 선택 */}
                   <div className="w-1/4">
                     <select
                       id="category"
@@ -722,7 +700,6 @@ const editorConfig = useMemo(() => ({
                   </div>
                 </div>
 
-                {/* 내용 입력 */}
                 <div className="flex justify-between items-center !mb-2">
                     <label htmlFor="jodit-editor" className="block text-sm font-medium text-gray-700 mb-2">
                       내용
@@ -755,7 +732,6 @@ const editorConfig = useMemo(() => ({
           {/* 글 작성 */}
           {isWriting && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              {/* 작성 헤더 */}
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 text-white">
                 <div className="flex items-center justify-between mb-6">
                   <button
@@ -770,10 +746,8 @@ const editorConfig = useMemo(() => ({
                 </div>
               </div>
 
-              {/* 작성 폼 */}
               <div className="px-8 py-8 space-y-0">
                 <div className="flex gap-4 mb-4">
-                  {/* 제목 입력 */}
                   <div className="flex-grow">
                     <input
                       type="text"
@@ -784,7 +758,6 @@ const editorConfig = useMemo(() => ({
                     />
                   </div>
 
-                  {/* 카테고리 선택 */}
                   <div className="w-1/4">
                     <select
                       aria-label="카테고리 선택"
@@ -801,7 +774,6 @@ const editorConfig = useMemo(() => ({
                   </div>
                 </div>
 
-                {/* 내용 입력 */}
                 <div className="flex justify-between items-center !mb-2">
                   <label htmlFor="jodit-editor-write" className="block text-sm font-medium text-gray-700">
                     내용
@@ -828,32 +800,7 @@ const editorConfig = useMemo(() => ({
                   <Jodit
                     ref={joditInstance}
                     value={content}
-                    config={{
-                      readonly: false,
-                      toolbar: true,
-                      spellcheck: false,
-                      language: 'ko',
-                      height: 500,
-                      buttons: 'bold,italic,underline,strikethrough,eraser,ul,ol,font,fontsize,paragraph,lineHeight,superscript,subscript,file,image,video,spellcheck,cut,copy',
-                      buttonsMD: 'bold,italic,underline,strikethrough,eraser,ul,ol,font,fontsize,paragraph,lineHeight,superscript,subscript,file,image,video,spellcheck,cut,copy',
-                      buttonsSM: 'bold,italic,underline,strikethrough,eraser,ul,ol,font,fontsize,paragraph,lineHeight,superscript,subscript,file,image,video,spellcheck,cut,copy',
-                      buttonsXS: 'bold,italic,underline,strikethrough,eraser,ul,ol,font,fontsize,paragraph,lineHeight,superscript,subscript,file,image,video,spellcheck,cut,copy',
-                      events: {
-                        afterInit: (editor: any) => {
-                          console.log('Jodit 에디터 초기화 완료');
-                        }
-                      },
-                      colorPickerDefaultTab: 'color' as const,
-                      uploader: {
-                        insertImageAsBase64URI: true,
-                      },
-                      filebrowser: {
-                        ajax: {
-                          url: '/api/upload',
-                        },
-                      },
-                      // attributes: { 'data-grammarly-disable': 'true' } // removed: not supported by Jodit component
-                    }}
+                    config={editorConfig as any}
                     onBlur={(newContent: string) => setContent(newContent)}
                     onChange={(newContent: string) => {}}
                   />
@@ -865,7 +812,6 @@ const editorConfig = useMemo(() => ({
           {/* 글 목록 */}
           {!isWriting && !viewingArticle && !isEditing && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              {/* 섹션 헤더 */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">
