@@ -54,5 +54,6 @@ jobs:
           KPI_PASSWORD: ${{ secrets.KPI_PASSWORD }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           REDIS_URL: ${{ secrets.REDIS_URL }}
         run: python ./crawler/sites/kpi_crawler.py --major="${{ matrix.category }}" --start-year=2020 --start-month=1

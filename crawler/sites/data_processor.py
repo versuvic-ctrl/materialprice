@@ -21,7 +21,16 @@ if not os.environ.get("NEXT_PUBLIC_SUPABASE_URL"):
 # Supabase 클라이언트 초기화
 SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 _supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# 서비스 키가 있으면 서비스 키를 사용, 없으면 anon 키를 사용
+if SUPABASE_SERVICE_KEY:
+    log("Supabase 서비스 키를 사용하여 클라이언트를 초기화합니다.")
+    _supabase_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+else:
+    log("Supabase 익명 키(anon key)를 사용하여 클라이언트를 초기화합니다.", "WARNING")
+    _supabase_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 # API 모니터링이 적용된 클라이언트 생성
 api_monitor = create_monitored_supabase_client(
