@@ -570,7 +570,7 @@ class BaseDataProcessor(ABC):
 
                     # 새 데이터 삽입 (중복은 이미 필터링됨)
                     log(f"    [Supabase] Upsert 시도: {len(chunk)}개 레코드")
-                    insert_response = get_supabase_table(supabase, table_name).upsert(chunk, on_conflict='date,region,specification,unit').execute()
+                    insert_response = get_supabase_table(supabase, table_name).upsert(chunk).execute()
                     log(f"    [Supabase] Upsert 응답 성공")
                     
                     # Redis 캐시 무효화 API 호출
