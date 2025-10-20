@@ -103,10 +103,25 @@ class KpiCrawler:
         self.batch_size = 5  # 소분류 5개마다 처리
         self.processed_count = 0
 
-        self.redis = AsyncRedis(
-            url=os.environ.get("UPSTASH_REDIS_REST_URL"),
-            token=os.environ.get("UPSTASH_REDIS_REST_TOKEN")
-        )
+        # Redis 클라이언트 초기화
+        try:
+            if 'UPSTASH_REDIS_REST_URL' in os.environ:
+                self.redis = AsyncRedis(
+                    url=os.environ.get("UPSTASH_REDIS_REST_URL"),
+                    token=os.environ.get("UPSTASH_REDIS_REST_TOKEN")
+                )
+            elif 'REDIS_URL' in os.environ:
+                # GitHub Actions에서 사용하는 REDIS_URL 환경 변수 처리
+                self.redis = AsyncRedis(
+                    url=os.environ.get("REDIS_URL"),
+                    token=os.environ.get("REDIS_TOKEN", "")
+                )
+            else:
+                self.redis = None
+                log("⚠️ Redis 환경 변수가 설정되지 않았습니다. 캐시 기능이 비활성화됩니다.", "WARNING")
+        except Exception as e:
+            self.redis = None
+            log(f"⚠️ Redis 초기화 실패: {str(e)}. 캐시 기능이 비활성화됩니다.", "WARNING")
 
         log(f"크롤러 초기화 - 크롤링 모드: {self.crawl_mode}")
         log(f"  타겟 대분류: {self.target_major_category}")
@@ -115,6 +130,10 @@ class KpiCrawler:
         log(f"  시작날짜: {self.start_year}-{self.start_month}")
 
     async def clear_redis_cache(self, major_name: str = None, middle_name: str = None, sub_name: str = None):
+        if self.redis is None:
+            log("  ⚠️ Redis가 비활성화되어 캐시 삭제를 건너뜁니다.", "WARNING")
+            return
+            
         try:
             if major_name and middle_name and sub_name:
                 # 특정 카테고리 캐시 삭제

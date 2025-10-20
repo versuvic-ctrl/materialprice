@@ -69,7 +69,23 @@ api_monitor = create_monitored_supabase_client(
 )
 supabase = api_monitor.client
 # Redis 클라이언트 초기화
-redis = Redis.from_env()
+try:
+    # 먼저 UPSTASH_REDIS_REST_URL 환경 변수 확인
+    import os
+    if 'UPSTASH_REDIS_REST_URL' in os.environ:
+        redis = Redis.from_env()
+    elif 'REDIS_URL' in os.environ:
+        # GitHub Actions에서 사용하는 REDIS_URL 환경 변수 처리
+        redis_url = os.environ['REDIS_URL']
+        redis_token = os.environ.get('REDIS_TOKEN', '')
+        redis = Redis(url=redis_url, token=redis_token)
+    else:
+        # Redis 환경 변수가 없는 경우 None으로 설정
+        redis = None
+        log("⚠️ Redis 환경 변수가 설정되지 않았습니다. 캐시 기능이 비활성화됩니다.", "WARNING")
+except Exception as e:
+    redis = None
+    log(f"⚠️ Redis 초기화 실패: {str(e)}. 캐시 기능이 비활성화됩니다.", "WARNING")
 class BaseDataProcessor(ABC):
     """모든 사이트별 데이터 처리기의 기본 클래스"""
     
