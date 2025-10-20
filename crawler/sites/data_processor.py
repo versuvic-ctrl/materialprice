@@ -503,6 +503,7 @@ class BaseDataProcessor(ABC):
         # 각 카테고리별로 최적화된 배치 처리
         for (major_cat, middle_cat, sub_cat), group_records in category_groups.items():
             log(f"🔍 카테고리 처리: {major_cat} > {middle_cat} > {sub_cat} ({len(group_records)}개)")
+            log(f"    [Supabase] 저장 시작: {table_name} 테이블")
             
             # 1. 전체 소분류에 대해 1회만 배치 조회하여 메모리 캐시 생성
             target_dates = list(set(record['date'] for record in group_records))
@@ -530,7 +531,9 @@ class BaseDataProcessor(ABC):
             for i, chunk in enumerate(chunks, 1):
                 try:
                     # 새 데이터 삽입 (중복은 이미 필터링됨)
+                    log(f"    [Supabase] Upsert 시도: {len(chunk)}개 레코드")
                     insert_response = supabase.table(table_name).upsert(chunk).execute()
+                    log(f"    [Supabase] Upsert 응답: {insert_response.status_code}")
                     
                     if insert_response.data:
                         chunk_saved = len(insert_response.data)
@@ -540,7 +543,8 @@ class BaseDataProcessor(ABC):
                         log(f"    ❌ 청크 {i}: 저장 실패 - 응답 데이터 없음")
                 
                 except Exception as e:
-                    log(f"❌ 청크 {i} 저장 실패: {str(e)}")
+                    log(f"❌ 청크 {i} 저장 실패: {str(e)}", "ERROR")
+                    log(f"    [Supabase] 오류 상세: {e.args}", "ERROR")
                     continue
             
             total_saved += category_saved
@@ -720,7 +724,11 @@ class BaseDataProcessor(ABC):
             # "2025. 1" 형식 허용
             if re.match(r'^\d{4}\.\s*\d{1,2}$', date_str):
                 return True
-            
+
+            # 추가: 년-월 형식 허용 (예: 2025-09, 2025-9)
+            if re.match(r'^\d{4}-\d{1,2}$', date_str):
+                return True
+
             # "2025-01-01" 형식 허용
             if re.match(r'^\d{4}-\d{1,2}-\d{1,2}$', date_str):
                 return True
