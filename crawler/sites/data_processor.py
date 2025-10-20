@@ -11,6 +11,7 @@ from supabase import create_client, Client
 from urllib.parse import urlparse
 from unit_validation import UnitValidator
 from api_monitor import create_monitored_supabase_client
+import redis
 from upstash_redis import Redis
 
 
@@ -233,12 +234,11 @@ class BaseDataProcessor(ABC):
                 for item in response.data:
                     # 중복 검사용 키 생성
                     combo_key = (
-                        item['date'], 
-                        item['region'], 
-                        str(item['price']), 
-                        item['specification'], 
-                        item['unit']
-                    )
+                item['date'], 
+                item['region'], 
+                item['specification'], 
+                item['unit']
+            )
                     existing_data_cache['combinations'].add(combo_key)
                     
                     # 규격별 그룹화
@@ -293,7 +293,6 @@ class BaseDataProcessor(ABC):
             new_key = (
                 record['date'],
                 record['region'], 
-                str(record['price']),
                 record['specification'],
                 record['unit']
             )
@@ -533,27 +532,35 @@ class BaseDataProcessor(ABC):
             category_saved = 0
             for i, chunk in enumerate(chunks, 1):
                 try:
+                    # 중복 검사 (디버깅용)
+                    if len(chunk) != len(set(tuple(sorted(d.items())) for d in chunk)):
+                        log(f"❌ 경고: 청크 {i}에 중복 데이터가 포함되어 있습니다.", "WARN")
+
                     # 새 데이터 삽입 (중복은 이미 필터링됨)
                     log(f"    [Supabase] Upsert 시도: {len(chunk)}개 레코드")
-                    insert_response = supabase.table(table_name).upsert(chunk).execute()
-                    log(f"    [Supabase] Upsert 응답: {insert_response.status_code}")
+                    insert_response = supabase.table(table_name).upsert(chunk, on_conflict='date,region,specification,unit').execute()
+                    log(f"    [Supabase] Upsert 응답 성공")
                     
-                    if insert_response.status_code == 201 or insert_response.status_code == 200:
+                    # Redis 캐시 무효화 API 호출
+                    try:
+                        cache_invalidation_url = "http://localhost:3000/api/cache/invalidate"
+                        cache_payload = {
+                            "type": "material_prices",
+                            "materials": list(set([record.get('specification', '') for record in chunk if record.get('specification')]))
+                        }
+                        cache_response = requests.post(cache_invalidation_url, json=cache_payload, timeout=5)
+                        if cache_response.status_code == 200:
+                            log(f"    ✅ Redis 캐시 무효화 성공")
+                        else:
+                            log(f"    ⚠️ Redis 캐시 무효화 실패: {cache_response.status_code}")
+                    except Exception as cache_error:
+                        log(f"    ⚠️ Redis 캐시 무효화 오류: {str(cache_error)}", "WARNING")
+                    
+                    # Supabase Python 클라이언트는 성공 시 응답 데이터를 반환
+                    if insert_response.data is not None:
                         chunk_saved = len(insert_response.data) if insert_response.data else 0
                         category_saved += chunk_saved
                         log(f"    ✅ 청크 {i}: {chunk_saved}개 저장 완료")
-                        try:
-                            # Redis 캐시 무효화 (material_prices 관련 캐시 모두 삭제)
-                            keys_to_delete = redis.keys("material_prices:*")
-                            if keys_to_delete:
-                                # keys() returns bytes, decode to string for delete
-                                decoded_keys = [k.decode('utf-8') for k in keys_to_delete]
-                                redis.delete(*decoded_keys)
-                                log(f"    [Redis] 캐시 무효화: {len(decoded_keys)}개 material_prices 캐시 키 삭제", "SUCCESS")
-                            else:
-                                log("    [Redis] 무효화할 material_prices 캐시 키가 없습니다.", "INFO")
-                        except Exception as cache_error:
-                            log(f"❌ [Redis] 캐시 무효화 중 오류 발생: {cache_error}", "ERROR")
                     else:
                         log(f"    ❌ 청크 {i}: 저장 실패 - 응답 데이터 없음")
                 
@@ -628,6 +635,21 @@ class BaseDataProcessor(ABC):
                         inserted_count = len(insert_response.data) if insert_response.data else 0
                         total_saved += inserted_count
                         log(f"    - 새 데이터 삽입: {inserted_count}개")
+                        
+                        # Redis 캐시 무효화 API 호출
+                        try:
+                            cache_invalidation_url = "http://localhost:3000/api/cache/invalidate"
+                            cache_payload = {
+                                "type": "material_prices",
+                                "materials": [spec]
+                            }
+                            cache_response = requests.post(cache_invalidation_url, json=cache_payload, timeout=5)
+                            if cache_response.status_code == 200:
+                                log(f"    ✅ Redis 캐시 무효화 성공 ({spec})")
+                            else:
+                                log(f"    ⚠️ Redis 캐시 무효화 실패: {cache_response.status_code}")
+                        except Exception as cache_error:
+                            log(f"    ⚠️ Redis 캐시 무효화 오류: {str(cache_error)}", "WARNING")
                     
                 except Exception as e:
                     log(f"❌ 강제 업데이트 실패 ({major_cat}>{middle_cat}>{sub_cat}>{spec}): {str(e)}")
@@ -699,6 +721,21 @@ class BaseDataProcessor(ABC):
                         chunk_saved = len(insert_response.data)
                         total_saved += chunk_saved
                         log(f"    - 청크 {i}: {chunk_saved}개 저장 완료")
+                        
+                        # Redis 캐시 무효화 API 호출
+                        try:
+                            cache_invalidation_url = "http://localhost:3000/api/cache/invalidate"
+                            cache_payload = {
+                                "type": "material_prices",
+                                "materials": list(set([record.get('specification', '') for record in chunk if record.get('specification')]))
+                            }
+                            cache_response = requests.post(cache_invalidation_url, json=cache_payload, timeout=5)
+                            if cache_response.status_code == 200:
+                                log(f"    ✅ Redis 캐시 무효화 성공")
+                            else:
+                                log(f"    ⚠️ Redis 캐시 무효화 실패: {cache_response.status_code}")
+                        except Exception as cache_error:
+                            log(f"    ⚠️ Redis 캐시 무효화 오류: {str(cache_error)}", "WARNING")
                     else:
                         log(f"    - 청크 {i}: 저장 실패 - 응답 데이터 없음")
                 

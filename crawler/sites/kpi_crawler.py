@@ -114,18 +114,25 @@ class KpiCrawler:
         log(f"  타겟 소분류: {self.target_sub_category}")
         log(f"  시작날짜: {self.start_year}-{self.start_month}")
 
-    async def clear_redis_cache(self):
+    async def clear_redis_cache(self, major_name: str = None, middle_name: str = None, sub_name: str = None):
         try:
-            # 시장지표 캐시 삭제
-            await self.redis.delete("market_indicators")
-            # 자재 가격 캐시 삭제
-            keys = await self.redis.keys("material_prices:*")
-            if keys:
-                await self.redis.delete(*keys)
-            log("✅ Redis 캐시가 초기화되었습니다.", "SUCCESS")
+            if major_name and middle_name and sub_name:
+                # 특정 카테고리 캐시 삭제
+                cache_key = f"material_prices:{major_name}:{middle_name}:{sub_name}"
+                await self.redis.delete(cache_key)
+                log(f"  ✅ Redis 캐시 삭제 성공: {cache_key}")
+            else:
+                # 모든 material_prices 캐시 삭제
+                keys = []
+                async for key in self.redis.scan_iter("material_prices:*"):
+                    keys.append(key)
+                if keys:
+                    await self.redis.delete(*keys)
+                    log(f"  ✅ 모든 Redis material_prices 캐시 삭제 성공: {len(keys)}개")
+                else:
+                    log("  ✅ 삭제할 Redis material_prices 캐시가 없습니다.")
         except Exception as e:
-            log(f"Redis 캐시 초기화 실패: {str(e)}", "ERROR")
-
+            log(f"  ❌ Redis 캐시 삭제 실패: {str(e)}", "ERROR")
     async def run(self):
         """크롤링 프로세스 실행"""
         browser = None
@@ -773,6 +780,9 @@ class KpiCrawler:
                             saved_count = await result.save_to_supabase(processed_data, 'kpi_price_data', check_duplicates=True)
                             log(f"  ✅ '{sub_name}' 완료: "
                                 f"{len(df)}개 데이터 → Supabase 저장 {saved_count}개 성공")
+
+                            # Redis 캐시 무효화
+                            await self.clear_redis_cache(major_name, middle_name, sub_name)
                         else:
                             log(f"  ⚠️ '{sub_name}' 완료: 저장할 데이터 없음")
                     else:

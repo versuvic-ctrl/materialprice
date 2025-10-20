@@ -7,4 +7,4 @@ python-dotenv
 redis
 requests
 supabase
-upstash-redis==1.4.0
+upstash-redis
