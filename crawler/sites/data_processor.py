@@ -18,11 +18,35 @@ load_dotenv("../../.env.local")
 if not os.environ.get("NEXT_PUBLIC_SUPABASE_URL"):
     load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env.local"))
 
-# Supabase 클라이언트 초기화
+# ======================================================================
+# 1. log 함수 정의를 이곳으로 이동시킵니다.
+# ======================================================================
+def log(message: str, level: str = "INFO"):
+    """실행 과정 로그를 출력하는 함수
+    
+    Args:
+        message: 로그 메시지
+        level: 로그 레벨 (INFO, SUCCESS, ERROR, SUMMARY, WARNING)
+    """
+    # 로그 레벨별 출력 제어
+    now = datetime.now().strftime('%H:%M:%S')
+    if level == "SUMMARY":
+        print(f"[{now}] ✓ {message}")
+    elif level == "ERROR":
+        print(f"[{now}] ✗ {message}")
+    elif level == "SUCCESS":
+        print(f"[{now}] ✓ {message}")
+    elif level == "WARNING":
+        print(f"[{now}] ⚠️ {message}")
+    else:  # INFO
+        print(f"[{now}] {message}")
+
+# ======================================================================
+# 2. 이제 Supabase 클라이언트 초기화 코드가 log 함수를 사용할 수 있습니다.
+# ======================================================================
 SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_KEY = os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY") # anon 키의 이름은 SUPABASE_KEY로 변경해도 무방합니다.
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
-_supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # 서비스 키가 있으면 서비스 키를 사용, 없으면 anon 키를 사용
 if SUPABASE_SERVICE_KEY:
@@ -30,7 +54,9 @@ if SUPABASE_SERVICE_KEY:
     _supabase_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 else:
     log("Supabase 익명 키(anon key)를 사용하여 클라이언트를 초기화합니다.", "WARNING")
-    _supabase_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+    _supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# ======================================================================
 
 # API 모니터링이 적용된 클라이언트 생성
 api_monitor = create_monitored_supabase_client(
@@ -39,25 +65,6 @@ api_monitor = create_monitored_supabase_client(
     max_calls_per_hour=2000    # 시간당 최대 2000회
 )
 supabase = api_monitor.client
-
-
-def log(message: str, level: str = "INFO"):
-    """실행 과정 로그를 출력하는 함수
-    
-    Args:
-        message: 로그 메시지
-        level: 로그 레벨 (INFO, SUCCESS, ERROR, SUMMARY)
-    """
-    # 로그 레벨별 출력 제어
-    if level == "SUMMARY":
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ {message}")
-    elif level == "ERROR":
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✗ {message}")
-    elif level == "SUCCESS":
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ {message}")
-    else:  # INFO
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] {message}")
-
 
 class BaseDataProcessor(ABC):
     """모든 사이트별 데이터 처리기의 기본 클래스"""
