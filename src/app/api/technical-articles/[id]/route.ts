@@ -5,10 +5,10 @@ import { redis } from '@/utils/redis';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// [추가] 상세 페이지 캐시 무효화를 위한 DELETE 함수
-export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
+// [수정됨] DELETE 함수의 context 타입을 GET과 일치시키고 await 추가
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = context.params;
+    const { id } = await context.params; // await를 사용하여 파라미터 추출
     if (!id) {
       return NextResponse.json({ error: 'Invalid article ID' }, { status: 400 });
     }
