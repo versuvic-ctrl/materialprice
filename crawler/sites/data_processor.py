@@ -514,7 +514,7 @@ class BaseDataProcessor(ABC):
             for i, chunk in enumerate(chunks, 1):
                 try:
                     # 새 데이터 삽입 (중복은 이미 필터링됨)
-                    insert_response = supabase.table(table_name).insert(chunk).execute()
+                    insert_response = supabase.table(table_name).upsert(chunk).execute()
                     
                     if insert_response.data:
                         chunk_saved = len(insert_response.data)
