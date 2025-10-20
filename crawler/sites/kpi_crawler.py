@@ -2,23 +2,25 @@
 
 import os
 import asyncio
-import json
+# json import removed as it is unused
 import sys
 import re
 import psutil
 from datetime import datetime
 from dotenv import load_dotenv
-import pandas as pd
 from playwright.async_api import async_playwright
 from upstash_redis import AsyncRedis
+from jsonc_parser import parse_jsonc
+from data_processor import create_data_processor, log
+from supabase import create_client, Client
 
 # 절대 import를 위한 경로 설정
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 
-from jsonc_parser import parse_jsonc
-from data_processor import create_data_processor, log
-from supabase import create_client, Client
+# parse_jsonc is already imported at the top; remove duplicate import
+# log is already imported at the top; remove duplicate import
+# create_client already imported at line 15; remove duplicate
 
 # --- 1. 초기 설정 및 환경변수 로드 ---
 load_dotenv("../../.env.local")

@@ -4,13 +4,15 @@ import re
 import pandas as pd
 import requests
 from datetime import datetime
+from typing import List, Dict, Any
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from urllib.parse import urlparse
 from unit_validation import UnitValidator
 from api_monitor import create_monitored_supabase_client
+from upstash_redis import Redis
+
 
 # 환경변수 로드
 load_dotenv("../../.env.local")
@@ -65,7 +67,8 @@ api_monitor = create_monitored_supabase_client(
     max_calls_per_hour=2000    # 시간당 최대 2000회
 )
 supabase = api_monitor.client
-
+# Redis 클라이언트 초기화
+redis = Redis.from_env()
 class BaseDataProcessor(ABC):
     """모든 사이트별 데이터 처리기의 기본 클래스"""
     
@@ -535,10 +538,22 @@ class BaseDataProcessor(ABC):
                     insert_response = supabase.table(table_name).upsert(chunk).execute()
                     log(f"    [Supabase] Upsert 응답: {insert_response.status_code}")
                     
-                    if insert_response.data:
-                        chunk_saved = len(insert_response.data)
+                    if insert_response.status_code == 201 or insert_response.status_code == 200:
+                        chunk_saved = len(insert_response.data) if insert_response.data else 0
                         category_saved += chunk_saved
                         log(f"    ✅ 청크 {i}: {chunk_saved}개 저장 완료")
+                        try:
+                            # Redis 캐시 무효화 (material_prices 관련 캐시 모두 삭제)
+                            keys_to_delete = redis.keys("material_prices:*")
+                            if keys_to_delete:
+                                # keys() returns bytes, decode to string for delete
+                                decoded_keys = [k.decode('utf-8') for k in keys_to_delete]
+                                redis.delete(*decoded_keys)
+                                log(f"    [Redis] 캐시 무효화: {len(decoded_keys)}개 material_prices 캐시 키 삭제", "SUCCESS")
+                            else:
+                                log("    [Redis] 무효화할 material_prices 캐시 키가 없습니다.", "INFO")
+                        except Exception as cache_error:
+                            log(f"❌ [Redis] 캐시 무효화 중 오류 발생: {cache_error}", "ERROR")
                     else:
                         log(f"    ❌ 청크 {i}: 저장 실패 - 응답 데이터 없음")
                 
@@ -550,6 +565,8 @@ class BaseDataProcessor(ABC):
             total_saved += category_saved
             log(f"    📊 카테고리 저장 완료: {category_saved}개")
         
+
+
         log(f"🎉 최적화된 배치 저장 완료: 총 {total_saved}개 데이터")
         return total_saved
 
