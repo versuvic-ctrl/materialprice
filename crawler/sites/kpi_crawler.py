@@ -28,7 +28,15 @@ load_dotenv("../../.env.local")
 # Supabase 클라이언트 초기화
 SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+
+# Service Role 키가 있으면 우선 사용, 없으면 anon 키 사용
+if SUPABASE_SERVICE_KEY:
+    print("🔑 Supabase Service Role 키를 사용하여 클라이언트를 초기화합니다.")
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+else:
+    print("⚠️ Supabase 익명 키(anon key)를 사용하여 클라이언트를 초기화합니다.")
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 # --- 2. 웹 크롤러 클래스 ---
@@ -103,22 +111,17 @@ class KpiCrawler:
         self.batch_size = 5  # 소분류 5개마다 처리
         self.processed_count = 0
 
-        # Redis 클라이언트 초기화
+        # Redis 클라이언트 초기화 (Upstash Redis REST API만 사용)
         try:
-            if 'UPSTASH_REDIS_REST_URL' in os.environ:
+            if 'UPSTASH_REDIS_REST_URL' in os.environ and 'UPSTASH_REDIS_REST_TOKEN' in os.environ:
                 self.redis = AsyncRedis(
                     url=os.environ.get("UPSTASH_REDIS_REST_URL"),
                     token=os.environ.get("UPSTASH_REDIS_REST_TOKEN")
                 )
-            elif 'REDIS_URL' in os.environ:
-                # GitHub Actions에서 사용하는 REDIS_URL 환경 변수 처리
-                self.redis = AsyncRedis(
-                    url=os.environ.get("REDIS_URL"),
-                    token=os.environ.get("REDIS_TOKEN", "")
-                )
+                log("✅ Upstash Redis REST API 클라이언트 초기화 성공")
             else:
                 self.redis = None
-                log("⚠️ Redis 환경 변수가 설정되지 않았습니다. 캐시 기능이 비활성화됩니다.", "WARNING")
+                log("⚠️ UPSTASH_REDIS_REST_URL 또는 UPSTASH_REDIS_REST_TOKEN 환경 변수가 설정되지 않았습니다. 캐시 기능이 비활성화됩니다.", "WARNING")
         except Exception as e:
             self.redis = None
             log(f"⚠️ Redis 초기화 실패: {str(e)}. 캐시 기능이 비활성화됩니다.", "WARNING")
