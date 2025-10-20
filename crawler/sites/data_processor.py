@@ -1,3 +1,4 @@
+import sys
 import os
 import json
 import re
@@ -34,15 +35,15 @@ def log(message: str, level: str = "INFO"):
     # 로그 레벨별 출력 제어
     now = datetime.now().strftime('%H:%M:%S')
     if level == "SUMMARY":
-        print(f"[{now}] ✓ {message}")
+        print(f"[{now}] ✓ {message}", flush=True)
     elif level == "ERROR":
-        print(f"[{now}] ✗ {message}")
+        print(f"[{now}] ✗ {message}", flush=True)
     elif level == "SUCCESS":
-        print(f"[{now}] ✓ {message}")
+        print(f"[{now}] ✓ {message}", flush=True)
     elif level == "WARNING":
-        print(f"[{now}] ⚠️ {message}")
+        print(f"[{now}] ⚠️ {message}", flush=True)
     else:  # INFO
-        print(f"[{now}] {message}")
+        print(f"[{now}] {message}", flush=True)
 
 # ======================================================================
 # 2. 이제 Supabase 클라이언트 초기화 코드가 log 함수를 사용할 수 있습니다.
@@ -53,10 +54,10 @@ SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
 # 서비스 키가 있으면 서비스 키를 사용, 없으면 anon 키를 사용
 if SUPABASE_SERVICE_KEY:
-    log("Supabase 서비스 키를 사용하여 클라이언트를 초기화합니다.")
+    log("🔑 Supabase Service Role 키를 사용하여 클라이언트를 초기화합니다.")
     _supabase_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 else:
-    log("Supabase 익명 키(anon key)를 사용하여 클라이언트를 초기화합니다.", "WARNING")
+    log("⚠️ Supabase 익명 키(anon key)를 사용하여 클라이언트를 초기화합니다.", "WARNING")
     _supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ======================================================================
@@ -68,6 +69,21 @@ api_monitor = create_monitored_supabase_client(
     max_calls_per_hour=2000    # 시간당 최대 2000회
 )
 supabase = api_monitor.client
+
+# Supabase 클라이언트 타입에 따라 적절한 table 접근 방법을 제공하는 헬퍼 함수
+def get_supabase_table(client, table_name):
+    """
+    Supabase 클라이언트 타입에 따라 적절한 table 메서드를 반환합니다.
+    MonitoredSupabaseClient의 경우 client.table()을, 일반 Client의 경우 table()을 사용합니다.
+    """
+    if hasattr(client, 'client') and hasattr(client.client, 'table'):
+        # MonitoredSupabaseClient인 경우
+        return client.client.table(table_name)
+    elif hasattr(client, 'table'):
+        # 일반 Client인 경우
+        return client.table(table_name)
+    else:
+        raise AttributeError(f"클라이언트 객체에서 table 메서드를 찾을 수 없습니다: {type(client)}")
 # Redis 클라이언트 초기화
 try:
     # 먼저 UPSTASH_REDIS_REST_URL 환경 변수 확인
@@ -132,7 +148,7 @@ class BaseDataProcessor(ABC):
         log(f"        - Supabase에서 기존 데이터 스마트 분석 중")
         
         try:
-            response = supabase.table(table_name).select(
+            response = get_supabase_table(supabase, table_name).select(
                 'date, region, price, specification, unit'
             ).eq(
                 'major_category', major_category
@@ -185,7 +201,7 @@ class BaseDataProcessor(ABC):
         log(f"        - Supabase에서 기존 데이터 조회")
         
         try:
-            response = supabase.table(table_name).select(
+            response = get_supabase_table(supabase, table_name).select(
                 'date, region, price, specification, unit'
             ).eq(
                 'major_category', major_category
@@ -224,7 +240,7 @@ class BaseDataProcessor(ABC):
         
         try:
             # 전체 소분류 데이터를 1회만 조회
-            query = supabase.table(table_name).select(
+            query = get_supabase_table(supabase, table_name).select(
                 'date, region, price, specification, unit'
             ).eq('major_category', major_category)\
              .eq('middle_category', middle_category)\
@@ -554,7 +570,7 @@ class BaseDataProcessor(ABC):
 
                     # 새 데이터 삽입 (중복은 이미 필터링됨)
                     log(f"    [Supabase] Upsert 시도: {len(chunk)}개 레코드")
-                    insert_response = supabase.table(table_name).upsert(chunk, on_conflict='date,region,specification,unit').execute()
+                    insert_response = get_supabase_table(supabase, table_name).upsert(chunk, on_conflict='date,region,specification,unit').execute()
                     log(f"    [Supabase] Upsert 응답 성공")
                     
                     # Redis 캐시 무효화 API 호출
@@ -570,7 +586,10 @@ class BaseDataProcessor(ABC):
                         else:
                             log(f"    ⚠️ Redis 캐시 무효화 실패: {cache_response.status_code}")
                     except Exception as cache_error:
-                        log(f"    ⚠️ Redis 캐시 무효화 오류: {str(cache_error)}", "WARNING")
+                        if "Connection refused" in str(cache_error) or "Failed to establish" in str(cache_error):
+                            log(f"    ⚠️ Redis 캐시 무효화 건너뜀: 프론트엔드 서버(localhost:3000) 미실행", "WARNING")
+                        else:
+                            log(f"    ⚠️ Redis 캐시 무효화 오류: {str(cache_error)}", "WARNING")
                     
                     # Supabase Python 클라이언트는 성공 시 응답 데이터를 반환
                     if insert_response.data is not None:
@@ -633,7 +652,7 @@ class BaseDataProcessor(ABC):
             for (major_cat, middle_cat, sub_cat, spec), group_records in force_groups.items():
                 try:
                     # 기존 데이터 삭제
-                    delete_response = supabase.table(table_name).delete().match({
+                    delete_response = get_supabase_table(supabase, table_name).delete().match({
                         'major_category': major_cat,
                         'middle_category': middle_cat,
                         'sub_category': sub_cat,
@@ -647,7 +666,7 @@ class BaseDataProcessor(ABC):
                     valid_records = [record for record in group_records if self._is_valid_record(record)]
                     
                     if valid_records:
-                        insert_response = supabase.table(table_name).insert(valid_records).execute()
+                        insert_response = get_supabase_table(supabase, table_name).insert(valid_records).execute()
                         inserted_count = len(insert_response.data) if insert_response.data else 0
                         total_saved += inserted_count
                         log(f"    - 새 데이터 삽입: {inserted_count}개")
@@ -699,7 +718,7 @@ class BaseDataProcessor(ABC):
                     # 기존 데이터에서 중복되는 항목 삭제
                     if chunk_keys:
                         # 날짜, 지역, 가격, 규격, 단위 조합으로 기존 데이터 조회
-                        existing_query = supabase.table(table_name).select('*')
+                        existing_query = get_supabase_table(supabase, table_name).select('*')
                         
                         # 청크의 날짜 범위로 필터링하여 성능 최적화
                         chunk_dates = list(set(record['date'] for record in chunk))
@@ -726,12 +745,12 @@ class BaseDataProcessor(ABC):
                             
                             # 중복 데이터 삭제
                             if ids_to_delete:
-                                delete_response = supabase.table(table_name).delete().in_('id', ids_to_delete).execute()
+                                delete_response = get_supabase_table(supabase, table_name).delete().in_('id', ids_to_delete).execute()
                                 deleted_count = len(delete_response.data) if delete_response.data else 0
                                 log(f"    - 청크 {i}: 중복 데이터 {deleted_count}개 삭제")
                     
                     # 새 데이터 삽입
-                    insert_response = supabase.table(table_name).insert(chunk).execute()
+                    insert_response = get_supabase_table(supabase, table_name).insert(chunk).execute()
                     
                     if insert_response.data:
                         chunk_saved = len(insert_response.data)

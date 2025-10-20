@@ -1,5 +1,7 @@
 
 
+# -*- coding: utf-8 -*-
+
 import os
 import asyncio
 # json import removed as it is unused
@@ -12,7 +14,7 @@ from playwright.async_api import async_playwright
 from upstash_redis import AsyncRedis
 from jsonc_parser import parse_jsonc
 from data_processor import create_data_processor, log
-from supabase import create_client, Client
+
 
 # 절대 import를 위한 경로 설정
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -20,7 +22,7 @@ sys.path.insert(0, current_dir)
 
 # parse_jsonc is already imported at the top; remove duplicate import
 # log is already imported at the top; remove duplicate import
-# create_client already imported at line 15; remove duplicate
+
 
 # --- 1. 초기 설정 및 환경변수 로드 ---
 load_dotenv("../../.env.local")
@@ -31,12 +33,7 @@ SUPABASE_KEY = os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 
 # Service Role 키가 있으면 우선 사용, 없으면 anon 키 사용
-if SUPABASE_SERVICE_KEY:
-    print("🔑 Supabase Service Role 키를 사용하여 클라이언트를 초기화합니다.")
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-else:
-    print("⚠️ Supabase 익명 키(anon key)를 사용하여 클라이언트를 초기화합니다.")
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+from data_processor import log, create_data_processor, api_monitor as supabase, get_supabase_table
 
 
 # --- 2. 웹 크롤러 클래스 ---
@@ -842,7 +839,7 @@ class KpiCrawler:
                                   sub_name, spec_name):
         """Supabase에서 기존 데이터 확인하여 중복 체크"""
         try:
-            response = self.supabase.table('kpi_price_data').select(
+            response = get_supabase_table(self.supabase, 'kpi_price_data').select(
                 'date, region, price, specification'
             ).eq(
                 'major_category', major_name
@@ -859,7 +856,9 @@ class KpiCrawler:
                 # pandas 가공 후 컬럼명 변경 고려 (region_name -> region)
                 existing_data = set()
                 for item in response.data:
-                    existing_data.add((item['date'], item['region'], str(item['price']), item['specification']))
+                    # UTF-8 인코딩 안전 처리
+                    price_str = str(item['price']) if item['price'] is not None else ""
+                    existing_data.add((str(item['date']), str(item['region']), price_str, str(item['specification'])))
                 log(f"        - 기존 데이터 발견: {len(existing_data)}개 (날짜-지역-가격-규격 조합)")
                 return existing_data
             else:
