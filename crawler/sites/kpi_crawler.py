@@ -168,30 +168,47 @@ class KpiCrawler:
             raise
 
     async def _login(self):
-        """로그인 페이지로 이동하여 로그인 수행"""
-        await self.page.goto(f"{self.base_url}/www/member/login.asp")
+    """로그인 페이지로 이동하여 로그인 수행 (타임아웃 및 재시도 로직 추가)"""
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            # 타임아웃을 60초로 늘리고, 네트워크가 안정될 때까지 대기
+            await self.page.goto(
+                f"{self.base_url}/www/member/login.asp",
+                timeout=60000,
+                wait_until="networkidle"
+            )
+            log("로그인 페이지 이동 성공")
+            break  # 성공 시 재시도 중단
+        except Exception as e:
+            log(f"로그인 페이지 이동 실패 (시도 {attempt + 1}/{max_retries}): {e}", "WARNING")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(5 * (attempt + 1))  # 5초, 10초 간격으로 대기 후 재시도
+            else:
+                log("로그인 페이지 이동에 최종 실패했습니다.", "ERROR")
+                raise  # 최종 실패 시 오류 발생
 
-        username = os.environ.get("KPI_USERNAME")
-        password = os.environ.get("KPI_PASSWORD")
+    username = os.environ.get("KPI_USERNAME")
+    password = os.environ.get("KPI_PASSWORD")
 
-        if not username or not password:
-            raise ValueError(".env.local 파일에 KPI_USERNAME과 "
-                             "KPI_PASSWORD를 설정해야 합니다.")
+    if not username or not password:
+        raise ValueError(".env.local 파일에 KPI_USERNAME과 "
+                         "KPI_PASSWORD를 설정해야 합니다.")
 
-        # GitHub Actions 환경에서 더 안정적인 로그인 처리
-        await self.page.wait_for_load_state('networkidle', timeout=45000)
-        await asyncio.sleep(2)  # 추가 안정화 대기
+    # GitHub Actions 환경에서 더 안정적인 로그인 처리
+    await self.page.wait_for_load_state('networkidle', timeout=45000)
+    await asyncio.sleep(2)
 
-        await self.page.locator("#user_id").fill(username)
-        await asyncio.sleep(1)
-        await self.page.locator("#user_pw").fill(password)
-        await asyncio.sleep(1)
-        await self.page.locator("#sendLogin").click()
+    await self.page.locator("#user_id").fill(username)
+    await asyncio.sleep(1)
+    await self.page.locator("#user_pw").fill(password)
+    await asyncio.sleep(1)
+    await self.page.locator("#sendLogin").click()
 
-        # 로그인 완료 대기시간 증가
-        await self.page.wait_for_load_state('networkidle', timeout=45000)
-        await asyncio.sleep(3)  # 로그인 후 추가 대기
-        log("로그인 완료", "SUCCESS")
+    # 로그인 완료 대기시간 증가
+    await self.page.wait_for_load_state('networkidle', timeout=45000)
+    await asyncio.sleep(3)
+    log("로그인 완료", "SUCCESS")
 
     async def _navigate_to_category(self):
         """카테고리 페이지로 이동 및 초기 설정 (재시도 로직 포함)"""
