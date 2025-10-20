@@ -310,7 +310,7 @@ const editorConfig = useMemo(() => ({
     }
     setPasswordError('');
 
-    setIsWriting(true);
+    // setIsWriting(true);
     setIsEditing(true);
     setEditingArticle(article);
     setTitle(article.title);
