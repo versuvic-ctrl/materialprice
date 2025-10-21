@@ -293,7 +293,7 @@ class KpiCrawler:
                         
                         headers = [th.strip() for th in await new_page.locator('table#priceTrendDataArea th').all_inner_texts()]
                         
-                        # --- ★★★ 데이터 파싱 로직 수정 시작 ★★★ ---
+                        # --- 데이터 파싱 로직 ---
                         rows = await new_page.locator('table#priceTrendDataArea tr').all()
                         for row in rows[1:]: # 첫 번째 헤더 행은 건너뜀
                             cols_text = await row.locator('td').all_inner_texts()
@@ -306,7 +306,6 @@ class KpiCrawler:
                             for idx, header_text in enumerate(data_headers):
                                 if idx < len(prices_text) and prices_text[idx].isdigit():
                                     
-                                    # 헤더 타입 판별 로직 수정
                                     is_price_header = '가격' in header_text or re.match(r'가[①-⑩]', header_text)
                                     is_region = self._is_region_header(header_text)
 
@@ -314,20 +313,16 @@ class KpiCrawler:
                                     detail_spec = None # 기본값
                                     
                                     if is_region:
-                                        # 1. 일반적인 구조 (지역 헤더)
                                         region = header_text
                                     elif is_price_header:
-                                        # 2. 특수한 구조 (가격 헤더)
                                         detail_spec = header_text
                                     else:
-                                        # 3. 그 외는 모두 상세규격 헤더로 간주
                                         detail_spec = header_text
                                     
                                     all_crawled_data.append(self._create_data_entry(
                                         major_name, middle_name, sub_name, spec['name'], 
                                         region, detail_spec, date, prices_text[idx], unit
                                     ))
-                        # --- ★★★ 데이터 파싱 로직 수정 끝 ★★★ ---
                     except Exception as spec_e:
                         log(f"      - Spec '{spec.get('name', 'N/A')[:20]}...' 처리 중 오류: {spec_e}", "WARNING")
                         continue
@@ -374,7 +369,12 @@ class KpiCrawler:
             log(f"  ❌ Redis 캐시 삭제 실패: {str(e)}", "ERROR")
 
     def _is_region_header(self, header_text):
-    """[수정] 헤더가 일반적인 지역명인지 정규식으로 판별"""
+        """[수정] 헤더가 일반적인 지역명인지 정규식으로 판별"""
+        # 더 많은 지역을 포함하고, '①' 같은 문자가 붙어도 인식하도록 정규식 사용
+        region_pattern = re.compile(
+            r'^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|수원|성남|춘천|청주|전주|포항|창원|김해|구미|천안|진주|원주|경주)'
+        )
+        return region_pattern.match(header_text) is not None
     # 더 많은 지역을 포함하고, '①' 같은 문자가 붙어도 인식하도록 정규식 사용
     region_pattern = re.compile(
         r'^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|수원|성남|춘천|청주|전주|포항|창원|김해|구미|천안|진주|원주|경주)'
