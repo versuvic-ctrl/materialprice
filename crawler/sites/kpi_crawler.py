@@ -47,6 +47,13 @@ class KpiCrawler:
 
         self.processor = create_data_processor('kpi')
 
+        self.base_regions = [
+            '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원',
+            '충북', '충남', '전북', '전남', '경북', '경남', '제주', '수원', '성남', '춘천',
+            '청주', '전주', '포항', '창원', '김해', '구미', '천안', '진주', '원주', '경주',
+            '충주', '여수', '목포'
+        ]
+
         # Redis 클라이언트 초기화
         try:
             if 'UPSTASH_REDIS_REST_URL' in os.environ and 'UPSTASH_REDIS_REST_TOKEN' in os.environ:
@@ -302,7 +309,8 @@ class KpiCrawler:
                                         detail_spec = None
                                         
                                         if is_region:
-                                            region = header_text
+                                            region = self._remove_roman_numerals(header_text)
+                                            detail_spec = None
                                         elif is_price_header:
                                             detail_spec = header_text
                                         else:
@@ -351,19 +359,22 @@ class KpiCrawler:
         except Exception as e:
             log(f"  ❌ Redis 캐시 삭제 실패: {str(e)}", "ERROR")
 
+    def _remove_roman_numerals(self, text):
+        # Remove Roman numerals in circles (① to ⑩)
+        return re.sub(r'[①-⑩]', '', text)
+
     def _is_region_header(self, header_text):
-        """[수정] 헤더가 일반적인 지역명인지 정규식으로 판별"""
-        region_pattern = re.compile(
-            r'^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|수원|성남|춘천|청주|전주|포항|창원|김해|구미|천안|진주|원주|경주)'
-        )
-        return region_pattern.match(header_text) is not None
+        cleaned_header = self._remove_roman_numerals(header_text)
+        return cleaned_header in self.base_regions
 
     def _create_data_entry(self, major, middle, sub, spec, region, detail_spec, date, price, unit):
         """데이터베이스 저장을 위한 딕셔너리 객체 생성"""
-        final_spec = f"{spec} - {detail_spec}" if detail_spec else spec
         return {
             'major_category': major, 'middle_category': middle, 'sub_category': sub,
-            'specification': final_spec, 'region': region, 'date': f"{date.replace('.', '-')}-01",
+            'specification': spec,
+            'region': region,
+            'detail_spec': detail_spec, # detail_spec을 별도 필드로 추가
+            'date': f"{date.replace('.', '-')}-01",
             'price': int(price), 'unit': unit
         }
 
