@@ -27,16 +27,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check file structure
-        run: |
-          echo "--- Current Directory ---"
-          pwd
-          echo "--- File List (Root) ---"
-          ls -l
-          echo "--- File List (All) ---"
-          ls -R
-          # End of file structure check
-
       - name: Set up Python 3.9
         uses: actions/setup-python@v4
         with:
@@ -48,15 +38,17 @@ jobs:
       - name: Install Playwright and its dependencies
         run: playwright install --with-deps
 
-      - name: Install Supabase CLI
-        run: |
-          set -e
-          curl -sL https://supabase.com/install/cli | bash
-          echo "$HOME/.supabase/bin" >> $GITHUB_PATH
-        shell: bash
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase Project
+        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
 
       - name: Apply Supabase Migrations
-        run: supabase db push
+        run: |
+          set -e
+          supabase db push
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
