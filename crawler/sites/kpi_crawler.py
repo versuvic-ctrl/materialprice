@@ -123,53 +123,81 @@ class KpiCrawler:
         log("카테고리 페이지 이동 완료", "SUCCESS")
 
     async def _crawl_categories(self):
-        """대분류 -> 중분류 -> 소분류 순차적으로 크롤링"""
-        major_links_locator = self.page.locator('#left_menu_kpi > ul.panel > li.file-item > a')
+        """
+        [수정본] 대분류 -> 중분류 -> 소분류 순차적으로 크롤링.
+        안정적인 카테고리 탐색 로직을 복원하고 INCLUSION_LIST 필터링을 적용합니다.
+        """
+        major_selector = '#left_menu_kpi > ul.panel > li.file-item > a'
+        major_categories_elements = await self.page.locator(major_selector).all()
+
         major_links = []
-        for i in range(await major_links_locator.count()):
-            link = major_links_locator.nth(i)
-            name = await link.inner_text()
-            href = await link.get_attribute('href')
-            if name in INCLUSION_LIST: # INCLUSION_LIST에 있는 대분류만 처리
-                 major_links.append({'name': name, 'href': href})
-        
+        for cat in major_categories_elements:
+            name = await cat.inner_text()
+            href = await cat.get_attribute('href')
+            # INCLUSION_LIST에 정의된 대분류만 대상으로 함
+            if name in INCLUSION_LIST:
+                major_links.append({'name': name, 'href': href})
+
         for major in major_links:
+            # 크롤링 모드에 따른 대분류 필터링
             if self.target_major_category and major['name'] != self.target_major_category:
                 continue
 
             log(f"대분류 '{major['name']}' 크롤링 시작...")
             await self.page.goto(f"{self.base_url}{major['href']}")
             await self.page.wait_for_load_state('networkidle', timeout=45000)
+
+            # openSub() 버튼이 있으면 클릭해서 모든 하위 카테고리를 펼침
+            open_sub_button = self.page.locator('a[href="javascript:openSub();"]')
+            if await open_sub_button.count() > 0:
+                log("  openSub() 버튼 클릭하여 모든 분류 펼치는 중...")
+                await open_sub_button.click()
+                # 펼쳐질 시간을 넉넉하게 대기
+                await self.page.wait_for_timeout(5000)
+
+            # 펼쳐진 페이지에서 중분류와 그에 속한 소분류들을 모두 가져옴
+            all_middle_elements = await self.page.locator('.part-open-list').all()
             
-            middle_links_locator = self.page.locator('.part-ttl > a')
-            middle_links = []
-            for i in range(await middle_links_locator.count()):
-                link = middle_links_locator.nth(i)
-                name = await link.inner_text()
-                href = await link.get_attribute('href')
-                # INCLUSION_LIST에 있는 중분류만 처리
-                if name in INCLUSION_LIST.get(major['name'], {}):
-                    middle_links.append({'name': name, 'href': href})
-            
-            for middle in middle_links:
-                if self.target_middle_category and middle['name'] != self.target_middle_category:
+            for middle_element in all_middle_elements:
+                try:
+                    middle_link_element = middle_element.locator('.part-ttl > a').first
+                    middle_name = (await middle_link_element.inner_text()).strip()
+
+                    # INCLUSION_LIST를 기준으로 크롤링할 중분류인지 필터링
+                    if middle_name not in INCLUSION_LIST.get(major['name'], {}):
+                        continue
+                    
+                    # 크롤링 모드에 따른 중분류 필터링
+                    if self.target_middle_category and middle_name != self.target_middle_category:
+                        continue
+                    
+                    log(f"  중분류 '{middle_name}' 처리 시작...")
+
+                    # 해당 중분류에 속한 소분류 목록 수집
+                    sub_links_elements = await middle_element.locator('.part-list li a').all()
+                    sub_links_to_crawl = []
+                    
+                    for sub_link_element in sub_links_elements:
+                        sub_name = (await sub_link_element.inner_text()).strip()
+                        
+                        # INCLUSION_LIST를 기준으로 크롤링할 소분류인지 필터링
+                        if sub_name in INCLUSION_LIST.get(major['name'], {}).get(middle_name, {}):
+                            # 크롤링 모드에 따른 소분류 필터링
+                            if self.target_sub_category and sub_name != self.target_sub_category:
+                                continue
+
+                            href = await sub_link_element.get_attribute('href')
+                            sub_links_to_crawl.append({'name': sub_name, 'href': href})
+
+                    # 수집된 소분류 목록으로 병렬 크롤링 실행
+                    if sub_links_to_crawl:
+                        await self._crawl_subcategories_parallel(major['name'], middle_name, sub_links_to_crawl)
+                    else:
+                        log(f"    중분류 '{middle_name}': INCLUSION_LIST에 포함된 처리할 소분류가 없습니다.")
+
+                except Exception as e:
+                    log(f"  중분류 처리 중 오류 발생: {e}", "ERROR")
                     continue
-                
-                log(f"  중분류 '{middle['name']}' 처리 시작...")
-                await self.page.goto(f"{self.base_url}/www/price/{middle['href']}")
-                await self.page.wait_for_load_state('networkidle', timeout=45000)
-                
-                sub_links_locator = self.page.locator('.part-list li a')
-                sub_links = []
-                for i in range(await sub_links_locator.count()):
-                    link = sub_links_locator.nth(i)
-                    name = await link.inner_text()
-                    href = await link.get_attribute('href')
-                    # INCLUSION_LIST에 있는 소분류만 처리
-                    if name in INCLUSION_LIST.get(major['name'], {}).get(middle['name'], {}):
-                         sub_links.append({'name': name, 'href': href})
-                
-                await self._crawl_subcategories_parallel(major['name'], middle['name'], sub_links)
 
     async def _crawl_subcategories_parallel(self, major_name, middle_name, sub_categories_info):
         """[수정본] 소분류 병렬 크롤링 후 중분류 단위로 저장 및 캐시 무효화"""
