@@ -124,8 +124,8 @@ class KpiCrawler:
 
     async def _crawl_categories(self):
         """
-        [수정본] 대분류 -> 중분류 -> 소분류 순차적으로 크롤링.
-        안정적인 카테고리 탐색 로직을 복원하고 INCLUSION_LIST 필터링을 적용합니다.
+        [최종 수정본] 대분류 -> 중분류 -> 소분류 순차적으로 크롤링.
+        화면을 가리는 요소를 제거하는 로직을 추가하여 클릭 오류를 해결합니다.
         """
         major_selector = '#left_menu_kpi > ul.panel > li.file-item > a'
         major_categories_elements = await self.page.locator(major_selector).all()
@@ -134,12 +134,10 @@ class KpiCrawler:
         for cat in major_categories_elements:
             name = await cat.inner_text()
             href = await cat.get_attribute('href')
-            # INCLUSION_LIST에 정의된 대분류만 대상으로 함
             if name in INCLUSION_LIST:
                 major_links.append({'name': name, 'href': href})
 
         for major in major_links:
-            # 크롤링 모드에 따른 대분류 필터링
             if self.target_major_category and major['name'] != self.target_major_category:
                 continue
 
@@ -147,15 +145,25 @@ class KpiCrawler:
             await self.page.goto(f"{self.base_url}{major['href']}")
             await self.page.wait_for_load_state('networkidle', timeout=45000)
 
-            # openSub() 버튼이 있으면 클릭해서 모든 하위 카테고리를 펼침
+            # --- ★★★ 문제 해결을 위한 코드 추가 (시작) ★★★ ---
+            # 페이지 이동 후, 클릭을 방해할 수 있는 'Right Quick' 메뉴를 숨깁니다.
+            try:
+                close_button = self.page.locator("#right_quick .q_cl")
+                if await close_button.is_visible(timeout=5000): # 5초 동안 기다려봄
+                    await close_button.click()
+                    log("  'Right Quick' 메뉴를 숨겼습니다.")
+                    await self.page.wait_for_timeout(1000) # 숨겨지는 애니메이션 대기
+            except Exception:
+                # 메뉴가 없거나 이미 숨겨져 있는 경우, 오류를 무시하고 계속 진행
+                log("  'Right Quick' 메뉴가 없거나 이미 숨겨져 있어 계속 진행합니다.", "DEBUG")
+            # --- ★★★ 문제 해결을 위한 코드 추가 (끝) ★★★ ---
+
             open_sub_button = self.page.locator('a[href="javascript:openSub();"]')
             if await open_sub_button.count() > 0:
                 log("  openSub() 버튼 클릭하여 모든 분류 펼치는 중...")
                 await open_sub_button.click()
-                # 펼쳐질 시간을 넉넉하게 대기
                 await self.page.wait_for_timeout(5000)
 
-            # 펼쳐진 페이지에서 중분류와 그에 속한 소분류들을 모두 가져옴
             all_middle_elements = await self.page.locator('.part-open-list').all()
             
             for middle_element in all_middle_elements:
@@ -163,33 +171,27 @@ class KpiCrawler:
                     middle_link_element = middle_element.locator('.part-ttl > a').first
                     middle_name = (await middle_link_element.inner_text()).strip()
 
-                    # INCLUSION_LIST를 기준으로 크롤링할 중분류인지 필터링
                     if middle_name not in INCLUSION_LIST.get(major['name'], {}):
                         continue
                     
-                    # 크롤링 모드에 따른 중분류 필터링
                     if self.target_middle_category and middle_name != self.target_middle_category:
                         continue
                     
                     log(f"  중분류 '{middle_name}' 처리 시작...")
 
-                    # 해당 중분류에 속한 소분류 목록 수집
                     sub_links_elements = await middle_element.locator('.part-list li a').all()
                     sub_links_to_crawl = []
                     
                     for sub_link_element in sub_links_elements:
                         sub_name = (await sub_link_element.inner_text()).strip()
                         
-                        # INCLUSION_LIST를 기준으로 크롤링할 소분류인지 필터링
                         if sub_name in INCLUSION_LIST.get(major['name'], {}).get(middle_name, {}):
-                            # 크롤링 모드에 따른 소분류 필터링
                             if self.target_sub_category and sub_name != self.target_sub_category:
                                 continue
 
                             href = await sub_link_element.get_attribute('href')
                             sub_links_to_crawl.append({'name': sub_name, 'href': href})
 
-                    # 수집된 소분류 목록으로 병렬 크롤링 실행
                     if sub_links_to_crawl:
                         await self._crawl_subcategories_parallel(major['name'], middle_name, sub_links_to_crawl)
                     else:
