@@ -26,6 +26,8 @@ except ImportError:
     def log(message, level="INFO"):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{timestamp}] [{level}] {message}")
+
+
 class CategoryExtractorOptimized:
     def __init__(self):
         self.base_url = "https://www.kpi.or.kr"
@@ -36,6 +38,7 @@ class CategoryExtractorOptimized:
         self.categories_lock = asyncio.Lock()
         self.max_concurrent_pages = 3  # 동시 페이지 수 제한 (서버 부하 고려)
         self.page_semaphore = asyncio.Semaphore(self.max_concurrent_pages)
+
     async def run(self):
         """메인 실행 함수"""
         try:
@@ -90,9 +93,10 @@ class CategoryExtractorOptimized:
             if self.browser:
                 try:
                     await self.browser.close()
-                except:
+                except Exception:
                     pass
             return False
+
     async def _login(self, context):
         """로그인 (재시도 로직 포함)"""
         max_retries = 3
@@ -100,7 +104,9 @@ class CategoryExtractorOptimized:
             try:
                 log(f"로그인 시도 {attempt + 1}/{max_retries}")
                 await self.page.goto(f"{self.base_url}/www/member/login.asp")
-                await self.page.wait_for_load_state('networkidle', timeout=45000)
+                await self.page.wait_for_load_state(
+                    'networkidle', timeout=45000
+                )
                 await asyncio.sleep(2)
                 # 이미 로그인되어 있는지 확인
                 if "login.asp" not in self.page.url:
@@ -685,6 +691,7 @@ class CategoryExtractorOptimized:
                 json.dump(output_data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             log(f"중간 저장 오류: {str(e)}", "ERROR")
+
     async def save_to_json(self):
         """최종 데이터 구조로 JSON 파일 저장"""
         try:

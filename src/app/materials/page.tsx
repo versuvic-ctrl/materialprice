@@ -143,6 +143,28 @@ const MaterialsPage: React.FC = () => {
     React.useMemo(() => ({ major: selectedLevel1, middle: selectedLevel2, sub: selectedLevel3, specification: selectedLevel4 }), [selectedLevel1, selectedLevel2, selectedLevel3, selectedLevel4])
   );
 
+  // 상세규격이 하나뿐일 경우 자동으로 선택하고 차트에 추가
+  useEffect(() => {
+    if (selectedLevel4 && !level5Categories.isLoading && level5Categories.data) {
+      if (level5Categories.data.length === 1) {
+        const singleSpec = level5Categories.data[0];
+        if (!singleSpec.includes('가①격')) {
+          setCategory(5, singleSpec);
+          addMaterialToChart(singleSpec);
+        }
+      } else if (level5Categories.data.length === 0) {
+        addMaterialToChart(selectedLevel4);
+      }
+    }
+  }, [selectedLevel1, selectedLevel2, selectedLevel3, selectedLevel4, level5Categories.data, level5Categories.isLoading, setCategory, addMaterialToChart]);
+
+  // 상세규격이 선택되면 자동으로 차트에 추가
+  useEffect(() => {
+    if (selectedLevel5 && !selectedLevel5.includes('가①격')) {
+      addMaterialToChart(selectedLevel5);
+    }
+  }, [selectedLevel1, selectedLevel2, selectedLevel3, selectedLevel4, selectedLevel5, addMaterialToChart]);
+
   // [제거] MakeItFrom 데이터 로드 - 탭 구조 제거로 인해 불필요
 
   // 상태 관리는 Zustand로, 서버 상태는 React Query로 처리하여 컴포넌트 로직 단순화
@@ -212,7 +234,7 @@ const MaterialsPage: React.FC = () => {
                       </Select>
 
                       {/* 5번째 상세규격 드롭다운 - 조건부 렌더링 */}
-                      {selectedLevel4 && level5Categories.data && Array.isArray(level5Categories.data) && level5Categories.data.length > 0 && (
+                      {selectedLevel4 && level5Categories.data && Array.isArray(level5Categories.data) && level5Categories.data.length > 1 && (
                         <Select value={selectedLevel5} onValueChange={(v) => setCategory(5, v)} disabled={!selectedLevel4 || level5Categories.isLoading}>
                         <SelectTrigger className="h-7 sm:w-auto text-custom-xs">
                             <SelectValue placeholder="상세규격" />
@@ -226,20 +248,7 @@ const MaterialsPage: React.FC = () => {
                     </div>
                     
                     {/* 자재를 차트에 추가하는 버튼 */}
-                    {selectedLevel5 && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <Button 
-                          onClick={() => {
-                            const materialName = `${selectedLevel1} > ${selectedLevel2} > ${selectedLevel3} > ${selectedLevel4} > ${selectedLevel5}`;
-                            addMaterialToChart(materialName);
-                          }}
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                          disabled={!selectedLevel5}
-                        >
-                          차트에 추가
-                        </Button>
-                      </div>
-                    )}
+                    {/* 이 부분은 제거됩니다. */}
                   </div>
                 </CardContent>
               </Card>

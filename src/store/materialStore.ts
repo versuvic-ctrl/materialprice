@@ -131,10 +131,17 @@ const useMaterialStore = create<MaterialState>((set) => ({
   setInterval: (interval) => set({ interval }),
   setDateRange: (start, end) => set({ startDate: start, endDate: end }),
 
-  addMaterialToChart: (material) => set((state) => {
-    if (state.selectedMaterialsForChart.includes(material)) return {};
-    return { selectedMaterialsForChart: [...state.selectedMaterialsForChart, material] };
-  }),
+  addMaterialToChart: (material) => {
+    set((state) => {
+      if (!state.selectedMaterialsForChart.includes(material)) {
+        return {
+          ...state,
+          selectedMaterialsForChart: [...state.selectedMaterialsForChart, material]
+        };
+      }
+      return state;
+    });
+  },
 
   removeMaterialFromChart: (material) => set((state) => {
     const newHidden = new Set(state.hiddenMaterials);

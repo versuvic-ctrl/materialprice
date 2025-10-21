@@ -94,7 +94,7 @@ class KpiCrawler:
     async def _login(self):
         """로그인 수행 (안정화 버전)"""
         log("로그인 페이지로 이동 중...")
-        await self.page.goto(f"{self.base_url}/www/member/login.asp", timeout=60000, wait_until="networkidle")
+        await self.page.goto(f"{self.base_url}/www/member/login.asp", timeout=90000, wait_until="networkidle")
         
         username = os.environ.get("KPI_USERNAME")
         password = os.environ.get("KPI_PASSWORD")
@@ -107,7 +107,7 @@ class KpiCrawler:
         await self.page.locator("#sendLogin").click()
         
         # 페이지가 이동할 때까지 충분히 기다림
-        await self.page.wait_for_load_state('networkidle', timeout=45000)
+        await self.page.wait_for_load_state('networkidle', timeout=60000)
 
         # 로그인 성공 여부 확인
         if "login.asp" in self.page.url:
@@ -118,13 +118,13 @@ class KpiCrawler:
     async def _navigate_to_category(self):
         """카테고리 페이지로 이동 및 팝업 처리"""
         log("종합물가정보 페이지로 이동 중...")
-        await self.page.goto(f"{self.base_url}/www/price/category.asp", timeout=60000, wait_until="networkidle")
+        await self.page.goto(f"{self.base_url}/www/price/category.asp", timeout=90000, wait_until="networkidle")
         
         popups = await self.page.query_selector_all(".pop-btn-close")
         for popup_close in popups:
             try:
                 if await popup_close.is_visible():
-                    await popup_close.click(timeout=3000)
+                    await popup_close.click(timeout=15000)
                     log("팝업 닫기 성공")
             except Exception:
                 continue
@@ -149,11 +149,11 @@ class KpiCrawler:
 
             log(f"대분류 '{major['name']}' 크롤링 시작...")
             await self.page.goto(f"{self.base_url}{major['href']}")
-            await self.page.wait_for_load_state('networkidle', timeout=45000)
+            await self.page.wait_for_load_state('networkidle', timeout=60000)
 
             try:
                 close_button = self.page.locator("#right_quick .q_cl")
-                if await close_button.is_visible(timeout=5000):
+                if await close_button.is_visible(timeout=10000):
                     await close_button.click()
                     log("  'Right Quick' 메뉴를 숨겼습니다.")
                     await self.page.wait_for_timeout(1000)
@@ -202,6 +202,10 @@ class KpiCrawler:
                 except Exception as e:
                     log(f"  중분류 처리 중 오류 발생: {e}", "ERROR")
                     continue
+            
+            # 대분류 크롤링 완료 후 해당 대분류 캐시 무효화
+            log(f"[캐시 무효화] 대분류 '{major['name']}' 크롤링 완료 후 관련 캐시를 무효화합니다.")
+            await self.clear_redis_cache(major_name=major['name'])
 
     async def _crawl_subcategories_parallel(self, major_name, middle_name, sub_categories_info):
         """소분류 병렬 크롤링 후 중분류 단위로 저장 및 캐시 무효화"""
@@ -227,7 +231,7 @@ class KpiCrawler:
             saved_count = await self.processor.save_to_supabase(all_data_for_middle_category, 'kpi_price_data')
             if saved_count > 0:
                 log(f"  [캐시 무효화] 중분류 '{middle_name}' 관련 캐시를 무효화합니다.")
-                await self.clear_redis_cache()
+                await self.clear_redis_cache(major_name=major_name, middle_name=middle_name)
         else:
             log(f"  중분류 '{middle_name}'에서 최종 저장할 데이터가 없습니다.")
 
@@ -248,11 +252,11 @@ class KpiCrawler:
             for attempt in range(max_retries):
                 try:
                     new_page = await self.context.new_page()
-                    await new_page.goto(sub_url, timeout=60000, wait_until="networkidle")
+                    await new_page.goto(sub_url, timeout=90000, wait_until="networkidle")
                     await new_page.click('a[href*="detail_change.asp"]', timeout=15000)
                     
                     spec_dropdown_selector = 'select#ITEM_SPEC_CD'
-                    await new_page.wait_for_selector(spec_dropdown_selector, timeout=30000)
+                    await new_page.wait_for_selector(spec_dropdown_selector, timeout=60000) # 타임아웃 60초로 증가
 
                     options = await new_page.locator(f'{spec_dropdown_selector} option').all()
                     specs_to_crawl = [{'name': (await o.inner_text()).strip(), 'value': await o.get_attribute('value')} for o in options if await o.get_attribute('value')]
@@ -264,7 +268,8 @@ class KpiCrawler:
                     all_crawled_data = []
                     for i, spec in enumerate(specs_to_crawl):
                         try:
-                            await new_page.select_option(spec_dropdown_selector, value=spec['value'])
+                            await new_page.wait_for_timeout(5000)
+                            await new_page.select_option(spec_dropdown_selector, value=spec['value'], timeout=60000) # select_option에도 타임아웃 60초 지정
 
                             if i == 0:
                                 await new_page.select_option('select#DATA_YEAR_F', value=self.start_year)
@@ -278,11 +283,11 @@ class KpiCrawler:
                                 latest_month = await new_page.locator(f'{end_month_selector} option').last.get_attribute('value')
                                 await new_page.select_option(end_month_selector, value=latest_month)
                             
-                            async with new_page.expect_response(lambda r: "detail_change.asp" in r.url, timeout=30000):
+                            async with new_page.expect_response(lambda r: "detail_change.asp" in r.url, timeout=60000):
                                 await new_page.click('form[name="sForm"] input[type="image"]')
                             
                             try:
-                                await new_page.wait_for_selector('table#priceTrendDataArea tr:nth-child(2)', timeout=15000)
+                                await new_page.wait_for_selector('table#priceTrendDataArea tr:nth-child(2)', timeout=30000)
                             except Exception:
                                 log(f"      - Spec '{spec['name'][:20]}...': 조회 기간 내 데이터 없음 (건너뜀).", "INFO")
                                 continue
@@ -344,18 +349,28 @@ class KpiCrawler:
             return
             
         try:
-            cursor, keys = await self.redis.scan(0, match="material_prices:*", count=500)
+            if major_name and middle_name:
+                match_pattern = f"material_prices:{major_name}:{middle_name}:*"
+                log(f"  [캐시 무효화] 중분류 '{middle_name}' 관련 캐시를 무효화합니다. 패턴: {match_pattern}")
+            elif major_name:
+                match_pattern = f"material_prices:{major_name}:*"
+                log(f"  [캐시 무효화] 대분류 '{major_name}' 관련 캐시를 무효화합니다. 패턴: {match_pattern}")
+            else:
+                match_pattern = "material_prices:*"
+                log(f"  [캐시 무효화] 모든 material_prices 캐시를 무효화합니다. 패턴: {match_pattern}")
+
+            cursor, keys = await self.redis.scan(0, match=match_pattern, count=500)
             keys_to_delete = keys
             
             while cursor != 0:
-                cursor, keys = await self.redis.scan(cursor, match="material_prices:*", count=500)
+                cursor, keys = await self.redis.scan(cursor, match=match_pattern, count=500)
                 keys_to_delete.extend(keys)
 
             if keys_to_delete:
                 await self.redis.delete(*keys_to_delete)
                 log(f"  ✅ Redis 캐시 무효화 성공: {len(keys_to_delete)}개 키 삭제")
             else:
-                log("  ✅ 삭제할 Redis 'material_prices:*' 캐시가 없습니다.")
+                log(f"  ✅ 삭제할 Redis '{match_pattern}' 캐시가 없습니다.")
         except Exception as e:
             log(f"  ❌ Redis 캐시 삭제 실패: {str(e)}", "ERROR")
 
