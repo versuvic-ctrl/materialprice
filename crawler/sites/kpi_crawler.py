@@ -923,7 +923,10 @@ class KpiCrawler:
         }
 
     def _get_unit_from_inclusion_list(self, major_name, middle_name, sub_name, spec_name=None):
-        """INCLUSION_LIST에서 단위 정보를 가져옵니다."""
+        """
+        [수정본] INCLUSION_LIST에서 단위를 찾습니다.
+        규격(specification) 레벨에 단위가 없으면 상위 소분류의 'unit' 또는 'default' 값을 상속받습니다.
+        """
         try:
             if major_name in INCLUSION_LIST:
                 major_data = INCLUSION_LIST[major_name]
@@ -931,17 +934,37 @@ class KpiCrawler:
                     middle_data = major_data[middle_name]
                     if isinstance(middle_data, dict) and sub_name in middle_data:
                         unit_data = middle_data[sub_name]
-                        if isinstance(unit_data, str): return unit_data
-                        elif isinstance(unit_data, dict):
+                        
+                        # unit_data가 딕셔너리 형태일 경우
+                        if isinstance(unit_data, dict):
+                            # 1. 최우선: specification에 대한 단위가 명시적으로 있는지 확인
                             if spec_name and 'specifications' in unit_data:
                                 specifications = unit_data['specifications']
-                                if spec_name in specifications: return specifications[spec_name]
+                                if spec_name in specifications:
+                                    return specifications[spec_name]
+                                # 부분 매칭 시도
                                 for spec_key, spec_unit in specifications.items():
-                                    if spec_name in spec_key or spec_key in spec_name: return spec_unit
-                            if 'default' in unit_data: return unit_data['default']
+                                    if spec_name in spec_key or spec_key in spec_name:
+                                        return spec_unit
+                            
+                            # 2. 차선: 'unit' 키가 소분류 레벨에 직접 정의되어 있는지 확인
+                            if "unit" in unit_data:
+                                return unit_data["unit"]
+                            
+                            # 3. 마지막: 'default' 키가 있는지 확인
+                            if 'default' in unit_data:
+                                return unit_data['default']
+
+                        # unit_data가 단순 문자열일 경우 (예: "ton")
+                        elif isinstance(unit_data, str):
+                            return unit_data
+            
+            # 모든 경우에 해당하지 않으면 None 반환
+            log(f"      - 단위 정보를 INCLUSION_LIST에서 찾을 수 없음: {major_name}>{middle_name}>{sub_name}", "DEBUG")
             return None
+            
         except Exception as e:
-            log(f"하드코딩된 단위 정보 조회 오류: {str(e)}", "ERROR")
+            log(f"단위 정보 조회 중 오류 발생: {str(e)}", "ERROR")
             return None
 
     def _load_unit_from_file_cache(self, cate_cd, item_cd):
