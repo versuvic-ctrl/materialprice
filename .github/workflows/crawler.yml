@@ -48,6 +48,29 @@ jobs:
       - name: Install Playwright and its dependencies
         run: playwright install --with-deps
 
+      - name: Install Supabase CLI
+        run: |
+          curl -sL https://supabase.com/install/cli | sh
+          echo "$HOME/.supabase/bin" >> $GITHUB_PATH
+
+      - name: Apply Supabase Migrations
+        run: supabase db push
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Debug Environment Variables
+        run: |
+          echo "🔍 KPI_USERNAME=$KPI_USERNAME"
+          echo "🔍 SUPABASE_URL=$SUPABASE_URL"
+          echo "🔍 NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL"
+          echo "🔍 SUPABASE_SERVICE_ROLE_KEY length: ${#SUPABASE_SERVICE_ROLE_KEY}"
+          echo "🔍 UPSTASH_REDIS_REST_URL=$UPSTASH_REDIS_REST_URL"  
+          echo "🔍 UPSTASH_REDIS_REST_TOKEN length: ${#UPSTASH_REDIS_REST_TOKEN}"
+
       - name: Run Crawler for ${{ matrix.category }}
         env:
           KPI_USERNAME: ${{ secrets.KPI_USERNAME }}
@@ -55,6 +78,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           REDIS_URL: ${{ secrets.REDIS_URL }}
           REDIS_TOKEN: ${{ secrets.REDIS_TOKEN }}
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
