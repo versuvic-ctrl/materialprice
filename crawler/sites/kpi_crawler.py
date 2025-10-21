@@ -234,113 +234,116 @@ class KpiCrawler:
     # kpi_crawler.py 파일에서 _crawl_single_subcategory 함수를 찾아 아래 코드로 교체하세요.
 
     async def _crawl_single_subcategory(self, major_name, middle_name, sub_info):
-        """
-        [최종 수정본] 단일 소분류의 모든 데이터를 수집하여 반환합니다.
-        테이블 타입에 따른 region, detail_spec 할당 오류를 수정했습니다.
-        """
-        async with self.semaphore:
-            sub_name = sub_info['name']
-            sub_href = sub_info['href']
-            sub_url = f"{self.base_url}/www/price/{sub_href}"
+    """
+    [최종 수정본] 단일 소분류의 모든 데이터를 수집하여 반환합니다.
+    테이블 타입(지역, 가격, 상세규격)을 정확히 판별하여 데이터를 파싱합니다.
+    """
+    async with self.semaphore:
+        sub_name = sub_info['name']
+        sub_href = sub_info['href']
+        sub_url = f"{self.base_url}/www/price/{sub_href}"
 
-            log(f"    - '{sub_name}' 수집 시작")
-            new_page = None
-            max_retries = 3
-            
-            for attempt in range(max_retries):
-                try:
-                    new_page = await self.context.new_page()
-                    await new_page.goto(sub_url, timeout=60000, wait_until="networkidle")
-                    await new_page.click('a[href*="detail_change.asp"]', timeout=15000)
-                    
-                    spec_dropdown_selector = 'select#ITEM_SPEC_CD'
-                    await new_page.wait_for_selector(spec_dropdown_selector, timeout=30000)
+        log(f"    - '{sub_name}' 수집 시작")
+        new_page = None
+        max_retries = 3
+        
+        for attempt in range(max_retries):
+            try:
+                new_page = await self.context.new_page()
+                await new_page.goto(sub_url, timeout=60000, wait_until="networkidle")
+                await new_page.click('a[href*="detail_change.asp"]', timeout=15000)
+                
+                spec_dropdown_selector = 'select#ITEM_SPEC_CD'
+                await new_page.wait_for_selector(spec_dropdown_selector, timeout=30000)
 
-                    options = await new_page.locator(f'{spec_dropdown_selector} option').all()
-                    specs_to_crawl = [{'name': (await o.inner_text()).strip(), 'value': await o.get_attribute('value')} for o in options if await o.get_attribute('value')]
-                    
-                    if not specs_to_crawl:
-                        await new_page.close()
-                        return []
+                options = await new_page.locator(f'{spec_dropdown_selector} option').all()
+                specs_to_crawl = [{'name': (await o.inner_text()).strip(), 'value': await o.get_attribute('value')} for o in options if await o.get_attribute('value')]
+                
+                if not specs_to_crawl:
+                    await new_page.close()
+                    return []
 
-                    all_crawled_data = []
-                    for i, spec in enumerate(specs_to_crawl):
+                all_crawled_data = []
+                for i, spec in enumerate(specs_to_crawl):
+                    try:
+                        await new_page.select_option(spec_dropdown_selector, value=spec['value'])
+
+                        if i == 0:
+                            await new_page.select_option('select#DATA_YEAR_F', value=self.start_year)
+                            await new_page.select_option('select#DATA_MONTH_F', value=self.start_month)
+                            
+                            end_year_selector = 'select#DATA_YEAR_T'
+                            latest_year = await new_page.locator(f'{end_year_selector} option').first.get_attribute('value')
+                            await new_page.select_option(end_year_selector, value=latest_year)
+                            
+                            end_month_selector = 'select#DATA_MONTH_T'
+                            latest_month = await new_page.locator(f'{end_month_selector} option').last.get_attribute('value')
+                            await new_page.select_option(end_month_selector, value=latest_month)
+                        
+                        async with new_page.expect_response(lambda r: "detail_change.asp" in r.url, timeout=30000):
+                            await new_page.click('form[name="sForm"] input[type="image"]')
+                        
                         try:
-                            await new_page.select_option(spec_dropdown_selector, value=spec['value'])
-
-                            if i == 0:
-                                await new_page.select_option('select#DATA_YEAR_F', value=self.start_year)
-                                await new_page.select_option('select#DATA_MONTH_F', value=self.start_month)
-                                
-                                end_year_selector = 'select#DATA_YEAR_T'
-                                latest_year = await new_page.locator(f'{end_year_selector} option').first.get_attribute('value')
-                                await new_page.select_option(end_year_selector, value=latest_year)
-                                
-                                end_month_selector = 'select#DATA_MONTH_T'
-                                latest_month = await new_page.locator(f'{end_month_selector} option').last.get_attribute('value')
-                                await new_page.select_option(end_month_selector, value=latest_month)
-                            
-                            async with new_page.expect_response(lambda r: "detail_change.asp" in r.url, timeout=30000):
-                                await new_page.click('form[name="sForm"] input[type="image"]')
-                            
-                            try:
-                                await new_page.wait_for_selector('table#priceTrendDataArea tr:nth-child(2)', timeout=15000)
-                            except Exception:
-                                log(f"      - Spec '{spec['name'][:20]}...': 조회 기간 내 데이터 없음 (건너뜀).", "INFO")
-                                continue
-
-                            unit = self._get_unit_from_inclusion_list(major_name, middle_name, sub_name, spec['name'])
-                            
-                            headers = [th.strip() for th in await new_page.locator('table#priceTrendDataArea th').all_inner_texts()]
-                            
-                            table_type = "region"
-                            if len(headers) > 1:
-                                header_sample = headers[1]
-                                if '가격' in header_sample or re.match(r'가[①-⑩]', header_sample): table_type = "price_name"
-                                elif not self._is_region_header(header_sample): table_type = "detail_spec"
-                            
-                            rows = await new_page.locator('table#priceTrendDataArea tr').all()
-                            for row in rows[1:]:
-                                cols_text = await row.locator('td').all_inner_texts()
-                                if not cols_text: continue
-                                date, prices_text = cols_text[0].strip(), [p.strip().replace(',', '') for p in cols_text[1:]]
-                                
-                                # --- ★★★ 데이터 파싱 로직 수정 시작 ★★★ ---
-                                data_headers = headers[1:] 
-                                for idx, header_text in enumerate(data_headers):
-                                    if idx < len(prices_text) and prices_text[idx].isdigit():
-                                        region = "전국"  # 기본값
-                                        detail_spec = None # 기본값
-                                        
-                                        if table_type == "region":
-                                            region = header_text
-                                        elif table_type == "detail_spec":
-                                            detail_spec = header_text
-                                        elif table_type == "price_name":
-                                            # '가①격' 같은 헤더를 detail_spec으로 사용
-                                            detail_spec = header_text
-                                        
-                                        all_crawled_data.append(self._create_data_entry(
-                                            major_name, middle_name, sub_name, spec['name'], 
-                                            region, detail_spec, date, prices_text[idx], unit
-                                        ))
-                                # --- ★★★ 데이터 파싱 로직 수정 끝 ★★★ ---
-                        except Exception as spec_e:
-                            log(f"      - Spec '{spec.get('name', 'N/A')[:20]}...' 처리 중 오류: {spec_e}", "WARNING")
+                            await new_page.wait_for_selector('table#priceTrendDataArea tr:nth-child(2)', timeout=15000)
+                        except Exception:
+                            log(f"      - Spec '{spec['name'][:20]}...': 조회 기간 내 데이터 없음 (건너뜀).", "INFO")
                             continue
 
-                    await new_page.close()
-                    log(f"    - '{sub_name}' 완료: {len(all_crawled_data)}개 데이터 수집.")
-                    return all_crawled_data
+                        unit = self._get_unit_from_inclusion_list(major_name, middle_name, sub_name, spec['name'])
+                        
+                        headers = [th.strip() for th in await new_page.locator('table#priceTrendDataArea th').all_inner_texts()]
+                        
+                        # --- ★★★ 데이터 파싱 로직 수정 시작 ★★★ ---
+                        rows = await new_page.locator('table#priceTrendDataArea tr').all()
+                        for row in rows[1:]: # 첫 번째 헤더 행은 건너뜀
+                            cols_text = await row.locator('td').all_inner_texts()
+                            if not cols_text: continue
+                            
+                            date = cols_text[0].strip()
+                            prices_text = [p.strip().replace(',', '') for p in cols_text[1:]]
+                            data_headers = headers[1:] # '구분' 헤더 제외
+                            
+                            for idx, header_text in enumerate(data_headers):
+                                if idx < len(prices_text) and prices_text[idx].isdigit():
+                                    
+                                    # 헤더 타입 판별 로직 수정
+                                    is_price_header = '가격' in header_text or re.match(r'가[①-⑩]', header_text)
+                                    is_region = self._is_region_header(header_text)
 
-                except Exception as e:
-                    if new_page: await new_page.close()
-                    if attempt == max_retries - 1:
-                        log(f"    ❌ '{sub_name}' 최종 실패: {str(e)}", "ERROR")
-                        return []
-                    log(f"    ⚠️ '{sub_name}' 재시도 {attempt + 1}/{max_retries}: {str(e)}", "WARNING")
-                    await asyncio.sleep(5)
-        return []
+                                    region = "전국"  # 기본값
+                                    detail_spec = None # 기본값
+                                    
+                                    if is_region:
+                                        # 1. 일반적인 구조 (지역 헤더)
+                                        region = header_text
+                                    elif is_price_header:
+                                        # 2. 특수한 구조 (가격 헤더)
+                                        detail_spec = header_text
+                                    else:
+                                        # 3. 그 외는 모두 상세규격 헤더로 간주
+                                        detail_spec = header_text
+                                    
+                                    all_crawled_data.append(self._create_data_entry(
+                                        major_name, middle_name, sub_name, spec['name'], 
+                                        region, detail_spec, date, prices_text[idx], unit
+                                    ))
+                        # --- ★★★ 데이터 파싱 로직 수정 끝 ★★★ ---
+                    except Exception as spec_e:
+                        log(f"      - Spec '{spec.get('name', 'N/A')[:20]}...' 처리 중 오류: {spec_e}", "WARNING")
+                        continue
+
+                await new_page.close()
+                log(f"    - '{sub_name}' 완료: {len(all_crawled_data)}개 데이터 수집.")
+                return all_crawled_data
+
+            except Exception as e:
+                if new_page: await new_page.close()
+                if attempt == max_retries - 1:
+                    log(f"    ❌ '{sub_name}' 최종 실패: {str(e)}", "ERROR")
+                    return []
+                log(f"    ⚠️ '{sub_name}' 재시도 {attempt + 1}/{max_retries}: {str(e)}", "WARNING")
+                await asyncio.sleep(5)
+    return []
 
     # kpi_crawler.py
 
@@ -371,9 +374,12 @@ class KpiCrawler:
             log(f"  ❌ Redis 캐시 삭제 실패: {str(e)}", "ERROR")
 
     def _is_region_header(self, header_text):
-        """헤더가 일반적인 지역명인지 판별"""
-        known_regions = ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주", "수원"]
-        return any(region in header_text for region in known_regions)
+    """[수정] 헤더가 일반적인 지역명인지 정규식으로 판별"""
+    # 더 많은 지역을 포함하고, '①' 같은 문자가 붙어도 인식하도록 정규식 사용
+    region_pattern = re.compile(
+        r'^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|수원|성남|춘천|청주|전주|포항|창원|김해|구미|천안|진주|원주|경주)'
+    )
+    return region_pattern.match(header_text) is not None
 
     def _create_data_entry(self, major, middle, sub, spec, region, detail_spec, date, price, unit):
         """데이터베이스 저장을 위한 딕셔너리 객체 생성"""

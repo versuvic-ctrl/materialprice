@@ -67,3 +67,5 @@ MANIFEST
 auth.json
 crawler/auth.json
 crawler/sites/auth.json
+discovered_subcategories.log
+login_page_after_goto.png
