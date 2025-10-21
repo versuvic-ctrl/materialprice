@@ -83,27 +83,5 @@ jobs:
           # ★★★ 아래 한 줄을 추가합니다 ★★★
           FRONTEND_URL: https://materialinfo.vercel.app
         run: python ./crawler/sites/kpi_crawler.py --major="${{ matrix.category }}" --start-year=2020 --start-month=1
-
-      - name: List Supabase migrations in CI
-        run: npx supabase migration list
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-
-      - name: Check Supabase status in CI
-        run: npx supabase status
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-
-      - name: Repair Supabase migration history
-        run: npx supabase --debug migration repair --status reverted 20251008050628 20251008112414 20251008112426 20251008112816 20251009072940 20251009074441 20251009090050 20251011093750 20251012032655 20251014162622 20251014174730 20251019071715 20251020125318 20251020131016 20251020131406 20251020140505 20251020150015 20251021140151
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-
-      - name: Push Supabase migrations
-        run: npx supabase --debug db push
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          FRONTEND_URL: https://materialinfo.vercel.app
