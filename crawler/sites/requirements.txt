@@ -8,3 +8,4 @@ redis
 requests
 supabase
 upstash-redis
+json5==0.12.1
