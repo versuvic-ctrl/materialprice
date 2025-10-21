@@ -50,8 +50,10 @@ jobs:
 
       - name: Install Supabase CLI
         run: |
-          curl -sL https://supabase.com/install/cli | sh
+          set -e
+          curl -sL https://supabase.com/install/cli | bash
           echo "$HOME/.supabase/bin" >> $GITHUB_PATH
+        shell: bash
 
       - name: Apply Supabase Migrations
         run: supabase db push
