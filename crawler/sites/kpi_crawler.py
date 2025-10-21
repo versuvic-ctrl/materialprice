@@ -752,1129 +752,194 @@ class KpiCrawler:
             log(f"\n=== 최종 배치 처리: {len(self.batch_data)}개 소분류 ===\n")
             await self._process_batch()
 
-    async def _crawl_single_subcategory(self, major_name,
-                                        middle_name, sub_info):
-        """단일 소분류 크롤링 (세마포어로 동시 실행 수 제한)"""
+    async def _crawl_single_subcategory(self, major_name, middle_name, sub_info):
+        """
+        [최종 완성본] 단일 소분류 페이지에 접속하여 '물가추이 보기' 탭의 모든 specification 데이터를 수집하고 처리합니다.
+        다양한 테이블 구조(지역, 상세규격, 가격명)를 자동으로 감지합니다.
+        """
         async with self.semaphore:
             sub_name = sub_info['name']
             sub_href = sub_info['href']
             sub_url = f"{self.base_url}/www/price/{sub_href}"
 
-            log(f"  - 중분류 '{middle_name}' > "
-                f"소분류 '{sub_name}' 데이터 수집 시작")
+            log(f"  - [{major_name}>{middle_name}] '{sub_name}' 수집 시작")
 
             new_page = None
             max_retries = 3
             
             for attempt in range(max_retries):
                 try:
-                    # 새로운 페이지 컨텍스트 생성 (병렬 처리를 위해)
+                    # 1. 새로운 페이지 컨텍스트 생성
                     new_page = await self.context.new_page()
                     
-                    # 페이지 로드 재시도 로직
+                    # 2. 소분류의 초기 페이지('물가정보 보기' 탭)로 이동
                     await new_page.goto(sub_url, timeout=60000)
                     await new_page.wait_for_load_state('networkidle', timeout=45000)
                     
-                    # 가격 데이터 수집
-                    result = await self._get_price_data_with_page(
-                        new_page, major_name, middle_name, sub_name, sub_url)
+                    # 3. '물가추이 보기' 탭으로 이동
+                    trend_view_tab_selector = 'a[href*="detail_change.asp"]'
+                    await new_page.wait_for_selector(trend_view_tab_selector, timeout=15000)
+                    await new_page.click(trend_view_tab_selector)
+                    
+                    # 4. '물가추이 보기' 페이지가 완전히 로드될 때까지 대기
+                    spec_dropdown_selector = 'select#ITEM_SPEC_CD'
+                    await new_page.wait_for_selector(spec_dropdown_selector, timeout=30000)
+                    log(f"    '{sub_name}': 물가추이 보기 탭으로 이동 완료.")
 
-                    # 페이지 정리
-                    await new_page.close()
-                    new_page = None
+                    # 5. 모든 Specification 목록 (option 태그들) 정보 수집
+                    options = await new_page.locator(f'{spec_dropdown_selector} option').all()
+                    specs_to_crawl = []
+                    for o in options:
+                        value = await o.get_attribute('value')
+                        name = (await o.inner_text()).strip()
+                        if value and name:
+                            specs_to_crawl.append({'name': name, 'value': value})
+                    
+                    if not specs_to_crawl:
+                        log(f"    '{sub_name}': 수집할 Specification이 없습니다. 건너뜁니다.", "WARNING")
+                        await new_page.close()
+                        return None # 데이터가 없으므로 None을 반환
+                        
+                    log(f"    '{sub_name}': 총 {len(specs_to_crawl)}개의 Specification 발견.")
 
-                    # 수집된 데이터가 있으면 즉시 처리하고 저장
-                    has_data = (result and hasattr(result, 'raw_data_list')
-                                and result.raw_data_list)
-                    if has_data:
-                        log(f"  - 소분류 '{sub_name}' 데이터 처리 및 저장 시작")
+                    # 이 소분류에서 최종적으로 수집될 모든 데이터를 담을 리스트
+                    all_crawled_data = []
 
-                        # DataFrame으로 변환
-                        df = result.to_dataframe()
+                    # 6. 각 Specification을 순회하며 데이터 수집
+                    for i, spec in enumerate(specs_to_crawl):
+                        try:
+                            current_spec_name = spec['name']
+                            current_spec_value = spec['value']
+                            log(f"      - [{i+1}/{len(specs_to_crawl)}] '{current_spec_name[:30]}...' 데이터 수집")
 
-                        if not df.empty:
-                            # DataFrame을 딕셔너리 리스트로 변환하여 저장
-                            processed_data = df.to_dict(orient='records')
-                            # Supabase에 저장 (중복 체크 활성화)
-                            saved_count = await result.save_to_supabase(processed_data, 'kpi_price_data', check_duplicates=True)
-                            log(f"  ✅ '{sub_name}' 완료: "
-                                f"{len(df)}개 데이터 → Supabase 저장 {saved_count}개 성공")
+                            # a. 드롭다운에서 현재 규격 선택
+                            await new_page.select_option(spec_dropdown_selector, value=current_spec_value)
 
-                            # Redis 캐시 무효화
-                            await self.clear_redis_cache(major_name, middle_name, sub_name)
-                        else:
-                            log(f"  ⚠️ '{sub_name}' 완료: 저장할 데이터 없음")
+                            # b. 첫 번째 규격 조회 시에만 기간을 최대로 설정 (효율성)
+                            if i == 0:
+                                start_year_selector = 'select#DATA_YEAR_F'
+                                all_year_options = await new_page.locator(f'{start_year_selector} option').all()
+                                if all_year_options:
+                                    # option 목록 중 마지막 요소(가장 오래된 연도)를 선택
+                                    oldest_year_value = await all_year_options[-1].get_attribute('value')
+                                    await new_page.select_option(start_year_selector, value=oldest_year_value)
+                                    await new_page.select_option('select#DATA_MONTH_F', value='01')
+                                    log(f"      - 기간을 최대로 설정: {oldest_year_value}년 1월부터")
+                            
+                            # c. 검색 버튼 클릭 및 테이블 업데이트 대기
+                            search_button_selector = 'form[name="sForm"] input[type="image"]'
+                            async with new_page.expect_response(lambda r: "detail_change.asp" in r.url, timeout=30000):
+                                await new_page.click(search_button_selector)
+                            
+                            await new_page.wait_for_selector('table#priceTrendDataArea tr:nth-child(2)', timeout=15000)
+
+                            # d. 단위(unit) 정보 가져오기 (INCLUSION_LIST 에서만)
+                            unit = self._get_unit_from_inclusion_list(major_name, middle_name, sub_name, current_spec_name)
+                            if not unit:
+                                log(f"      - 단위 정보를 INCLUSION_LIST에서 찾을 수 없음 (null 처리).", "DEBUG")
+
+                            # e. 테이블 구조 감지 및 데이터 파싱
+                            price_table_selector = 'table#priceTrendDataArea'
+                            headers = [th.strip() for th in await new_page.locator(f'{price_table_selector} th').all_inner_texts()]
+                            
+                            table_type = "region" # 기본값
+                            if len(headers) > 1:
+                                header_sample = headers[1]
+                                if '가격' in header_sample or re.match(r'가[①-⑩]', header_sample):
+                                    table_type = "price_name"
+                                elif not self._is_region_header(header_sample):
+                                    table_type = "detail_spec"
+                            
+                            log(f"      - 테이블 타입 감지: {table_type}")
+
+                            rows = await new_page.locator(f'{price_table_selector} tr').all()
+                            for row in rows[1:]:
+                                cols_text = await row.locator('td').all_inner_texts()
+                                if not cols_text: continue
+
+                                date = cols_text[0].strip()
+                                prices_text = [p.strip().replace(',', '') for p in cols_text[1:]]
+
+                                data_headers = headers[1:] # '구분' 제외
+                                for idx, header in enumerate(data_headers):
+                                    if idx < len(prices_text) and prices_text[idx].isdigit():
+                                        region = "전국" if table_type != "region" else header
+                                        detail_spec = header if table_type != "region" else None
+                                        
+                                        all_crawled_data.append(self._create_data_entry(
+                                            major_name, middle_name, sub_name, current_spec_name, 
+                                            region, detail_spec, date, prices_text[idx], unit
+                                        ))
+
+                        except Exception as spec_e:
+                            log(f"      - Specification '{spec.get('name', 'N/A')[:30]}...' 처리 중 오류: {spec_e}", "WARNING")
+                            continue
+
+                    # 7. 수집된 데이터 후처리 및 저장
+                    if all_crawled_data:
+                        # processed_data는 바로 all_crawled_data가 됩니다.
+                        saved_count = await self.processor.save_to_supabase(all_crawled_data, 'kpi_price_data', check_duplicates=True)
+                        log(f"  ✅ '{sub_name}' 완료: {len(all_crawled_data)}개 데이터 수집 → Supabase 저장 {saved_count}개 성공")
+                        await self.clear_redis_cache(major_name, middle_name, sub_name)
                     else:
-                        log(f"  ⚠️ '{sub_name}' 완료: 처리할 데이터 없음")
-
-                    return result
+                        log(f"  ⚠️ '{sub_name}' 완료: 최종 저장할 데이터가 없습니다.")
+                    
+                    await new_page.close()
+                    # 성공했으므로 재시도 루프 탈출
+                    return all_crawled_data # result 대신 실제 데이터 리스트를 반환
 
                 except Exception as e:
-                    if new_page:
-                        try:
-                            await new_page.close()
-                        except:
-                            pass
-                        new_page = None
+                    if new_page: await new_page.close()
                     
                     if attempt == max_retries - 1:
-                        error_msg = (f"  ❌ 소분류 '{sub_name}' 처리 실패 "
-                                     f"[대분류: {major_name}, 중분류: {middle_name}] "
-                                     f"(최대 재시도 {max_retries}회 초과): {str(e)}")
-                        log(error_msg, "ERROR")
-                        return None
+                        log(f"  ❌ 소분류 '{sub_name}' 처리 최종 실패: {str(e)}", "ERROR")
+                        return None # 실패 리턴
                     else:
                         log(f"  ⚠️ 소분류 '{sub_name}' 처리 재시도 {attempt + 1}/{max_retries}: {str(e)}", "WARNING")
-                        await asyncio.sleep(5)  # 재시도 전 대기
+                        await asyncio.sleep(5)
 
-    async def _get_price_data(self, major_name, middle_name,
-                             sub_name, sub_url):
-        """기존 메서드 호환성을 위한 래퍼"""
-        return await self._get_price_data_with_page(
-            self.page, major_name, middle_name, sub_name, sub_url)
+    def _is_region_header(self, header_text):
+        """헤더가 일반적인 지역명인지 판별하는 간단한 함수"""
+        known_regions = ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주", "수원"]
+        for region in known_regions:
+            if region in header_text:
+                return True
+        return False
 
-
-
-    async def _check_existing_data(self, major_name, middle_name, 
-                                  sub_name, spec_name):
-        """Supabase에서 기존 데이터 확인하여 중복 체크"""
-        try:
-            response = get_supabase_table(self.supabase, 'kpi_price_data').select(
-                'date, region, price, specification'
-            ).eq(
-                'major_category', major_name
-            ).eq(
-                'middle_category', middle_name
-            ).eq(
-                'sub_category', sub_name
-            ).eq(
-                'specification', spec_name
-            ).execute()
-            
-            if response.data:
-                # (날짜, 지역, 가격, 규격) 조합으로 완전 중복 체크
-                # pandas 가공 후 컬럼명 변경 고려 (region_name -> region)
-                existing_data = set()
-                for item in response.data:
-                    # UTF-8 인코딩 안전 처리
-                    price_str = str(item['price']) if item['price'] is not None else ""
-                    existing_data.add((str(item['date']), str(item['region']), price_str, str(item['specification'])))
-                log(f"        - 기존 데이터 발견: {len(existing_data)}개 (날짜-지역-가격-규격 조합)")
-                return existing_data
-            else:
-                log("        - 기존 데이터 없음: 전체 추출 필요")
-                return set()
-                
-        except Exception as e:
-            log(f"        - 기존 데이터 확인 중 오류: {str(e)}")
-            return set()  # 오류 시 전체 추출
-    
-    async def _get_available_date_range(self, page):
-        """페이지에서 사용 가능한 날짜 범위 확인"""
-        try:
-            # 헤더에서 날짜 정보 추출
-            selector = "#priceTrendDataArea th"
-            await page.wait_for_selector(selector, timeout=5000)
-            header_elements = await page.locator(selector).all()
-
-            if len(header_elements) > 1:
-                dates = []
-                for i in range(1, len(header_elements)):
-                    header_text = await header_elements[i].inner_text()
-                    dates.append(header_text.strip())
-                return dates
-            else:
-                return []
-
-        except Exception as e:
-            log(f"        - 날짜 범위 확인 중 오류: {str(e)}")
-            return []
-
-    async def _get_price_data_with_page(self, page, major_name, 
-                                        middle_name, sub_name, sub_url):
-        """소분류 페이지에서 월별 가격 데이터를 추출"""
-        try:
-            # 페이지 상태 확인
-            if page.is_closed():
-                log(f"페이지가 닫혀있어 '{sub_name}' 처리를 건너뜁니다.", "ERROR")
-                return None
-                
-            # 페이지는 이미 로드된 상태로 전달됨
-            await page.wait_for_load_state('networkidle', timeout=60000)
-
-            # '물가추이 보기' 탭으로 이동
-            try:
-                # GitHub Actions 환경을 위한 더 긴 대기시간
-                await page.wait_for_load_state('networkidle', timeout=60000)
-                await asyncio.sleep(3)  # 추가 안정화 대기
-                
-                # 다양한 셀렉터로 탭 찾기 시도
-                selectors = [
-                    'a:has-text("물가추이 보기")',
-                    'a[href*="price_trend"]',
-                    'a:contains("물가추이")',
-                    '.tab-menu a:has-text("물가추이")',
-                    'ul.tab-list a:has-text("물가추이")'
-                ]
-                
-                tab_found = False
-                for selector in selectors:
-                    try:
-                        await page.wait_for_selector(selector, timeout=60000)
-                        tab_found = True
-                        break
-                    except:
-                        continue
-                
-                if not tab_found:
-                    raise Exception("물가추이 보기 탭을 찾을 수 없습니다")
-                
-                # 재시도 로직 개선 (7회로 증가)
-                for retry in range(7):
-                    try:
-                        # 다양한 셀렉터로 클릭 시도
-                        clicked = False
-                        for selector in selectors:
-                            try:
-                                tab_element = page.locator(selector)
-                                if await tab_element.count() > 0:
-                                    await tab_element.wait_for(state='visible', timeout=30000)
-                                    await tab_element.click(timeout=60000)
-                                    clicked = True
-                                    break
-                            except:
-                                continue
-                        
-                        if not clicked:
-                            raise Exception("탭 클릭 실패")
-                        
-                        # 페이지 로드 완료 대기 (더 긴 타임아웃)
-                        await page.wait_for_selector("#ITEM_SPEC_CD", timeout=60000)
-                        await page.wait_for_load_state('networkidle', timeout=45000)
-                        break
-                    except Exception as e:
-                        if retry == 6:
-                            raise e
-                        log(f"물가추이 보기 탭 클릭 재시도 {retry + 1}/7: {e}", "WARNING")
-                        await asyncio.sleep(5)  # 재시도 간 대기시간 증가
-                        await page.reload()
-                        await page.wait_for_load_state('networkidle', timeout=60000)
-                        await asyncio.sleep(3)
-                        
-            except Exception as e:
-                log(f"물가추이 보기 탭 클릭 완전 실패: {str(e)}", "ERROR")
-                # 페이지 상태 확인 및 복구 시도
-                try:
-                    # 페이지 상태 검증 강화
-                    current_url = page.url
-                    log(f"현재 페이지 URL: {current_url}", "INFO")
-                    
-                    # 페이지가 올바른 상태인지 확인
-                    page_title = await page.title()
-                    log(f"현재 페이지 제목: {page_title}", "INFO")
-                    
-                    # 페이지 리로드 및 상태 복구
-                    await page.reload()
-                    await page.wait_for_load_state('networkidle', timeout=60000)
-                    await asyncio.sleep(5)  # 더 긴 안정화 대기
-                    
-                    # 페이지 로드 완료 검증
-                    await page.wait_for_load_state('domcontentloaded', timeout=60000)
-                    
-                    # 마지막 시도: 다양한 대체 셀렉터로 탭 찾기
-                    alternative_selectors = [
-                        'a[href*="price_trend"]',
-                        'a:has-text("물가추이")',
-                        'a:has-text("추이")',
-                        'a[onclick*="price_trend"]',
-                        'li:has-text("물가추이") a',
-                        '.nav-tabs a:has-text("물가추이")',
-                        'ul li a:has-text("물가추이")',
-                        'a[title*="물가추이"]'
-                    ]
-                    
-                    tab_clicked = False
-                    for selector in alternative_selectors:
-                        try:
-                            # 요소 존재 확인
-                            element_count = await page.locator(selector).count()
-                            if element_count > 0:
-                                log(f"대체 셀렉터 발견: {selector} (개수: {element_count})", "INFO")
-                                
-                                # 요소가 보이는지 확인
-                                element = page.locator(selector).first
-                                await element.wait_for(state='visible', timeout=15000)
-                                
-                                # 클릭 시도
-                                await element.click(timeout=30000)
-                                
-                                # 클릭 후 페이지 상태 확인
-                                await page.wait_for_selector("#ITEM_SPEC_CD", timeout=45000)
-                                await page.wait_for_load_state('networkidle', timeout=60000)
-                                
-                                log(f"대체 셀렉터로 탭 클릭 성공: {selector}", "INFO")
-                                tab_clicked = True
-                                break
-                        except Exception as selector_error:
-                            log(f"대체 셀렉터 {selector} 실패: {selector_error}", "DEBUG")
-                            continue
-                    
-                    if not tab_clicked:
-                        log(f"모든 대체 방법 실패 - 소분류 건너뜀: {sub_name}", "WARNING")
-                        return None
-                        
-                except Exception as recovery_error:
-                    log(f"페이지 복구 시도 실패: {recovery_error}", "ERROR")
-                    log(f"모든 대체 방법 실패 - 소분류 건너뜀: {sub_name}", "WARNING")
-                    return None
-
-            # 규격 선택 옵션들 가져오기
-            spec_options = await page.locator('#ITEM_SPEC_CD option').all()
-
-            raw_item_data = {
-                'major_category_name': major_name,
-                'middle_category_name': middle_name,
-                'sub_category_name': sub_name,
-                'spec_data': []
-            }
-
-            # 병렬 처리를 위해 규격 데이터를 먼저 수집
-            spec_list = []
-            for option in spec_options:
-                spec_value = await option.get_attribute('value')
-                spec_name = await option.inner_text()
-                if spec_value and spec_name.strip():  # 빈 값 제외
-                    spec_list.append({'value': spec_value, 'name': spec_name})
-
-            # 모든 규격을 최적화된 순차 처리로 진행
-            log(f"    - {len(spec_list)}개 규격을 "
-                f"최적화된 순차 처리로 진행합니다.")
-            await self._process_specs_optimized(
-                page, spec_list, raw_item_data,
-                major_name, middle_name, sub_name)
-
-        except Exception as e:
-            log(f"  소분류 '{sub_name}' 처리 중 오류 "
-                f"[대분류: {major_name}, 중분류: {middle_name}]: {str(e)}", "ERROR")
-            return None
-
-        # 수집된 데이터 처리 - 새로운 DataProcessor 인스턴스 생성
-        local_processor = create_data_processor('kpi')
-        if raw_item_data['spec_data']:
-            local_processor.add_raw_data(raw_item_data)
-            spec_count = len(raw_item_data['spec_data'])
-            log(f"  - '{sub_name}' 데이터 수집 완료 "
-                f"(총 {spec_count}개 규격)")
-        else:
-            log(f"  - '{sub_name}': 수집된 규격 데이터 없음")
-
-        return local_processor
-
-    async def _process_specs_optimized(
-            self, page, spec_list, raw_item_data,
-            major_name, middle_name, sub_name):
-        """최적화된 순차 처리 - 페이지 리로드 없이 빠른 규격 변경"""
+    def _create_data_entry(self, major, middle, sub, spec, region, detail_spec, date, price, unit):
+        """데이터베이스에 저장할 딕셔너리 객체를 생성합니다."""
+        # '상세규격'이나 '가격명'이 있는 경우, 기존 규격명에 덧붙여 최종 규격명을 만듭니다.
+        final_spec = f"{spec} - {detail_spec}" if detail_spec else spec
         
-        for i, spec in enumerate(spec_list):
-            try:
-                spec_value = spec['value']
-                spec_name = spec['name']
-                log(f"      - 규격 {i + 1}/{len(spec_list)}: "
-                    f"'{spec_name}' 조회 중...")
-
-                # 하드코딩된 단위 정보 사용
-                unit_info = self._get_unit_from_inclusion_list(major_name, middle_name, sub_name, spec_name)
-                if unit_info:
-                    log(f"      하드코딩된 단위 정보 사용: {unit_info}")
-                    # raw_item_data에 단위 정보 저장
-                    raw_item_data['unit'] = unit_info
-                else:
-                    log(f"      하드코딩된 단위 정보를 찾을 수 없음 - 단위 없이 진행")
-
-                # 기존 데이터 확인
-                existing_dates = await self._check_existing_data(
-                    major_name, middle_name, sub_name, spec_name
-                )
-
-                # 규격 선택 (대기 시간 최소화)
-                spec_selector = '#ITEM_SPEC_CD'
-                await page.wait_for_selector(spec_selector, timeout=60000) # 요소가 나타날 때까지 60초 대기
-                await page.locator(spec_selector).wait_for(state='visible', timeout=60000) # 요소가 보이는 상태가 될 때까지 60초 대기
-                await page.locator(spec_selector).select_option(value=spec_value, timeout=60000) # select_option 타임아웃 60초로 설정
-                await page.wait_for_load_state('networkidle', timeout=45000)
-
-                # 기간 선택 (첫 번째 규격에서만 설정)
-                if i == 0:
-                    # 시작 기간: 2020년 1월
-                    year_from_selector = '#DATA_YEAR_F'
-                    month_from_selector = '#DATA_MONTH_F'
-                    await page.locator(year_from_selector).select_option(
-                        value='2020')
-                    await page.locator(month_from_selector).select_option(
-                        value='01')
-                    
-                    # 종료 기간: 현재 년월
-                    current_date = datetime.now()
-                    current_year = str(current_date.year)
-                    current_month = str(current_date.month).zfill(2)
-                    
-                    year_to_selector = '#DATA_YEAR_T'
-                    month_to_selector = '#DATA_MONTH_T'
-                    await page.locator(year_to_selector).select_option(
-                        value=current_year)
-                    await page.locator(month_to_selector).select_option(
-                        value=current_month)
-                    
-                    await page.wait_for_load_state(
-                        'networkidle', timeout=10000)
-                    
-                    # 검색 버튼 클릭 (기간 설정 후 반드시 실행) - 재시도 로직 추가
-                    search_selector = 'form[name="sForm"] input[type="image"]'
-                    search_button = page.locator(search_selector)
-                    
-                    # 재시도 로직 (최대 3회 시도)
-                    for attempt in range(3):
-                        try:
-                            await search_button.click(timeout=10000)
-                            break
-                        except Exception as e:
-                            if attempt == 2:  # 마지막 시도
-                                raise e
-                            log(f"        - 검색 버튼 클릭 실패 (시도 {attempt + 1}/3), 2초 후 재시도...")
-                            await asyncio.sleep(2)
-                    
-                    log(f"        - 기간 설정 완료: 2020.01 ~ "
-            f"{current_year}.{current_month}")
-                else:
-                    # 첫 번째 규격이 아닌 경우에도 검색 버튼 클릭 - 재시도 로직 추가
-                    search_selector = 'form[name="sForm"] input[type="image"]'
-                    search_button = page.locator(search_selector)
-                    
-                    # 재시도 로직 (최대 3회 시도)
-                    for attempt in range(3):
-                        try:
-                            await search_button.click(timeout=10000)
-                            break
-                        except Exception as e:
-                            if attempt == 2:  # 마지막 시도
-                                raise e
-                            log(f"        - 검색 버튼 클릭 실패 (시도 {attempt + 1}/3), 2초 후 재시도...")
-                            await asyncio.sleep(2)
-
-                # 테이블 로딩 대기 (데이터가 로드될 때까지) - 재시도 로직 추가
-                table_selector = "#priceTrendDataArea tr"
-                
-                # 재시도 로직 (최대 3회 시도)
-                for attempt in range(3):
-                    try:
-                        await page.wait_for_selector(table_selector, timeout=15000)
-                        await page.wait_for_load_state('networkidle', timeout=10000)
-                        break
-                    except Exception as e:
-                        if attempt == 2:  # 마지막 시도
-                            raise e
-                        log(f"        - 테이블 로딩 대기 실패 (시도 {attempt + 1}/3), 2초 후 재시도...")
-                        await asyncio.sleep(2)
-
-                # 사용 가능한 날짜 범위 확인
-                available_dates = await self._get_available_date_range(page)
-                if not available_dates:
-                    log("        - 사용 가능한 날짜 없음")
-                    continue
-                
-                # 기존 데이터에서 날짜만 추출하여 비교
-                existing_date_set = set()
-                if existing_dates:
-                    existing_date_set = {item[0] for item in existing_dates}  # 튜플의 첫 번째 요소(날짜)만 추출
-                
-                # 누락된 날짜만 추출
-                missing_dates = [date for date in available_dates 
-                               if date not in existing_date_set]
-                
-                if not missing_dates:
-                    continue
-                
-                # 누락된 날짜에 대해서만 가격 데이터 추출
-                await self._extract_price_data_fast(
-                    page, spec_name, raw_item_data, existing_dates, unit_info)
-
-            except Exception as e:
-                # 규격 처리 중 오류
-                log(f"규격 '{spec['name']}' 처리 오류: {str(e)}", "ERROR")
-                continue
-
-    async def _extract_price_data_fast(self, page, spec_name,
-                                       raw_item_data, existing_dates=None, unit_info=None):
-        """빠른 가격 데이터 추출 - 누락된 데이터만 추출"""
-        try:
-            # 하드코딩된 단위가 있으면 우선 사용, 없는 경우에만 웹페이지에서 추출
-            if unit_info:
-                log(f"      - INCLUSION_LIST 단위 정보 사용: {unit_info}")
-            else:
-                cate_cd = raw_item_data.get('cate_cd')
-                item_cd = raw_item_data.get('item_cd')
-                
-                if cate_cd and item_cd:
-                    # 물가정보 보기 페이지에서 단위 정보 추출 시도
-                    unit_info = await self._get_unit_from_detail_page(cate_cd, item_cd)
-                    if unit_info:
-                        log(f"      - 물가정보 보기 페이지에서 단위 정보 추출: {unit_info}")
-                    else:
-                        log(f"      - 단위 정보를 찾을 수 없음")
-            
-            # 테이블 구조 감지 및 처리
-            # 1. 지역 헤더가 있는 복합 테이블 (첫 번째 이미지 형태)
-            # 2. 날짜와 가격만 있는 단순 테이블 (두 번째 이미지 형태)
-            
-            # 테이블에서 첫 번째 행 확인
-            all_table_rows = await page.locator("table").nth(1).locator("tr").all()
-            if not all_table_rows:
-                log(f"      - 규격 '{spec_name}': 테이블을 찾을 수 없음")
-                return
-
-            # 첫 번째 행 분석하여 테이블 타입 결정
-            first_row = all_table_rows[0]
-            first_row_elements = await first_row.locator("td").all()
-            if not first_row_elements:
-                first_row_elements = await first_row.locator("th").all()
-            
-            if not first_row_elements:
-                log(f"      - 규격 '{spec_name}': 첫 번째 행이 비어있음")
-                return
-
-            # 첫 번째 행의 첫 번째 셀 텍스트 확인
-            first_cell_text = await first_row_elements[0].inner_text()
-            first_cell_clean = first_cell_text.strip()
-            
-            # 테이블 타입 결정
-            is_simple_table = (
-                self._is_valid_date_value(first_cell_clean) or 
-                self._is_valid_date_header(first_cell_clean)
-            )
-            
-            if is_simple_table:
-                # 단순 테이블 처리 (날짜 + 가격)
-                await self._extract_simple_table_data(
-                    all_table_rows, spec_name, raw_item_data, existing_dates, unit_info
-                )
-            else:
-                # 복합 테이블 처리 (지역 헤더 + 날짜별 데이터)
-                await self._extract_complex_table_data(
-                    all_table_rows, spec_name, raw_item_data, existing_dates, unit_info
-                )
-
-        except Exception as e:
-            log(f"'{spec_name}' 오류: {str(e)}", "ERROR")
-
-    async def _extract_simple_table_data(self, all_table_rows, spec_name, 
-                                       raw_item_data, existing_dates, unit_info=None):
-        """단순 테이블 데이터 추출 (날짜 + 가격 형태)"""
-        try:
-            extracted_count = 0
-            default_region = "전국"  # 지역 정보가 없는 경우 기본값
-            
-            for row_idx, row in enumerate(all_table_rows):
-                try:
-                    # 행의 모든 셀 추출
-                    cells = await row.locator("td").all()
-                    if not cells:
-                        cells = await row.locator("th").all()
-                    
-                    if len(cells) < 2:  # 최소 날짜와 가격 필요
-                        continue
-                    
-                    # 첫 번째 셀에서 날짜 추출
-                    date_str = await cells[0].inner_text()
-                    date_clean = date_str.strip()
-                    
-                    # 날짜 유효성 검증
-                    if not self._is_valid_date_value(date_clean):
-                        continue
-                    
-                    formatted_date = self._format_date_header(date_clean)
-                    if not formatted_date:
-                        continue
-                    
-                    # 두 번째 셀에서 가격 추출
-                    price_str = await cells[1].inner_text()
-                    
-                    if self._is_valid_price(price_str):
-                        clean_price = price_str.strip().replace(',', '')
-                        try:
-                            price_value = float(clean_price)
-                            
-                            # 중복 체크
-                            if existing_dates and (formatted_date, default_region, str(price_value), spec_name) in existing_dates:
-                                continue
-                            
-                            if not unit_info:
-                                raise ValueError(f"단위 정보가 없습니다. spec_name: {spec_name}")
-                            
-                            price_data = {
-                                'spec_name': spec_name,
-                                'region': default_region,
-                                'date': formatted_date,
-                                'price': price_value,
-                                'unit': unit_info
-                            }
-                            spec_data = raw_item_data['spec_data']
-                            spec_data.append(price_data)
-                            extracted_count += 1
-                            
-                            if extracted_count % 50 == 0:
-                                log(f"진행: {extracted_count}개 추출됨")
-                        except ValueError:
-                            continue
-                
-                except Exception as e:
-                    log(f"      - 행 처리 중 오류: {str(e)}")
-                    continue
-            
-            if extracted_count > 0:
-                log(f"'{spec_name}' (단순형): {extracted_count}개 완료", "SUCCESS")
-                
-        except Exception as e:
-            log(f"단순 테이블 처리 오류: {str(e)}", "ERROR")
-
-    async def _extract_complex_table_data(self, all_table_rows, spec_name, 
-                                        raw_item_data, existing_dates, unit_info=None):
-        """복합 테이블 데이터 추출 (지역 헤더 + 날짜별 데이터)"""
-        try:
-            # 지역 헤더 행 추출 (첫 번째 행)
-            if len(all_table_rows) < 1:
-                return
-                
-            region_header_row = all_table_rows[0]
-            region_header_elements = await region_header_row.locator("td").all()
-            if not region_header_elements:
-                region_header_elements = await region_header_row.locator("th").all()
-            
-            if not region_header_elements:
-                log(f"      - 규격 '{spec_name}': 지역 헤더를 찾을 수 없음")
-                return
-
-            # 지역 헤더 추출 (첫 번째 컬럼 '구분' 제외, 유효한 지역만)
-            regions = []
-            valid_region_indices = []
-            for i in range(1, len(region_header_elements)):
-                header_text = await region_header_elements[i].inner_text()
-                region_name = self._clean_region_name(header_text.strip())
-                if self._is_valid_region_name(region_name):
-                    regions.append(region_name)
-                    valid_region_indices.append(i)
-
-            if not regions:
-                return
-
-            # 데이터 행 추출 (두 번째 행부터)
-            data_rows = all_table_rows[1:] if len(all_table_rows) >= 2 else []
-            if not data_rows:
-                return
-
-            extracted_count = 0
-            # 각 날짜별 데이터 처리
-            for row_idx, row in enumerate(data_rows):
-                try:
-                    # 첫 번째 셀에서 날짜 추출
-                    date_element = row.locator("td").first
-                    if not await date_element.count():
-                        date_element = row.locator("th").first
-
-                    if not await date_element.count():
-                        continue
-
-                    date_str = await date_element.inner_text()
-                    date_clean = date_str.strip()
-                    
-                    # 날짜 형식 변환 및 중복 체크
-                    if not self._is_valid_date_value(date_clean):
-                        continue
-                    
-                    formatted_date = self._format_date_header(date_clean)
-                    if not formatted_date:
-                        continue
-                    
-                    # 날짜 유효성 재검증
-                    if not self._is_valid_date_header(date_clean):
-                        continue
-
-                    # 해당 행의 모든 가격 셀 추출 (첫 번째 셀 제외)
-                    price_cells = await row.locator("td").all()
-                    if not price_cells:
-                        all_cells = await row.locator("th").all()
-                        price_cells = all_cells[1:] if len(all_cells) > 1 else []
-
-                    # 각 지역별 가격 처리
-                    for region_idx, region_name in enumerate(regions):
-                        cell_idx = region_idx + 1
-                        if cell_idx >= len(price_cells):
-                            continue
-                            
-                        price_cell = price_cells[cell_idx]
-                        price_str = await price_cell.inner_text()
-                        
-                        if self._is_valid_price(price_str):
-                            clean_price = price_str.strip().replace(',', '')
-                            try:
-                                price_value = float(clean_price)
-                                
-                                # 중복 체크
-                                if existing_dates and (formatted_date, region_name, str(price_value), spec_name) in existing_dates:
-                                    continue
-                                    
-                                if not unit_info:
-                                    raise ValueError(f"단위 정보가 없습니다. spec_name: {spec_name}")
-                                
-                                price_data = {
-                                    'spec_name': spec_name,
-                                    'region': region_name,
-                                    'date': formatted_date,
-                                    'price': price_value,
-                                    'unit': unit_info
-                                }
-                                spec_data = raw_item_data['spec_data']
-                                spec_data.append(price_data)
-                                extracted_count += 1
-                                
-                                if extracted_count % 50 == 0:
-                                    log(f"진행: {extracted_count}개 추출됨")
-                            except ValueError:
-                                continue
-                        else:
-                            continue
-                except Exception as e:
-                    log(f"      - 행 처리 중 오류: {str(e)}")
-                    continue
-
-            if extracted_count > 0:
-                log(f"'{spec_name}' (복합형): {extracted_count}개 완료", "SUCCESS")
-
-        except Exception as e:
-            log(f"복합 테이블 처리 오류: {str(e)}", "ERROR")
-
-    def _clean_region_name(self, region_str):
-        """지역명 정리 함수 - '서울1', '부산2' 형태로 정규화"""
-        import re
-        
-        # 동그라미 숫자를 일반 숫자로 변환
-        circle_to_num = {
-            '①': '1', '②': '2', '③': '3', '④': '4', '⑤': '5',
-            '⑥': '6', '⑦': '7', '⑧': '8', '⑨': '9', '⑩': '10'
+        return {
+            'major_category': major,
+            'middle_category': middle,
+            'sub_category': sub,
+            'specification': final_spec,
+            'region': region,
+            'date': f"{date.replace('.', '-')}-01", # 날짜 형식을 'YYYY-MM-DD'로 표준화
+            'price': int(price),
+            'unit': unit
         }
-        clean_region = region_str.strip()
-        for circle, num in circle_to_num.items():
-            clean_region = clean_region.replace(circle, num)
-        
-        # '서1울' → '서울1' 형태로 변환
-        pattern = r'^([가-힣])(\d+)([가-힣]+)$'
-        match = re.match(pattern, clean_region)
-        
-        if match:
-            first_char, number, rest = match.groups()
-            clean_region = f"{first_char}{rest}{number}"
-        
-        return clean_region
-
-    def _is_valid_date_header(self, header_text):
-        """날짜 헤더 유효성 검증 함수"""
-        if not header_text or not header_text.strip():
-            return False
-
-        header_str = header_text.strip()
-        
-        # 빈 문자열이나 공백만 있는 경우
-        if not header_str or header_str.isspace():
-            return False
-
-        # 날짜 패턴 확인 (다양한 형식 지원)
-        date_patterns = [
-            r'^\d{4}\.\d{1,2}$',  # YYYY.M
-            r'^\d{4}-\d{1,2}$',   # YYYY-M
-            r'^\d{4}/\d{1,2}$',   # YYYY/M
-            r'^\d{4}\.\s*\d{1,2}$',  # YYYY. M (공백 포함)
-            r'^\d{4}년\s*\d{1,2}월$',  # YYYY년 M월
-            r'^\d{4}\s+\d{1,2}$'  # YYYY M (공백으로 구분)
-        ]
-        
-        for pattern in date_patterns:
-            if re.match(pattern, header_str):
-                return True
-
-        # 기타 잘못된 값 체크 (더 포괄적으로)
-        # 주의: '구분'은 테이블의 첫 번째 컬럼 헤더로 사용되므로 제외하지 않음
-        invalid_patterns = [
-            '지역', '평균', '전국', '기준', '합계', '총계', '소계',
-            '단위', '원', '천원', '만원', '억원',
-            '규격', '품목', '자재', '재료'
-        ]
-        
-        # 가격 관련 패턴 체크 (동그라미 숫자 포함)
-        price_patterns = [
-            '가격', '가①격', '가②격', '가③격', '가④격', '가⑤격',
-            '가⑥격', '가⑦격', '가⑧격', '가⑨격', '가⑩격'
-        ]
-        
-        for pattern in invalid_patterns + price_patterns:
-            if pattern in header_str:
-                log(f"        - 잘못된 패턴으로 인식된 날짜 헤더 제외: {header_str}")
-                return False
-        
-        # 숫자만으로 구성된 경우 (연도나 월만 있는 경우)
-        if header_str.isdigit():
-            # 4자리 숫자는 연도로 인정
-            if len(header_str) == 4 and 1900 <= int(header_str) <= 2100:
-                return True
-            # 1-2자리 숫자는 월로 인정
-            elif len(header_str) <= 2 and 1 <= int(header_str) <= 12:
-                return True
-            else:
-                return False
-
-        return False
-
-    def _format_date_header(self, header_text):
-        """날짜 헤더를 YYYY-MM-01 형식으로 변환"""
-        if not header_text or not header_text.strip():
-            return header_text
-            
-        header_str = header_text.strip()
-        
-        # 다양한 날짜 형식 패턴 처리
-        date_patterns = [
-            (r'^(\d{4})\.(\d{1,2})$', '-'),  # YYYY.M
-            (r'^(\d{4})-(\d{1,2})$', '-'),   # YYYY-M
-            (r'^(\d{4})/(\d{1,2})$', '-'),   # YYYY/M
-            (r'^(\d{4})\.\s*(\d{1,2})$', '-'),  # YYYY. M (공백 포함)
-            (r'^(\d{4})년\s*(\d{1,2})월$', '-'),  # YYYY년 M월
-            (r'^(\d{4})\s+(\d{1,2})$', '-')  # YYYY M (공백으로 구분)
-        ]
-        
-        for pattern, separator in date_patterns:
-            match = re.match(pattern, header_str)
-            if match:
-                year = match.group(1)
-                month = match.group(2).zfill(2)  # 월을 2자리로 패딩
-                formatted_date = f"{year}-{month}-01"
-                # 로그 간소화: 첫 번째 변환만 로그 출력
-                if not hasattr(self, '_date_conversion_logged'):
-                    log(f"        - 날짜 헤더 변환 예시: {header_str} -> {formatted_date}")
-                    self._date_conversion_logged = True
-                return formatted_date
-        
-        # 숫자만으로 구성된 경우 처리
-        if header_str.isdigit():
-            # 4자리 숫자는 연도로 처리 (1월로 설정)
-            if len(header_str) == 4 and 1900 <= int(header_str) <= 2100:
-                formatted_date = f"{header_str}-01-01"
-                return formatted_date
-            # 1-2자리 숫자는 월로 처리 (현재 연도 사용)
-            elif len(header_str) <= 2 and 1 <= int(header_str) <= 12:
-                current_year = datetime.now().year
-                month = header_str.zfill(2)
-                formatted_date = f"{current_year}-{month}-01"
-                return formatted_date
-        
-        # 변환 실패 시 원본 반환 (로그 생략)
-        return header_text
-
-    def _is_valid_region_name(self, region_name):
-        """지역명 유효성 검증 함수 - '서울1', '부산2' 형태 허용"""
-        if not region_name or not region_name.strip():
-            return False
-
-        region_str = region_name.strip()
-        
-        # 빈 문자열이나 공백만 있는 경우
-        if not region_str or region_str.isspace():
-            return False
-
-        # 한국 지역명 패턴 확인 (더 포괄적으로)
-        valid_regions = [
-            '강원', '경기', '경남', '경북', '광주', '대구', '대전', '부산',
-            '서울', '세종', '울산', '인천', '전남', '전북', '제주', '충남', '충북',
-            '수원', '성남', '춘천'  # 추가 지역명
-        ]
-
-        # 숫자가 포함된 지역명도 허용 (예: 서울1, 부산2)
-        # 새로운 패턴: 지역명 + 숫자 (서울1, 부산2 등)
-        for region in valid_regions:
-            if region in region_str:
-                # 지역명이 포함되어 있고, 숫자가 뒤에 오는 패턴 허용
-                pattern = f"{region}\\d*$"
-                if re.search(pattern, region_str):
-                    return True
-                # 기존 패턴도 허용 (지역명만)
-                if region_str == region:
-                    return True
-
-        # 날짜 패턴이 포함된 경우 지역명이 아님 (더 엄격하게)
-        date_patterns = [
-            r'\d{4}[./-]\d{1,2}',  # YYYY.M, YYYY/M, YYYY-M
-            r'\d{4}\.\s*\d{1,2}',  # YYYY. M (공백 포함)
-            r'^\d{4}$',  # 연도만
-            r'^\d{1,2}$',  # 월만
-            r'^\d{4}년',  # YYYY년
-            r'^\d{1,2}월'  # M월
-        ]
-        
-        for pattern in date_patterns:
-            if re.search(pattern, region_str):
-                # 로그 최적화: 날짜 패턴 제외 로그 생략
-                return False
-
-        # 기타 잘못된 값 체크 (더 포괄적으로)
-        invalid_patterns = [
-            '구분', '평균', '전국', '기준', '합계', '총계', '소계',
-            '단위', '원', '천원', '만원', '억원',
-            '년', '월', '일', '기간',
-            '-', '/', '\\', '|', '+', '='
-        ]
-        
-        for pattern in invalid_patterns:
-            if pattern in region_str:
-                # 로그 최적화: 잘못된 패턴 제외 로그 생략
-                return False
-        
-        # 숫자만으로 구성된 경우 제외
-        if region_str.isdigit():
-            return False
-        
-        # 특수문자만으로 구성된 경우 제외
-        if not re.search(r'[가-힣a-zA-Z]', region_str):
-            return False
-
-        return True
-
-    def _is_valid_date_value(self, date_value):
-        """날짜 값이 유효한지 확인"""
-        if date_value is None:
-            return False
-
-        # datetime 객체인 경우 유효
-        if hasattr(date_value, 'strftime'):
-            return True
-
-        # 문자열인 경우 검증
-        if isinstance(date_value, str):
-            # 동그라미 숫자나 특수문자가 포함된 경우 제외
-            circle_chars = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩']
-            if any(char in date_value for char in circle_chars):
-                return False
-
-            # '가격' 등의 텍스트가 포함된 경우 제외
-            if any(char in date_value for char in ['가', '격', '구', '분']):
-                return False
-
-            # 'YYYY-MM-DD' 형태 확인
-            if re.match(r'^\d{4}-\d{2}-\d{2}$', date_value.strip()):
-                return True
-
-            # 'YYYY. M' 형태 확인
-            date_pattern = r'^\d{4}\.\s*\d{1,2}$'
-            if re.match(date_pattern, date_value.strip()):
-                return True
-
-        return False
-
-    def _is_valid_price(self, price_str):
-        """가격 데이터 유효성 검증 - 변형된 형태 포함"""
-        if not price_str:
-            return False
-        
-        price_stripped = price_str.strip()
-        if (not price_stripped or 
-            price_stripped == '-' or 
-            price_stripped == ''):
-            return False
-        
-        # 변형된 가격 컬럼명 처리 ('가①격', '가②격' 등)
-        # 숫자와 특수문자가 포함된 가격 헤더는 제외
-        if any(char in price_stripped for char in ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩']):
-            return False
-        
-        # 한글이 포함된 경우 제외 (헤더일 가능성)
-        if any('\u3131' <= char <= '\u3163' or '\uac00' <= char <= '\ud7a3' for char in price_stripped):
-            return False
-        
-        # 영문자가 포함된 경우 제외 (헤더일 가능성)
-        if any(char.isalpha() for char in price_stripped):
-            return False
-            
-        clean_price = price_stripped.replace(',', '')
-        try:
-            float(clean_price)
-            return True
-        except ValueError:
-            return False
-
-            # await page.close()
-            
-            # if unit:
-            #     log(f"단위 정보 추출 성공: {cate_cd}-{item_cd} -> {unit}")
-            #     return unit
-            # else:
-            #     log(f"단위 정보를 찾을 수 없음: {cate_cd}-{item_cd}")
-            #     return None
-                
-        # except Exception as e:
-        #     log(f"단위 정보 추출 중 오류 발생: {cate_cd}-{item_cd}, {str(e)}", "ERROR")
-        #     if 'page' in locals():
-        #         await page.close()
-        #     return None
-
-    # 더 이상 사용하지 않는 unit 추출 함수 (하드코딩된 unit 사용으로 대체)
-    # def _get_unit_with_caching(self, cate_cd, item_cd):
-    #     """캐싱을 사용하여 단위 정보를 가져옵니다."""
-    #     # 캐시 키 생성
-    #     cache_key = f"unit_{cate_cd}_{item_cd}"
-    #     
-    #     # 메모리 캐시에서 확인
-    #     if not hasattr(self, '_unit_cache'):
-    #         self._unit_cache = {}
-    #     
-    #     if cache_key in self._unit_cache:
-    #         return self._unit_cache[cache_key]
-    #     
-    #     # 파일 캐시에서 확인
-    #     unit = self._load_unit_from_file_cache(cate_cd, item_cd)
-    #     if unit:
-    #         # 메모리 캐시에도 저장
-    #         self._unit_cache[cache_key] = unit
-    #         return unit
-    #     
-    #     # 캐시에 없으면 None 반환 (비동기 함수에서 실제 추출)
-    #     return None
-    
-    # 더 이상 사용하지 않는 unit 추출 함수 (하드코딩된 unit 사용으로 대체)
-    # def _cache_unit(self, cate_cd, item_cd, unit):
-    #     """단위 정보를 캐시에 저장합니다."""
-    #     if not hasattr(self, '_unit_cache'):
-    #         self._unit_cache = {}
-    #     
-    #     cache_key = f"unit_{cate_cd}_{item_cd}"
-    #     self._unit_cache[cache_key] = unit
-    #     log(f"단위 정보 캐시 저장: {cache_key} -> {unit}")
-    #     
-    #     # 파일 기반 캐시에도 저장
-    #     self._save_unit_to_file_cache(cate_cd, item_cd, unit)
-
-    # 더 이상 사용하지 않는 unit 추출 함수 (하드코딩된 unit 사용으로 대체)
-    # def _save_unit_to_file_cache(self, cate_cd, item_cd, unit):
-    #     """단위 정보를 파일 캐시에 저장합니다."""
-    #     try:
-    #         import json
-    #         import os
-    #         
-    #         cache_dir = os.path.join(os.path.dirname(__file__), 'cache')
-    #         os.makedirs(cache_dir, exist_ok=True)
-    #         
-    #         cache_file = os.path.join(cache_dir, 'unit_cache.json')
-    #         
-    #         # 기존 캐시 로드
-    #         cache_data = {}
-    #         if os.path.exists(cache_file):
-    #             with open(cache_file, 'r', encoding='utf-8') as f:
-    #                 cache_data = json.load(f)
-    #         
-    #         # 새 데이터 추가
-    #         cache_key = f"{cate_cd}_{item_cd}"
-    #         cache_data[cache_key] = unit
-    #         
-    #         # 파일에 저장
-    #         with open(cache_file, 'w', encoding='utf-8') as f:
-    #             json.dump(cache_data, f, ensure_ascii=False, indent=2)
-    #             
-    #         log(f"파일 캐시 저장: {cache_key} -> {unit}")
-    #         
-    #     except Exception as e:
-    #         log(f"파일 캐시 저장 오류: {str(e)}", "ERROR")
 
     def _get_unit_from_inclusion_list(self, major_name, middle_name, sub_name, spec_name=None):
         """INCLUSION_LIST에서 단위 정보를 가져옵니다."""
         try:
-            log(f"[DEBUG] 단위 조회 시작: major='{major_name}', middle='{middle_name}', sub='{sub_name}'")
-            
-            # INCLUSION_LIST에서 해당 경로의 단위 정보 찾기
             if major_name in INCLUSION_LIST:
-                log(f"[DEBUG] 대분류 '{major_name}' 발견")
                 major_data = INCLUSION_LIST[major_name]
-                
                 if middle_name in major_data:
-                    log(f"[DEBUG] 중분류 '{middle_name}' 발견")
                     middle_data = major_data[middle_name]
-                    
-                    log(f"[DEBUG] 중분류 데이터 키들: {list(middle_data.keys())}")
-                    
-                    # 정확한 매칭 시도
                     if isinstance(middle_data, dict) and sub_name in middle_data:
-                        log(f"[DEBUG] 소분류 '{sub_name}' 정확 매칭 성공")
                         unit_data = middle_data[sub_name]
-                        
-                        # 단순 문자열인 경우 (기존 방식)
-                        if isinstance(unit_data, str):
-                            log(f"하드코딩된 단위 정보 발견: {major_name} > {middle_name} > {sub_name} = {unit_data}")
-                            return unit_data
-                        
-                        # 객체인 경우 (규격별 단위 처리)
+                        if isinstance(unit_data, str): return unit_data
                         elif isinstance(unit_data, dict):
-                            # "unit" 키가 직접 있는 경우 (예: {"unit": "ton"})
-                            if "unit" in unit_data and isinstance(unit_data["unit"], str):
-                                log(f"하드코딩된 단위 정보 발견: {major_name} > {middle_name} > {sub_name} = {unit_data['unit']}")
-                                return unit_data["unit"]
-                            # 규격명이 제공된 경우 specifications에서 찾기
                             if spec_name and 'specifications' in unit_data:
                                 specifications = unit_data['specifications']
-                                
-                                # 정확한 규격명 매칭
-                                if spec_name in specifications:
-                                    unit = specifications[spec_name]
-                                    log(f"규격별 단위 정보 발견: {major_name} > {middle_name} > {sub_name} > {spec_name} = {unit}")
-                                    return unit
-                                
-                                # 부분 매칭 시도
+                                if spec_name in specifications: return specifications[spec_name]
                                 for spec_key, spec_unit in specifications.items():
-                                    if spec_name in spec_key or spec_key in spec_name:
-                                        log(f"규격별 단위 정보 부분 매칭: {major_name} > {middle_name} > {sub_name} > {spec_name} ≈ {spec_key} = {spec_unit}")
-                                        return spec_unit
-                            
-                            # 기본 단위 반환
-                            if 'default' in unit_data:
-                                default_unit = unit_data['default']
-                                log(f"기본 단위 정보 사용: {major_name} > {middle_name} > {sub_name} = {default_unit}")
-                                return default_unit
-                    else:
-                        # 정확한 매칭 실패 시 유사 매칭 시도
-                        log(f"[DEBUG] 정확한 매칭 실패, 유사 매칭 시도")
-                        for key in middle_data.keys():
-                            # 한자 부분을 제거하고 비교
-                            key_without_hanja = re.sub(r'\([^)]*\)', '', key).strip()
-                            sub_without_hanja = re.sub(r'\([^)]*\)', '', sub_name).strip()
-                            
-                            log(f"[DEBUG] 키 비교: '{key}' vs '{sub_name}'")
-                            log(f"[DEBUG] 한자 제거 후: '{key_without_hanja}' vs '{sub_without_hanja}'")
-                            
-                            # 정규화된 문자열로 비교
-                            if key_without_hanja == sub_without_hanja or key == sub_name:
-                                log(f"[DEBUG] 유사 매칭 성공: '{key}' ≈ '{sub_name}'")
-                                unit_data = middle_data[key]
-                                
-                                if isinstance(unit_data, str):
-                                    log(f"하드코딩된 단위 정보 발견 (유사매칭): {major_name} > {middle_name} > {key} = {unit_data}")
-                                    return unit_data
-                                elif isinstance(unit_data, dict) and 'default' in unit_data:
-                                    default_unit = unit_data['default']
-                                    log(f"기본 단위 정보 사용 (유사매칭): {major_name} > {middle_name} > {key} = {default_unit}")
-                                    return default_unit
-                        
-                        log(f"[DEBUG] 소분류 '{sub_name}' 매칭 실패. 사용 가능한 소분류: {list(middle_data.keys()) if isinstance(middle_data, dict) else 'dict가 아님'}")
-                else:
-                    log(f"[DEBUG] 중분류 '{middle_name}' 없음. 사용 가능한 중분류: {list(major_data.keys())}")
-            else:
-                log(f"[DEBUG] 대분류 '{major_name}' 없음. 사용 가능한 대분류: {list(INCLUSION_LIST.keys())}")
-            
-            log(f"하드코딩된 단위 정보 없음: {major_name} > {middle_name} > {sub_name}")
+                                    if spec_name in spec_key or spec_key in spec_name: return spec_unit
+                            if 'default' in unit_data: return unit_data['default']
             return None
-            
         except Exception as e:
             log(f"하드코딩된 단위 정보 조회 오류: {str(e)}", "ERROR")
             return None

@@ -16,7 +16,7 @@ export const DASHBOARD_CHARTS_CONFIG = [
     title: '철금속(Ferrous metals)',
     materials: [
       { id: '스테인리스열연강판 STS304 -  (HR) 3~6', displayName: 'STS304' },
-      { id: '스테인리스냉연강판 STS316(2B) -  2.0, 31.92', displayName: 'STS316' },
+      { id: '스테인리스열연강판 STS316L -  (HR) 3~6', displayName: 'STS316' },
       { id: '4각강(SS275) -  대변거리 16㎜', displayName: 'SS275' },
       { id: '(SD 400) D35㎜ 7.510㎏/m', displayName: '고장력철근' },
       { id: 'H형강 -  (소형)H200×B100×t₁5.5×t₂8㎜ 단중21.3㎏/m', displayName: 'H형강' },
