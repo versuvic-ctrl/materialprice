@@ -229,8 +229,15 @@ class KpiCrawler:
         else:
             log(f"  중분류 '{middle_name}'에서 최종 저장할 데이터가 없습니다.")
 
+     # kpi_crawler.py
+
+    # kpi_crawler.py 파일에서 _crawl_single_subcategory 함수를 찾아 아래 코드로 교체하세요.
+
     async def _crawl_single_subcategory(self, major_name, middle_name, sub_info):
-        """[수정본] 단일 소분류 데이터를 수집하여 List[Dict] 형태로 '반환'"""
+        """
+        [최종 수정본] 단일 소분류의 모든 데이터를 수집하여 반환합니다.
+        테이블 타입에 따른 region, detail_spec 할당 오류를 수정했습니다.
+        """
         async with self.semaphore:
             sub_name = sub_info['name']
             sub_href = sub_info['href']
@@ -270,14 +277,17 @@ class KpiCrawler:
                                 await new_page.select_option(end_year_selector, value=latest_year)
                                 
                                 end_month_selector = 'select#DATA_MONTH_T'
-                                latest_month = await new_page.locator(f'{end_month_selector} option').first.get_attribute('value')
+                                latest_month = await new_page.locator(f'{end_month_selector} option').last.get_attribute('value')
                                 await new_page.select_option(end_month_selector, value=latest_month)
-                                log(f"      - 기간 설정: {self.start_year}-{self.start_month} ~ {latest_year}-{latest_month}")
                             
                             async with new_page.expect_response(lambda r: "detail_change.asp" in r.url, timeout=30000):
                                 await new_page.click('form[name="sForm"] input[type="image"]')
                             
-                            await new_page.wait_for_selector('table#priceTrendDataArea tr:nth-child(2)', timeout=15000)
+                            try:
+                                await new_page.wait_for_selector('table#priceTrendDataArea tr:nth-child(2)', timeout=15000)
+                            except Exception:
+                                log(f"      - Spec '{spec['name'][:20]}...': 조회 기간 내 데이터 없음 (건너뜀).", "INFO")
+                                continue
 
                             unit = self._get_unit_from_inclusion_list(major_name, middle_name, sub_name, spec['name'])
                             
@@ -294,13 +304,29 @@ class KpiCrawler:
                                 cols_text = await row.locator('td').all_inner_texts()
                                 if not cols_text: continue
                                 date, prices_text = cols_text[0].strip(), [p.strip().replace(',', '') for p in cols_text[1:]]
-                                for idx, header in enumerate(headers[1:]):
+                                
+                                # --- ★★★ 데이터 파싱 로직 수정 시작 ★★★ ---
+                                data_headers = headers[1:] 
+                                for idx, header_text in enumerate(data_headers):
                                     if idx < len(prices_text) and prices_text[idx].isdigit():
-                                        region = "전국" if table_type != "region" else header
-                                        detail_spec = header if table_type != "region" else None
-                                        all_crawled_data.append(self._create_data_entry(major_name, middle_name, sub_name, spec['name'], region, detail_spec, date, prices_text[idx], unit))
+                                        region = "전국"  # 기본값
+                                        detail_spec = None # 기본값
+                                        
+                                        if table_type == "region":
+                                            region = header_text
+                                        elif table_type == "detail_spec":
+                                            detail_spec = header_text
+                                        elif table_type == "price_name":
+                                            # '가①격' 같은 헤더를 detail_spec으로 사용
+                                            detail_spec = header_text
+                                        
+                                        all_crawled_data.append(self._create_data_entry(
+                                            major_name, middle_name, sub_name, spec['name'], 
+                                            region, detail_spec, date, prices_text[idx], unit
+                                        ))
+                                # --- ★★★ 데이터 파싱 로직 수정 끝 ★★★ ---
                         except Exception as spec_e:
-                            log(f"      - Spec '{spec.get('name', 'N/A')[:20]}...' 처리 오류: {spec_e}", "WARNING")
+                            log(f"      - Spec '{spec.get('name', 'N/A')[:20]}...' 처리 중 오류: {spec_e}", "WARNING")
                             continue
 
                     await new_page.close()
@@ -316,17 +342,27 @@ class KpiCrawler:
                     await asyncio.sleep(5)
         return []
 
+    # kpi_crawler.py
+
     async def clear_redis_cache(self, major_name: str = None, middle_name: str = None):
-        """[수정본] 중분류 단위 또는 전체 캐시 무효화"""
+        """[수정본] AsyncRedis에 맞는 비동기 방식으로 캐시를 무효화합니다."""
         if self.redis is None:
             log("  ⚠️ Redis 비활성화, 캐시 삭제 건너뜀.", "WARNING")
             return
             
         try:
-            # 특정 중분류에 대한 패턴 생성 대신, 간단하게 모든 자재 가격 캐시를 삭제
-            # 이는 더 단순하고 확실한 방법
-            keys_to_delete = [key async for key in self.redis.scan_iter("material_prices:*")]
+            # --- ★★★ Redis 오류 해결 로직 ★★★ ---
+            # upstash-redis의 비동기 방식인 scan 사용
+            cursor, keys = await self.redis.scan(0, match="material_prices:*", count=500)
+            keys_to_delete = keys
+            
+            while cursor != 0:
+                cursor, keys = await self.redis.scan(cursor, match="material_prices:*", count=500)
+                keys_to_delete.extend(keys)
+            # --- ★★★ 수정 끝 ★★★
+
             if keys_to_delete:
+                # delete는 여러 키를 한 번에 받을 수 있음
                 await self.redis.delete(*keys_to_delete)
                 log(f"  ✅ Redis 캐시 무효화 성공: {len(keys_to_delete)}개 키 삭제")
             else:
