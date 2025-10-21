@@ -59,4 +59,6 @@ jobs:
           REDIS_TOKEN: ${{ secrets.REDIS_TOKEN }}
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          # ★★★ 아래 한 줄을 추가합니다 ★★★
+          FRONTEND_URL: https://materialinfo.vercel.app
         run: python ./crawler/sites/kpi_crawler.py --major="${{ matrix.category }}" --start-year=2020 --start-month=1
