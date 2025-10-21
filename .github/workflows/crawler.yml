@@ -27,16 +27,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check file structure
-        run: |
-          echo "--- Current Directory ---"
-          pwd
-          echo "--- File List (Root) ---"
-          ls -l
-          echo "--- File List (All) ---"
-          ls -R
-          # End of file structure check
-
       - name: Set up Python 3.9
         uses: actions/setup-python@v4
         with:
