@@ -1,5 +1,5 @@
 import { Redis } from "@upstash/redis";
-import { createServerClient } from '@supabase/ssr';
+import { type CookieOptions, createServerClient } from '@supabase/ssr'; // 'CookieOptions' import 추가
 import { cookies } from 'next/headers';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -42,7 +42,10 @@ export async function fetchMaterialPrices(
 
   // 2. Supabase에서 데이터 조회
   try {
-    const cookieStore = await cookies();
+    const cookieStore = cookies(); // cookies() 호출
+
+    // --- [수정된 부분 시작] ---
+    // Supabase 클라이언트 생성 방식을 새로운 권장 방식으로 변경
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -51,9 +54,28 @@ export async function fetchMaterialPrices(
           get(name: string) {
             return cookieStore.get(name)?.value;
           },
+          set(name: string, value: string, options: CookieOptions) {
+            try {
+              cookieStore.set({ name, value, ...options });
+            } catch (error) {
+              // The `set` method was called from a Server Component.
+              // This can be ignored if you have middleware refreshing
+              // user sessions.
+            }
+          },
+          remove(name: string, options: CookieOptions) {
+            try {
+              cookieStore.set({ name, value: '', ...options });
+            } catch (error) {
+              // The `delete` method was called from a Server Component.
+              // This can be ignored if you have middleware refreshing
+              // user sessions.
+            }
+          },
         },
       }
     );
+    // --- [수정된 부분 끝] ---
 
     // 타임아웃 설정 (30초)
     const timeoutPromise = new Promise((_, reject) => {
@@ -77,7 +99,7 @@ export async function fetchMaterialPrices(
     // 3. Redis에 데이터 저장
     try {
       await redis.setex(cacheKey, cacheExpiry, JSON.stringify(data));
-      console.log(`✅ 자재 가격 데이터 Redis 캐시 저장: ${materials.length}개 자재 (5일 유지)`);
+      console.log(`✅ 자재 가격 데이터 Redis 캐시 저장: ${materials.length}개 자재 (10일 유지)`);
     } catch (cacheError) {
       console.error('Redis 캐시 저장 오류:', cacheError);
     }
@@ -113,7 +135,7 @@ export async function fetchMarketIndicators() {
   if (fs.existsSync(jsonFilePath)) {
     const fileContent = fs.readFileSync(jsonFilePath, 'utf8');
     const jsonData = JSON.parse(fileContent);
-    const indicators = jsonData.data; // Assuming the data is under a 'data' key
+    const indicators = jsonData.data;
 
     if (indicators) {
       // 3. Redis에 데이터 저장

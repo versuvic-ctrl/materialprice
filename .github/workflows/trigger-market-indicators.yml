@@ -2,10 +2,21 @@ name: Trigger Market Indicators Update
 
 on:
   schedule:
-    # 한국 시간 오전 8시 (UTC 23:00)에 실행
+    # 한국 시간 기준, 오전 8시부터 오후 8시까지 2시간 간격으로 실행
+    # KST 08:00 (UTC 23:00 전날)
     - cron: '0 23 * * *'
-    # 한국 시간 오후 1시 (UTC 04:00)에 실행
-    - cron: '0 4 * * *'
+    # KST 10:00 (UTC 01:00)
+    - cron: '0 1 * * *'
+    # KST 12:00 (UTC 03:00)
+    - cron: '0 3 * * *'
+    # KST 14:00 (UTC 05:00)
+    - cron: '0 5 * * *'
+    # KST 16:00 (UTC 07:00)
+    - cron: '0 7 * * *'
+    # KST 18:00 (UTC 09:00)
+    - cron: '0 9 * * *'
+    # KST 20:00 (UTC 11:00)
+    - cron: '1 1 * * *'
   workflow_dispatch: # 수동 실행 허용
 
 jobs:
@@ -23,7 +34,11 @@ jobs:
             echo "VERCEL_DEPLOYMENT_URL secret is not set. Skipping API trigger."
             exit 1
           fi
+          # API 엔드포인트에 POST 요청을 보냅니다.
+          # 이전 코드에서는 /api/market-indicators/cron 이었지만,
+          # 제공해주신 코드에는 POST /api/market-indicators 가 크롤링을 수행하므로 해당 엔드포인트를 호출합니다.
+          # 만약 별도의 cron용 엔드포인트가 있다면 경로를 수정해주세요.
           curl -X POST \
                -H "Content-Type: application/json" \
-               -d '{"action": "test"}' \
-               "${VERCEL_DEPLOYMENT_URL}/api/market-indicators/cron"
+               -d '{"action": "update"}' \
+               "${VERCEL_DEPLOYMENT_URL}/api/market-indicators"
