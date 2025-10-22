@@ -15,10 +15,10 @@ export const DASHBOARD_CHARTS_CONFIG = [
   {
     title: '철금속(Ferrous metals)',
     materials: [
-      { id: '스테인리스열연강판 STS304 -  (HR) 3~6', displayName: 'STS304' },
-      { id: '스테인리스열연강판 STS316L -  (HR) 3~6', displayName: 'STS316' },
-      { id: '4각강(SS275) -  대변거리 16㎜', displayName: 'SS275' },
-      { id: '(SD 400) D35㎜ 7.510㎏/m', displayName: '고장력철근' },
+      { id: '스테인리스열연강판 STS304 -  (HR) 3~6', displayName: 'STS304(HR 3~6)' },
+      { id: '스테인리스열연강판 STS316L -  (HR) 3~6', displayName: 'STS316(HR 3~6)' },
+      { id: '열연강판 -  3.0 ≤T＜ 4.5, 1,219 ×2,438㎜', displayName: 'SS275(HR, 3~4.5)' },
+      { id: '고장력철근(하이바)(SD 400) -  D32㎜, 6.230', displayName: '고장력철근(SD400, D32) ' },
       { id: 'H형강 -  (소형)H200×B100×t₁5.5×t₂8㎜ 단중21.3㎏/m', displayName: 'H형강' },
       { id: '고철(철) - 중량철 A ', displayName: '고철(중량철A)' }
     ]
@@ -39,9 +39,9 @@ export const DASHBOARD_CHARTS_CONFIG = [
     materials: [
       { id: 'PP -  (Copolymer)', displayName: 'PP' },
       { id: 'HDPE -  파이프용', displayName: 'HDPE' },
-      { id: '경질염화비닐관(수도용VP)-직관 - VP PN 16 호칭경100㎜, 외경114㎜, 두께6.7(최소)㎜, 중량13,636g/본', displayName: 'PVC관(4")' },
-      { id: 'FRP DUCT(원형) -  호칭경: 4″, 내경: 100㎜ - 파이프', displayName: 'FRP관(4")' },
-      { id: '일반용PE하수관-유공관 -  규격100㎜, 외경114㎜, 두께5.5㎜, 중량1.79㎏/m', displayName: 'PE관(4")' },
+      { id: '경질염화비닐관(일반용배수관)-VG1 (두꺼운 관) - VN SDR 17 호칭경100㎜, 외경114㎜, 두께6.7(최소)㎜, 중량13,636g/본', displayName: 'PVC관(4", VG1)' },
+      { id: 'FRP DUCT(원형) -  호칭경: 4″, 내경: 100㎜', displayName: 'FRP DUCT(4")' },
+      { id: '일반용PE하수관-무공관 -  규격100㎜, 외경114㎜, 두께5.5㎜, 중량1.79㎏/m', displayName: 'PE관(4")' },
     ]
   },
   {
