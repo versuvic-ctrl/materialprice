@@ -1,5 +1,5 @@
 import { Redis } from "@upstash/redis";
-import { type CookieOptions, createServerClient } from '@supabase/ssr'; // 'CookieOptions' import 추가
+import { type CookieOptions, createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -42,7 +42,8 @@ export async function fetchMaterialPrices(
 
   // 2. Supabase에서 데이터 조회
   try {
-    const cookieStore = cookies(); // cookies() 호출
+    const cookieStore = await cookies();
+
 
     // --- [수정된 부분 시작] ---
     // Supabase 클라이언트 생성 방식을 새로운 권장 방식으로 변경
@@ -58,7 +59,7 @@ export async function fetchMaterialPrices(
             try {
               cookieStore.set({ name, value, ...options });
             } catch (error) {
-              // The `set` method was called from a Server Component.
+              // The `cookies().set()` method was called from a Server Component.
               // This can be ignored if you have middleware refreshing
               // user sessions.
             }
@@ -67,7 +68,7 @@ export async function fetchMaterialPrices(
             try {
               cookieStore.set({ name, value: '', ...options });
             } catch (error) {
-              // The `delete` method was called from a Server Component.
+              // The `cookies().delete()` method was called from a Server Component.
               // This can be ignored if you have middleware refreshing
               // user sessions.
             }
