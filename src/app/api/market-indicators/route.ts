@@ -178,7 +178,7 @@ export async function POST() {
       return NextResponse.json({ success: false, error: 'No market indicators found' }, { status: 404 });
     }
 
-    await saveToPublicJson(indicators);
+
 
     try {
       await redis.setex(CACHE_KEY, CACHE_EXPIRATION_SECONDS, JSON.stringify(indicators));
