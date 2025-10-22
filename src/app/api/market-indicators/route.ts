@@ -81,7 +81,7 @@ async function scrapeMarketIndicators(html: string): Promise<MarketIndicator[]> 
 }
 
 const CACHE_KEY = 'marketIndicators';
-const CACHE_EXPIRATION_SECONDS = 3600; // 1 hour
+const CACHE_EXPIRATION_SECONDS = 86400; // 24 hours
 
 export async function GET(request: NextRequest) {
   try {
@@ -106,31 +106,9 @@ export async function GET(request: NextRequest) {
       // Redis 오류가 발생해도 파일 시스템에서 읽는 로직으로 넘어갑니다.
     }
 
-    // 2. If not in cache (or Redis error), read from public/market-indicators.json
-    console.log('❌ Market indicators cache miss, reading from file system.');
-    const jsonFilePath = path.join(process.cwd(), 'public', 'market-indicators.json');
-    
-    if (fs.existsSync(jsonFilePath)) {
-      const fileContent = fs.readFileSync(jsonFilePath, 'utf8');
-      const jsonData = JSON.parse(fileContent);
-      const indicators = jsonData.data;
-
-      if (!indicators) {
-        throw new Error('"data" key not found in market-indicators.json');
-      }
-
-      // 3. Store in Redis cache
-      try {
-        await redis.setex(CACHE_KEY, CACHE_EXPIRATION_SECONDS, JSON.stringify(indicators));
-        console.log('✅ Market indicators saved to Redis cache from file.');
-      } catch (redisSetError) {
-        console.error('Error in Redis SETEX operation:', redisSetError);
-      }
-      return NextResponse.json(indicators);
-    } else {
-      console.warn('market-indicators.json not found, returning empty array.');
-      return NextResponse.json([]);
-    }
+    // 2. If not in cache (or Redis error), return empty array
+    console.log('❌ Market indicators cache miss or Redis error, returning empty array.');
+    return NextResponse.json([]);
   } catch (error) {
     console.error('Error in GET /api/market-indicators:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
