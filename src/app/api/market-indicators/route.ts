@@ -156,7 +156,26 @@ export async function POST() {
       return NextResponse.json({ success: false, error: 'No market indicators found' }, { status: 404 });
     }
 
+    const supabase = await createClient();
+    const { error: upsertError } = await supabase.from('market_indicators').upsert(
+      indicators.map(indicator => ({
+        name: indicator.name,
+        value: indicator.value,
+        change_value: indicator.change,
+        change_direction: indicator.change > 0 ? '상승' : (indicator.change < 0 ? '하락' : '유지'),
+        changerate: indicator.changerate,
+        category: indicator.category,
+        unit: indicator.unit,
+        updated_at: new Date().toISOString(),
+      })),
+      { onConflict: 'name' }
+    );
 
+    if (upsertError) {
+      console.error('Error upserting market indicators to Supabase:', upsertError);
+      await logToSupabase('error', `Failed to upsert market indicators to Supabase: ${upsertError.message}`);
+      return NextResponse.json({ success: false, error: 'Failed to update market indicators in Supabase' }, { status: 500 });
+    }
 
     try {
       await redis.setex(CACHE_KEY, CACHE_EXPIRATION_SECONDS, JSON.stringify(indicators));
