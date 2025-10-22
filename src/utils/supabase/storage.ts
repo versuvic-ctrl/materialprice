@@ -1,4 +1,3 @@
-import { createClient } from './client';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 export async function uploadImageAndGetUrl(supabase: SupabaseClient, base64Image: string, bucketName: string = 'technical-article-images'): Promise<string | null> {

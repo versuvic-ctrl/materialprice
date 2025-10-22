@@ -25,6 +25,6 @@ export async function clearRedisCache() {
     }
   } catch (error) {
     console.error('Redis 캐시 삭제 오류:', error);
-    return { success: false, message: `Redis 캐시 삭제 중 오류 발생: ${error.message}` };
+    return { success: false, message: `Redis 캐시 삭제 중 오류 발생: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
