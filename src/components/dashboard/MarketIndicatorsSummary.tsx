@@ -73,13 +73,24 @@ const getChangeIcon = (change: number): string => {
 export default function MarketIndicatorsSummary() {
   const [indicators, setIndicators] = useState<MarketIndicator[]>([]);
 
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const fetchIndicators = async () => {
+    const data = await getMarketIndicators();
+    setIndicators(data);
+    console.log('Indicators state after setIndicators:', data);
+  };
+
   useEffect(() => {
-    const fetchIndicators = async () => {
-      const data = await getMarketIndicators();
-      setIndicators(data);
-      console.log('Indicators state after setIndicators:', data);
-    };
     fetchIndicators();
+  }, [refreshTrigger]);
+
+  // 5분마다 자동 갱신
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRefreshTrigger(prev => prev + 1);
+    }, 300000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
