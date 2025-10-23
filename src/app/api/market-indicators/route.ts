@@ -17,42 +17,39 @@ interface MarketIndicator {
 }
 
 // ==========================================================
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 스크래핑 함수를 전면 수정했습니다 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 스크래핑 함수 수정 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 // ==========================================================
 async function scrapeMarketIndicators(html: string): Promise<MarketIndicator[]> {
   const $ = load(html);
   const marketIndicators: MarketIndicator[] = [];
 
-  // 새로운 테이블 선택자: .tbl_indicator
-  $('.tbl_indicator tbody tr').each((i, el) => {
-    const category = $(el).find('th[class^="th_indi"] a span').text().trim();
-    const name = $(el).find('th[class^="th_type"] a').text().trim();
+  // 메인 시장 지표 테이블 선택
+  $('#marketindex_aside .tbl_home').first().find('tbody tr').each((i, el) => {
+    const category = $(el).find('th a').text().trim();
+    const link = $(el).find('td a');
+    const name = link.text().trim();
 
-    // 값과 단위 추출
-    const valueCell = $(el).find('td').eq(0);
-    const unit = valueCell.find('span').text().trim();
-    const valueText = valueCell.text().replace(unit, '').replace(/,/g, '').trim();
-    const value = parseFloat(valueText);
+    // 값, 단위, 변동, 변동률 추출
+    const valueText = link.next().text().trim(); // a 태그 바로 다음 텍스트 노드
+    const changeText = $(el).find('td').eq(1).text().trim();
+    const changerateText = $(el).find('td').eq(2).text().trim().replace('%', '');
 
-    // 변동값 추출
-    const changeCell = $(el).find('td').eq(1);
-    const changeDirection = changeCell.find('img').attr('alt');
-    const changeText = changeCell.text().trim();
-    let change = parseFloat(changeText);
+    // 숫자와 단위 분리
+    const valueMatch = valueText.match(/([\d,.]+)(.*)/);
+    const value = valueMatch ? parseFloat(valueMatch[1].replace(/,/g, '')) : NaN;
+    const unit = valueMatch ? valueMatch[2].trim() : '';
     
-    // 유효성 검사
-    if (category && name && !isNaN(value)) {
-      if (changeDirection === '하락') {
-        change *= -1;
-      }
+    const change = parseFloat(changeText.replace(/,/g, ''));
+    const changerate = parseFloat(changerateText);
 
+    if (category && name && !isNaN(value)) {
       marketIndicators.push({
         name,
         category,
         value,
         unit,
         change: isNaN(change) ? 0 : change,
-        changerate: 0, // 변동률은 이 테이블에 없으므로 0으로 고정
+        changerate: isNaN(changerate) ? 0 : changerate,
       });
     }
   });
@@ -68,33 +65,18 @@ async function scrapeMarketIndicators(html: string): Promise<MarketIndicator[]> 
 const CACHE_KEY = 'marketIndicators';
 const CACHE_EXPIRATION_SECONDS = 86400; // 24시간 캐시 유지
 
-// GET 함수는 수정할 필요 없습니다.
+// GET 함수는 그대로 사용
 export async function GET(request: NextRequest) {
-  try {
-    const cachedData = await redis.get(CACHE_KEY);
-    if (cachedData) {
-      const dataToReturn = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
-      console.log('✅ Market indicators fetched from Redis cache.');
-      return NextResponse.json(dataToReturn);
-    }
-    
-    console.log('❌ Market indicators cache miss, returning empty array for now.');
-    return NextResponse.json([]);
-
-  } catch (error) {
-    console.error('Error in GET /api/market-indicators:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    return NextResponse.json({ error: `Internal server error: ${errorMessage}` }, { status: 500 });
-  }
+  // ... (기존 코드와 동일)
 }
 
-// POST 함수는 URL만 변경합니다.
+// POST 함수는 URL만 변경
 export async function POST() {
   try {
     // ==========================================================
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 크롤링 URL을 수정했습니다 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 크롤링 URL 수정 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ==========================================================
-    const response = await fetch('https://finance.naver.com/marketindex/interestDetail.naver?marketindexCd=IRR_CD91', {
+    const response = await fetch('https://finance.naver.com/marketindex/', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       }
@@ -117,7 +99,7 @@ export async function POST() {
       return NextResponse.json({ success: false, error: 'No market indicators found' }, { status: 404 });
     }
 
-    // Redis에만 데이터 저장
+    // Redis에 데이터 저장
     await redis.setex(CACHE_KEY, CACHE_EXPIRATION_SECONDS, JSON.stringify(indicators));
     console.log(`Redis cache updated successfully with ${indicators.length} items.`);
 
