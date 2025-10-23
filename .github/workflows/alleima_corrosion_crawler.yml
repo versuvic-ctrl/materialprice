@@ -24,7 +24,7 @@ jobs:
     - name: Run crawler script
       run: python crawler/alleima_corrosion_crawler_improved.py
 
-    - name: Debug: List files in src/data
+    - name: "Debug: List files in src/data"
       run: ls -R src/data
 
     - name: Commit and push changes
