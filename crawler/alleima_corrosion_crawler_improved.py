@@ -426,7 +426,7 @@ def main():
     # 전체 화학물질 크롤링
     if crawler.crawl_all():
         # JSON 파일로 저장
-        crawler.save_to_json('../src/data/alleima_corrosion_data_full.json')
+        crawler.save_to_json('../src/data/alleima_corrosion_data_origin.json')
         print("크롤링이 성공적으로 완료되었습니다!")
         print(f"화학물질 수: {len(crawler.chemical_links)}")
         print(
