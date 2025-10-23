@@ -89,21 +89,15 @@ export async function GET(request: NextRequest) {
     try {
       const cachedData = await redis.get(CACHE_KEY);
       if (cachedData) {
-        // --- [수정된 부분 시작] ---
-        // Redis에서 가져온 데이터의 타입을 확인합니다.
-        // @upstash/redis는 JSON 문자열을 자동으로 객체로 파싱해줄 수 있습니다.
         const dataToReturn = typeof cachedData === 'string'
-          ? JSON.parse(cachedData) // 만약 문자열이라면 파싱합니다.
-          : cachedData;             // 이미 객체라면 그대로 사용합니다.
+          ? JSON.parse(cachedData)
+          : cachedData;
         
         console.log('✅ Market indicators fetched from Redis cache.');
         return NextResponse.json(dataToReturn);
-        // --- [수정된 부분 끝] ---
       }
     } catch (redisError) {
-      // redis.get() 또는 JSON.parse()에서 에러가 발생하면 여기서 잡힙니다.
       console.error('Error processing data from Redis:', redisError);
-      // Redis 오류가 발생해도 파일 시스템에서 읽는 로직으로 넘어갑니다.
     }
 
     // 2. If not in cache (or Redis error), return empty array
@@ -157,7 +151,14 @@ export async function POST() {
     }
 
     const supabase = await createClient();
-    const { data, error } = await supabase.from('market_indicators').upsert(formattedData, { onConflict: 'name' });
+    // ==========================================================
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 이 부분이 수정되었습니다 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 'formattedData' -> 'indicators' 로 변경
+    // ==========================================================
+    const { data, error } = await supabase.from('market_indicators').upsert(indicators, { onConflict: 'name' });
+    // ==========================================================
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ==========================================================
 
     if (error) {
       console.error('Supabase upsert error:', error);
