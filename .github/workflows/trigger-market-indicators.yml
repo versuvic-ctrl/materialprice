@@ -1,44 +1,32 @@
+# .github/workflows/your-workflow-name.yml
+
 name: Trigger Market Indicators Update
 
 on:
   schedule:
-    # 한국 시간 기준, 오전 8시부터 오후 8시까지 2시간 간격으로 실행
-    # KST 08:00 (UTC 23:00 전날)
-    - cron: '0 23 * * *'
-    # KST 10:00 (UTC 01:00)
-    - cron: '0 1 * * *'
-    # KST 12:00 (UTC 03:00)
-    - cron: '0 3 * * *'
-    # KST 14:00 (UTC 05:00)
-    - cron: '0 5 * * *'
-    # KST 16:00 (UTC 07:00)
-    - cron: '0 7 * * *'
-    # KST 18:00 (UTC 09:00)
-    - cron: '0 9 * * *'
-    # KST 20:00 (UTC 11:00)
-    - cron: '1 1 * * *'
+    # 한국 시간 기준, 오전 6시부터 오후 8시까지 2시간 간격으로 실행
+    # KST 06:00 (UTC 21:00 전날), 08:00(23), 10:00(01), 12:00(03), 14:00(05), 16:00(07), 18:00(09), 20:00(11)
+    - cron: '0 21,23,1,3,5,7,9,11 * * *'
+  
   workflow_dispatch: # 수동 실행 허용
 
 jobs:
   trigger-api:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Trigger Market Indicators API
         env:
           VERCEL_DEPLOYMENT_URL: ${{ secrets.VERCEL_DEPLOYMENT_URL }}
         run: |
           if [ -z "$VERCEL_DEPLOYMENT_URL" ]; then
-            echo "VERCEL_DEPLOYMENT_URL secret is not set. Skipping API trigger."
+            echo "::error::VERCEL_DEPLOYMENT_URL secret is not set."
             exit 1
           fi
-          # API 엔드포인트에 POST 요청을 보냅니다.
-          # 이전 코드에서는 /api/market-indicators/cron 이었지만,
-          # 제공해주신 코드에는 POST /api/market-indicators 가 크롤링을 수행하므로 해당 엔드포인트를 호출합니다.
-          # 만약 별도의 cron용 엔드포인트가 있다면 경로를 수정해주세요.
-          curl -X POST \
-               -H "Content-Type: application/json" \
-               -d '{"action": "update"}' \
-               "${VERCEL_DEPLOYMENT_URL}/api/market-indicators"
+
+          echo "Triggering market indicators update..."
+          
+          # API 엔드포인트에 간단한 POST 요청을 보내 크롤링을 트리거합니다.
+          # 불필요한 데이터(-d)와 헤더(-H)를 제거하여 명령어를 간소화했습니다.
+          curl --fail -X POST "${VERCEL_DEPLOYMENT_URL}/api/market-indicators"
+          
+          echo "API trigger completed."
