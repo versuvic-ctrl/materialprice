@@ -22,15 +22,7 @@ jobs:
 
           echo "Triggering market indicators update..."
           
-          # ==========================================================
-          # ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 이 부분이 수정되었습니다 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-          # -L 옵션 추가: 리디렉션 발생 시 자동으로 따라가도록 설정
-          # ==========================================================
-          curl --fail -L -X POST "${VERCEL_DEPLOYMENT_URL}/api/market-indicators"
-          # ==========================================================
-          # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-          # ==========================================================
+          # API 응답 본문(JSON)을 버려서 쉘 오류 방지
+          curl --fail -L -X POST "${VERCEL_DEPLOYMENT_URL}/api/market-indicators" > /dev/null
           
-          echo "API trigger completed."```
-
-### 변경 후 확인 사항
+          echo "API trigger completed."
