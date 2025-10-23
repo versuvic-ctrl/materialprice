@@ -21,7 +21,6 @@ jobs:
           fi
 
           echo "Triggering market indicators update..."
-          echo "Target URL: ${VERCEL_DEPLOYMENT_URL}/api/market-indicators" # 디버깅을 위해 URL 출력
           
           # API 응답 본문(JSON)을 버려서 쉘 오류 방지
           curl --fail -L -X POST "${VERCEL_DEPLOYMENT_URL}/api/market-indicators" > /dev/null
