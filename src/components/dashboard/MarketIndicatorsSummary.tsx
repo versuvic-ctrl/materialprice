@@ -27,22 +27,17 @@ async function getMarketIndicators(): Promise<MarketIndicator[]> {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const textData = await response.text(); // 먼저 텍스트로 받아서 로그
-    console.log('Raw response text:', textData);
-
-    const jsonData: MarketIndicator[] = JSON.parse(textData); // 텍스트를 JSON으로 파싱
+    const jsonData: MarketIndicator[] = await response.json();
     console.log('Parsed data from API:', jsonData);
     
     return jsonData || [];
   } catch (error) {
     console.error('Error fetching market indicators from API:', error);
-    
-    // 폴백: 빈 배열 반환
-    return [];
+    return []; // 에러 발생 시 빈 배열 반환
   }
 }
 
-// 네이버 스타일 포맷팅 함수들 (MarketIndicators.tsx에서 복사)
+// 포맷팅 함수들 (수정 없음)
 const formatValue = (value: number, unit: string): string => {
   if (unit === '%') {
     return value.toFixed(2);
@@ -59,8 +54,8 @@ const formatChangeValue = (change: number, unit: string): string => {
 };
 
 const getChangeColor = (change: number): string => {
-  if (change > 0) return 'text-red-600'; // 네이버 상승 색상
-  if (change < 0) return 'text-blue-600'; // 네이버 하락 색상
+  if (change > 0) return 'text-red-600';
+  if (change < 0) return 'text-blue-600';
   return 'text-gray-600';
 };
 
@@ -72,13 +67,20 @@ const getChangeIcon = (change: number): string => {
 
 export default function MarketIndicatorsSummary() {
   const [indicators, setIndicators] = useState<MarketIndicator[]>([]);
-
+  const [isLoading, setIsLoading] = useState(true); // 로딩 상태 추가
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const fetchIndicators = async () => {
-    const data = await getMarketIndicators();
-    setIndicators(data);
-    console.log('Indicators state after setIndicators:', data);
+    setIsLoading(true); // 데이터 요청 시작 시 로딩 상태로 설정
+    try {
+      const data = await getMarketIndicators();
+      setIndicators(data);
+    } catch (error) {
+      console.error("Failed to fetch and set indicators:", error);
+      setIndicators([]); // 에러 발생 시 데이터를 비워줌
+    } finally {
+      setIsLoading(false); // 요청 완료 후 (성공/실패 무관) 로딩 상태 해제
+    }
   };
 
   useEffect(() => {
@@ -104,42 +106,52 @@ export default function MarketIndicatorsSummary() {
           </div>
         </div>
 
-        {/* 지표 목록 */}
+        {/* 지표 목록 (조건부 렌더링으로 수정) */}
         <div className="flex-1 px-4 py-4 overflow-hidden">
-          <div className="h-full space-y-0.5">
-            {indicators.map((indicator, index) => (
-              <div
-                key={`${indicator.name}-${index}`}
-                className="flex items-center justify-between py-0.5 leading-[0.8]"
-              >
-                {/* 왼쪽: 카테고리와 항목명 */}
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-600 font-medium flex-shrink-0">
-                    {indicator.category}
-                  </span>
-                  <span className="text-sm text-gray-800 font-semibold flex-grow truncate">
-                    {indicator.name}
-                  </span>
-                </div>
+          {isLoading ? (
+            <div className="h-full flex items-center justify-center">
+              <p className="text-gray-500">시장 지표 로딩 중...</p>
+            </div>
+          ) : indicators.length > 0 ? (
+            <div className="h-full space-y-0.5">
+              {indicators.map((indicator, index) => (
+                <div
+                  key={`${indicator.name}-${index}`}
+                  className="flex items-center justify-between py-0.5 leading-[0.8]"
+                >
+                  {/* 왼쪽: 카테고리와 항목명 */}
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600 font-medium flex-shrink-0">
+                      {indicator.category}
+                    </span>
+                    <span className="text-sm text-gray-800 font-semibold flex-grow truncate">
+                      {indicator.name}
+                    </span>
+                  </div>
 
-                {/* 오른쪽: 가격과 변동 */}
-                <div className="flex items-center space-x-3 text-right flex-shrink-0">
-                  <div className="text-right">
-                    <span className="text-sm font-bold text-gray-900">
-                      {formatValue(indicator.value, indicator.unit)}
-                    </span>
-                    <span className="text-xs text-gray-500 ml-1 font-medium">
-                      {indicator.unit}
-                    </span>
-                  </div>
-                  <div className={`text-xs font-bold ${getChangeColor(indicator.change)} flex items-center space-x-1 min-w-[50px] justify-end`}>
-                    <span className="text-[10px]">{getChangeIcon(indicator.change)}</span>
-                    <span>{formatChangeValue(indicator.change, indicator.unit)}</span>
+                  {/* 오른쪽: 가격과 변동 */}
+                  <div className="flex items-center space-x-3 text-right flex-shrink-0">
+                    <div className="text-right">
+                      <span className="text-sm font-bold text-gray-900">
+                        {formatValue(indicator.value, indicator.unit)}
+                      </span>
+                      <span className="text-xs text-gray-500 ml-1 font-medium">
+                        {indicator.unit}
+                      </span>
+                    </div>
+                    <div className={`text-xs font-bold ${getChangeColor(indicator.change)} flex items-center space-x-1 min-w-[50px] justify-end`}>
+                      <span className="text-[10px]">{getChangeIcon(indicator.change)}</span>
+                      <span>{formatChangeValue(indicator.change, indicator.unit)}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="h-full flex items-center justify-center">
+              <p className="text-gray-500">데이터를 불러오지 못했습니다.</p>
+            </div>
+          )}
         </div>
       </div>
     </Card>
