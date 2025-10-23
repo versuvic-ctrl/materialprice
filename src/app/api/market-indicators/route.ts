@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { redis } from '@/utils/redis';
 import { load } from 'cheerio';
 
+
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
@@ -11,38 +12,43 @@ interface MarketIndicator {
   name: string;
   value: number;
   change: number;
-  changerate: number;
+  changerate: number; // 변동률 필드는 유지하되, 현재 스크래핑 대상에는 없으므로 0으로 채웁니다.
   category: string;
   unit: string;
 }
 
 // ==========================================================
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 스크래핑 함수를 전면 수정했습니다 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ [핵심 수정] 스크래핑 함수 로직 수정 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+// 네이버 금융 메인 페이지의 HTML 구조에 맞게 재작성되었습니다.
 // ==========================================================
 async function scrapeMarketIndicators(html: string): Promise<MarketIndicator[]> {
   const $ = load(html);
   const marketIndicators: MarketIndicator[] = [];
 
-  // 새로운 테이블 선택자: .tbl_indicator
-  $('.tbl_indicator tbody tr').each((i, el) => {
-    const category = $(el).find('th[class^="th_indi"] a span').text().trim();
-    const name = $(el).find('th[class^="th_type"] a').text().trim();
+  // 주요 시장 지표가 있는 오른쪽 사이드바의 테이블을 선택합니다.
+  $('#marketindex_aside .tbl_home tbody tr').each((i, el) => {
+    const category = $(el).find('th a').text().trim();
+    const name = $(el).find('td a').text().trim();
 
-    // 값과 단위 추출
-    const valueCell = $(el).find('td').eq(0);
-    const unit = valueCell.find('span').text().trim();
-    const valueText = valueCell.text().replace(unit, '').replace(/,/g, '').trim();
-    const value = parseFloat(valueText);
+    // 값과 단위를 포함한 셀
+    const valueCell = $(el).find('td').first();
+    const valueText = valueCell.text().replace(name, '').replace(/,/g, '').trim();
+    
+    // 값과 단위 분리 (예: "1438.60원" -> 1438.60, "원")
+    const valueMatch = valueText.match(/([\d,.]+)(.*)/);
+    const value = valueMatch ? parseFloat(valueMatch[1]) : NaN;
+    const unit = valueMatch && valueMatch[2] ? valueMatch[2].trim() : '';
 
     // 변동값 추출
     const changeCell = $(el).find('td').eq(1);
-    const changeDirection = changeCell.find('img').attr('alt');
+    const changeDirection = changeCell.find('img').attr('alt'); // '상승', '하락' 등의 alt 텍스트
     const changeText = changeCell.text().trim();
-    let change = parseFloat(changeText);
-    
+    let change = parseFloat(changeText.replace(/,/g, ''));
+
     // 유효성 검사
     if (category && name && !isNaN(value)) {
-      if (changeDirection === '하락') {
+      // '하락'일 경우 변동값을 음수로 만듭니다.
+      if (changeDirection === '하락' && change > 0) {
         change *= -1;
       }
 
@@ -52,7 +58,7 @@ async function scrapeMarketIndicators(html: string): Promise<MarketIndicator[]> 
         value,
         unit,
         change: isNaN(change) ? 0 : change,
-        changerate: 0, // 변동률은 이 테이블에 없으므로 0으로 고정
+        changerate: 0, // 이 테이블에는 변동률 정보가 없으므로 0으로 고정합니다.
       });
     }
   });
@@ -65,12 +71,13 @@ async function scrapeMarketIndicators(html: string): Promise<MarketIndicator[]> 
 // ==========================================================
 
 
-const CACHE_KEY = 'marketIndicators';
+// [수정] 캐시 키를 'market_indicators'로 통일합니다.
+const CACHE_KEY = 'market_indicators';
 const CACHE_EXPIRATION_SECONDS = 86400; // 24시간 캐시 유지
 
-// GET 함수는 수정할 필요 없습니다.
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // [수정] 통일된 캐시 키로 조회합니다.
     const cachedData = await redis.get(CACHE_KEY);
     if (cachedData) {
       const dataToReturn = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
@@ -88,13 +95,12 @@ export async function GET() {
   }
 }
 
-// POST 함수는 URL만 변경합니다.
 export async function POST() {
   try {
     // ==========================================================
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 크롤링 URL을 수정했습니다 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ [핵심 수정] 크롤링 URL 수정 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ==========================================================
-    const response = await fetch('https://finance.naver.com/marketindex/interestDetail.naver?marketindexCd=IRR_CD91', {
+    const response = await fetch('https://finance.naver.com/marketindex/', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       }
@@ -106,6 +112,7 @@ export async function POST() {
     if (!response.ok) {
         throw new Error(`Failed to fetch Naver Finance: ${response.statusText}`);
     }
+    // 네이버 금융은 'euc-kr' 인코딩을 사용합니다.
     const arrayBuffer = await response.arrayBuffer();
     const decoder = new TextDecoder('euc-kr');
     const html = decoder.decode(arrayBuffer);
@@ -117,7 +124,7 @@ export async function POST() {
       return NextResponse.json({ success: false, error: 'No market indicators found' }, { status: 404 });
     }
 
-    // Redis에만 데이터 저장
+    // [수정] 통일된 캐시 키로 Redis에 데이터를 저장합니다.
     await redis.setex(CACHE_KEY, CACHE_EXPIRATION_SECONDS, JSON.stringify(indicators));
     console.log(`Redis cache updated successfully with ${indicators.length} items.`);
 
