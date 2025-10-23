@@ -10,7 +10,7 @@ export const DASHBOARD_CHARTS_CONFIG = [
       { id: '열연강판 -  3.0 ≤T＜ 4.5, 1,219 ×2,438㎜', displayName: 'SS275(HR, 3~4.5)', summaryName: 'SS275' },
       { id: '고장력철근(하이바)(SD 400) -  D32㎜, 6.230', displayName: '고장력철근(SD400, D32) ', summaryName: '고장력철근' },
       { id: 'H형강 -  (소형)H200×B100×t₁5.5×t₂8㎜ 단중21.3㎏/m', displayName: 'H형강' },
-      { id: '고철(철) - 중량철 A ', displayName: '고철(중량철A)', summaryName: '고철' }
+      { id: '고철(철) - 중량철 B', displayName: '고철(중량철)', summaryName: '고철' }
     ]
   },
   {

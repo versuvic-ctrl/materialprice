@@ -513,15 +513,15 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
     <>
 
       <Tabs defaultValue="properties" className="w-full">
-      <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2">
+      <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="properties" className="text-sm font-semibold">재질별 물성</TabsTrigger>
         <TabsTrigger value="corrosion" className="text-sm font-semibold">부식 호환성</TabsTrigger>
       </TabsList>
       
-      <TabsContent value="properties" className="space-y-6">
-        <div className="space-y-6">
+      <TabsContent value="properties" className="space-y-3 mt-3">
+        <div className="space-y-4">
       {/* 재료 선택 섹션 */}
-      <Card className="mt-5">
+      <Card>
         <CardHeader className="p-6 pb-1">
           <div className="flex items-center gap-3 mb-0">
             <div className="w-1 h-5 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
@@ -1136,10 +1136,8 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
         </div>
       </TabsContent>
       
-      <TabsContent value="corrosion" className="space-y-3">
-        <div className="mt-5">
-          <CorrosionCompatibility selectedMaterials={selectedMaterials} />
-        </div>
+      <TabsContent value="corrosion" className="mt-6">
+        <CorrosionCompatibility selectedMaterials={selectedMaterials} />
       </TabsContent>
     </Tabs>
   </>);

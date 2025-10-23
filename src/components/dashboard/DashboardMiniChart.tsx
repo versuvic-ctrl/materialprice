@@ -4,6 +4,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
+// [수정] 올바른 경로로 변경
 import { useQuery } from '@tanstack/react-query';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -185,6 +186,9 @@ const calculateYAxisDomain = (data: any[], materials: string[]) => {
     return calculateSmartYAxisDomain(data, materials);
 };
 
+// ====================================================================================
+// 그룹핑 기반으로 Y축을 스마트하게 분할하는 함수 (개선된 로직)
+// ====================================================================================
 const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
   leftAxisMaterials: string[];
   rightAxisMaterials: string[];
@@ -193,35 +197,64 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
   leftAxisTicks: number[];
   rightAxisTicks: number[];
 } => {
-    if (!data || data.length === 0 || materials.length === 0) return { leftAxisMaterials: [], rightAxisMaterials: [], leftAxisDomain: [0, 0], rightAxisDomain: [0, 0], leftAxisTicks: [], rightAxisTicks: [] };
-    const materialRanges = materials.map(material => ({ material, ...analyzePriceRange(data, material) }));
-    const overallMin = Math.min(...materialRanges.map(r => r.min).filter(min => min > 0 && isFinite(min)));
-    const overallMax = Math.max(...materialRanges.map(r => r.max).filter(max => isFinite(max)));
-    if (!isFinite(overallMin) || !isFinite(overallMax)) return { leftAxisMaterials: materials, rightAxisMaterials: [], leftAxisDomain: [0, 1000], rightAxisDomain: ['auto', 'auto'], leftAxisTicks: [0, 250, 500, 750, 1000], rightAxisTicks: [] };
-    const SPLIT_THRESHOLD = 5;
-    if ((overallMax / overallMin < SPLIT_THRESHOLD) || materials.length <= 1) {
+    if (!data || data.length === 0 || materials.length === 0) {
+        return { leftAxisMaterials: [], rightAxisMaterials: [], leftAxisDomain: [0, 0], rightAxisDomain: [0, 0], leftAxisTicks: [], rightAxisTicks: [] };
+    }
+
+    const materialRanges = materials.map(material => ({ material, ...analyzePriceRange(data, material) }))
+        .sort((a, b) => b.max - a.max);
+
+    if (materialRanges.length <= 1) {
         const [domainMin, domainMax, ticks] = calculateYAxisDomain(data, materials);
         return { leftAxisMaterials: materials, rightAxisMaterials: [], leftAxisDomain: [domainMin, domainMax], rightAxisDomain: ['auto', 'auto'], leftAxisTicks: ticks, rightAxisTicks: [] };
-    } else {
-        const sortedMaterials = materialRanges.sort((a, b) => b.max - a.max);
-        let maxGap = 0, splitIndex = 1;
-        for (let i = 0; i < sortedMaterials.length - 1; i++) {
-            const current = sortedMaterials[i];
-            const next = sortedMaterials[i + 1];
-            if (next.max > 0) {
-                const gap = current.max / next.max;
-                if (gap > maxGap) {
-                    maxGap = gap;
-                    splitIndex = i + 1;
-                }
+    }
+
+    const GROUPING_THRESHOLD = 2.5;
+    const groups: string[][] = [];
+    let currentGroup: string[] = [];
+
+    materialRanges.forEach((item, index) => {
+        if (index === 0) {
+            currentGroup.push(item.material);
+        } else {
+            const prevItem = materialRanges[index - 1];
+            if (item.max > 0 && prevItem.max / item.max > GROUPING_THRESHOLD) {
+                groups.push(currentGroup);
+                currentGroup = [item.material];
+            } else {
+                currentGroup.push(item.material);
             }
         }
-        const leftAxisMaterials = sortedMaterials.slice(0, splitIndex).map(r => r.material);
-        const rightAxisMaterials = sortedMaterials.slice(splitIndex).map(r => r.material);
-        const [leftDomainMin, leftDomainMax, leftTicks] = calculateYAxisDomain(data, leftAxisMaterials);
-        const [rightDomainMin, rightDomainMax, rightTicks] = calculateYAxisDomain(data, rightAxisMaterials);
-        return { leftAxisMaterials, rightAxisMaterials, leftAxisDomain: [leftDomainMin, leftDomainMax], rightAxisDomain: [rightDomainMin, rightDomainMax], leftAxisTicks: leftTicks, rightAxisTicks: rightTicks };
+    });
+    groups.push(currentGroup);
+
+    if (groups.length > 1 && groups[0].length < materials.length) {
+        const leftAxisMaterials = groups[0];
+        const rightAxisMaterials = groups.slice(1).flat();
+
+        if (rightAxisMaterials.length > 0) {
+            const [leftDomainMin, leftDomainMax, leftTicks] = calculateYAxisDomain(data, leftAxisMaterials);
+            const [rightDomainMin, rightDomainMax, rightTicks] = calculateYAxisDomain(data, rightAxisMaterials);
+            return {
+                leftAxisMaterials,
+                rightAxisMaterials,
+                leftAxisDomain: [leftDomainMin, leftDomainMax],
+                rightAxisDomain: [rightDomainMin, rightDomainMax],
+                leftAxisTicks: leftTicks,
+                rightAxisTicks: rightTicks
+            };
+        }
     }
+
+    const [domainMin, domainMax, ticks] = calculateYAxisDomain(data, materials);
+    return {
+        leftAxisMaterials: materials,
+        rightAxisMaterials: [],
+        leftAxisDomain: [domainMin, domainMax],
+        rightAxisDomain: ['auto', 'auto'],
+        leftAxisTicks: ticks,
+        rightAxisTicks: []
+    };
 };
 
 const formatYAxisPrice = (value: number) => value.toFixed(1).replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,') + '원';
