@@ -1,6 +1,6 @@
 // src/app/api/market-indicators/route.ts
 
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { redis } from '@/utils/redis';
 import { load } from 'cheerio';
 
@@ -69,7 +69,7 @@ const CACHE_KEY = 'marketIndicators';
 const CACHE_EXPIRATION_SECONDS = 86400; // 24시간 캐시 유지
 
 // GET 함수는 수정할 필요 없습니다.
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const cachedData = await redis.get(CACHE_KEY);
     if (cachedData) {
