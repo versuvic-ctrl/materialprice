@@ -20,8 +20,6 @@ async function updateMarketIndicators() {
     if (response.ok) {
       const data = await response.json();
       console.log('시장지표 데이터 업데이트 성공:', data);
-      await redis.del('marketIndicators'); // Redis 캐시 삭제
-      console.log("Redis 캐시 'marketIndicators' 삭제 완료");
     } else {
       console.error('시장지표 데이터 업데이트 실패:', response.status, response.statusText);
     }
