@@ -141,12 +141,7 @@ export default async function Dashboard() {
       <div className="mt-4">
         <DashboardChartGrid />
       </div>
-      
-      {/* 주요 시장 지표 요약 섹션 */}
-      <div className="mt-4">
-        <MarketIndicatorsSummary />
-      </div>
-      
+
       {/* 하단 요약 섹션 */}
       {/* 계산기 미리보기와 참고자료를 2열로 배치 */}
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
