@@ -888,7 +888,7 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
                 return (
                   <div>
                     <h3 className="text-lg font-semibold mb-3 text-green-600 border-b border-green-200 pb-2">
-                      합금 조성
+                      Chemical Composition
                     </h3>
                     
                     {/* 모바일에서는 카드 레이아웃, 데스크톱에서는 테이블 */}
@@ -1016,7 +1016,7 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
               {selectedMaterials.some(material => material.basePrice) && (
                 <div>
                   <h3 className="text-lg font-semibold mb-3 text-purple-600 border-b border-purple-200 pb-2">
-                    기준 가격
+                    Reference Price
                   </h3>
                   
                   {/* 모바일에서는 카드 레이아웃, 데스크톱에서는 테이블 */}

@@ -80,7 +80,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
   const [results, setResults] = useState<CompatibilityResult[]>([]);
   const [dynamicWidths, setDynamicWidths] = useState({
     material: 'w-1/6',
-    concentration: 'w-1/4', 
+    concentration: 'w-1/4',
     temperature: 'w-1/12',
     rating: 'w-1/8',
     remarks: 'w-5/12'
@@ -110,10 +110,10 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
   // 재질 정렬 함수
   const sortMaterialsByPriority = (materials: string[]): string[] => {
     return materials.sort((a, b) => {
-      const aIndex = materialPriority.findIndex(priority => 
+      const aIndex = materialPriority.findIndex(priority =>
         a.includes(priority) || priority.includes(a)
       );
-      const bIndex = materialPriority.findIndex(priority => 
+      const bIndex = materialPriority.findIndex(priority =>
         b.includes(priority) || priority.includes(b)
       );
 
@@ -121,17 +121,17 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
       if (aIndex !== -1 && bIndex !== -1) {
         return aIndex - bIndex;
       }
-      
+
       // a만 우선순위에 있는 경우
       if (aIndex !== -1 && bIndex === -1) {
         return -1;
       }
-      
+
       // b만 우선순위에 있는 경우
       if (aIndex === -1 && bIndex !== -1) {
         return 1;
       }
-      
+
       // 둘 다 우선순위에 없는 경우 알파벳 순
       return a.localeCompare(b);
     });
@@ -154,7 +154,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
 
     // 전체 폭을 100%로 하여 비율 계산
     const totalLength = Object.values(maxLengths).reduce((sum, len) => sum + len, 0);
-    
+
     // 최소 폭 보장 및 비율 계산
     const widths = {
       material: Math.max(maxLengths.material / totalLength * 100, 15), // 최소 15%
@@ -252,7 +252,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
   // 화학물질 제목에 화학식을 포함하는 헬퍼 함수
   const getChemicalTitleWithFormulas = (chemicalName: string): string => {
     if (!chemicalName) return '';
-    
+
     // 일반적인 화학식 매핑 (데이터에 없는 경우 사용)
     const commonFormulas: { [key: string]: string } = {
       'sodium chloride': 'NaCl',
@@ -274,14 +274,14 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
       'ferric chloride': 'FeCl3',
       'aluminum chloride': 'AlCl3'
     };
-    
+
     // 화학물질 이름을 정규화하는 함수
     const normalizeChemicalName = (name: string): string => {
       return name.toLowerCase().trim()
         .replace(/\s+/g, ' ')
         .replace(/[()]/g, '');
     };
-    
+
     // 화학식을 찾는 함수
     const findFormula = (chemicalName: string, chemicalEntry: any): string | null => {
       const normalizedChemicalName = normalizeChemicalName(chemicalName);
@@ -290,8 +290,8 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
       if (chemicalEntry?.chemical_formulas && Object.keys(chemicalEntry.chemical_formulas).length > 0) {
         for (const [key, value] of Object.entries(chemicalEntry.chemical_formulas)) {
           const normalizedKey = normalizeChemicalName(key);
-          if (normalizedKey === normalizedChemicalName || 
-              normalizedKey.includes(normalizedChemicalName) || 
+          if (normalizedKey === normalizedChemicalName ||
+              normalizedKey.includes(normalizedChemicalName) ||
               normalizedChemicalName.includes(normalizedKey)) {
             return value as string;
           }
@@ -299,7 +299,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
       }
 
       // 2. chemical_formulas가 비어있고, 현재 chemicalEntry의 주 화학물질인 경우 concentrations에서 찾기
-      if ((!chemicalEntry?.chemical_formulas || Object.keys(chemicalEntry.chemical_formulas).length === 0) && 
+      if ((!chemicalEntry?.chemical_formulas || Object.keys(chemicalEntry.chemical_formulas).length === 0) &&
           normalizeChemicalName(chemicalEntry?.chemical) === normalizedChemicalName) {
         if (chemicalEntry?.corrosion_ratings) {
           for (const rating of chemicalEntry.corrosion_ratings) {
@@ -314,35 +314,35 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
           }
         }
       }
-      
+
       // 3. 일반적인 화학식 매핑에서 찾기
       for (const [commonName, formula] of Object.entries(commonFormulas)) {
         if (normalizedChemicalName.includes(commonName) || commonName.includes(normalizedChemicalName)) {
           return formula;
         }
       }
-      
+
       return null;
     };
-    
+
     // 혼합 화학물질인 경우
     if (chemicalName.includes('+')) {
       const chemicalParts = chemicalName.split('+').map(part => part.trim());
-      
+
       // 해당 화학물질의 데이터에서 화학식 정보 찾기
       const chemicalEntry = data.corrosion_data.find(entry => entry.chemical === chemicalName);
-      
+
       const formattedParts = chemicalParts.map(part => {
         const formula = findFormula(part, chemicalEntry);
         return formula ? `${part}(${formula})` : part;
       });
-      
+
       return formattedParts.join(' + ');
     } else {
       // 단일 화학물질인 경우
       const chemicalEntry = data.corrosion_data.find(entry => entry.chemical === chemicalName);
       const formula = findFormula(chemicalName, chemicalEntry);
-      
+
       return formula ? `${chemicalName}(${formula})` : chemicalName;
     }
   };
@@ -350,7 +350,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
   // 재질 목록 추출 (중복 제거, "Grade or type of alloy:" 제외)
   const availableMaterials = useMemo(() => {
     const materials = new Set<string>();
-    
+
     let sourceData = data.corrosion_data;
 
     if (selectedChemical) {
@@ -397,11 +397,11 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
             const conc2 = rating.concentrations.concentration_2?.value || '';
             const chem1 = rating.concentrations.concentration_1?.chemical || '';
             const chem2 = rating.concentrations.concentration_2?.chemical || '';
-            
+
             // 화학물질 공식을 사용하여 표시명 생성
-            const chem1Display = entry.chemical_formulas ? 
+            const chem1Display = entry.chemical_formulas ?
               Object.keys(entry.chemical_formulas).find(key => entry.chemical_formulas[key] === chem1) || chem1 : chem1;
-            const chem2Display = entry.chemical_formulas ? 
+            const chem2Display = entry.chemical_formulas ?
               Object.keys(entry.chemical_formulas).find(key => entry.chemical_formulas[key] === chem2) || chem2 : chem2;
 
             allResults.push({
@@ -469,11 +469,11 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
   // 특정 화학물질-재질 조합의 호환성
   const specificCompatibility = useMemo(() => {
     if (!selectedChemical || !selectedMaterial) return null;
-    
+
     const entry = data.corrosion_data.find(
       e => e.chemical === selectedChemical && e.material === selectedMaterial
     );
-    
+
     return entry || null;
   }, [selectedChemical, selectedMaterial, data.corrosion_data]);
 
@@ -484,12 +484,12 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
     const chemicalEntries = (alleimaCorrosionData as AlleimaCorrosionData).corrosion_data.filter(entry => {
       const chemicalMatch = entry.chemical.toLowerCase().includes(chemical.toLowerCase());
       const materialMatch = material ? entry.material.toLowerCase().includes(material.toLowerCase()) : true;
-      
+
       // 농도 정보 행들을 필터링 (실제 재질이 아닌 것들)
-      const isConcentrationInfo = entry.material.startsWith("Conc.") || 
+      const isConcentrationInfo = entry.material.startsWith("Conc.") ||
                                   entry.material === "Grade or type of alloy:" ||
                                   entry.material === "Temp. °C";
-      
+
       return chemicalMatch && materialMatch && !isConcentrationInfo;
     });
 
@@ -517,14 +517,14 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
               // 2개 화학물질 조합
               const conc1 = rating.concentrations.concentration_1;
               const conc2 = rating.concentrations.concentration_2;
-              
+
               if (conc1 && conc2) {
                 // 농도 값 포맷팅 (특수 값은 % 붙이지 않음)
                 const formatConcentration = (value: string) => {
                   const specialValues = ['saturated', 'bp', 'boiling', 'sat', 'concentrated'];
                   return specialValues.some(special => value.toLowerCase().includes(special)) ? value : `${value}%`;
                 };
-                
+
                 concentration1 = formatConcentration(conc1.value);
                 concentration2 = formatConcentration(conc2.value);
                 concentration = `${chemicalParts[0]} ${concentration1} + ${chemicalParts[1]} ${concentration2}`;
@@ -536,14 +536,14 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
               const conc1 = rating.concentrations.concentration_1;
               const conc2 = rating.concentrations.concentration_2;
               const conc3 = rating.concentrations.concentration_3;
-              
+
               if (conc1 && conc2 && conc3) {
                 // 농도 값 포맷팅 (특수 값은 % 붙이지 않음)
                 const formatConcentration = (value: string) => {
                   const specialValues = ['saturated', 'bp', 'boiling', 'sat', 'concentrated'];
                   return specialValues.some(special => value.toLowerCase().includes(special)) ? value : `${value}%`;
                 };
-                
+
                 concentration1 = formatConcentration(conc1.value);
                 concentration2 = formatConcentration(conc2.value);
                 concentration3 = formatConcentration(conc3.value);
@@ -602,11 +602,11 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
   // 텍스트 조각들을 적절한 등급 코드로 변환하는 함수
   const normalizeRating = (rating: string): string => {
     if (!rating || rating.trim() === '') return '';
-    
+
     const normalizedRating = rating.toLowerCase().trim();
-    
+
     // 텍스트 조각들을 적절한 등급 코드로 매핑
-    if (normalizedRating.includes('risk of pitting') || 
+    if (normalizedRating.includes('risk of pitting') ||
         normalizedRating.includes('pitting') ||
         normalizedRating.includes('stainless steels') ||
         normalizedRating.includes('in presence') ||
@@ -614,34 +614,34 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
         normalizedRating.includes('corrosion of')) {
       return 'p'; // 공식 위험
     }
-    
+
     if (normalizedRating.includes('stress corrosion') ||
         normalizedRating.includes('cracking')) {
       return 's'; // 응력 부식 균열 위험
     }
-    
+
     if (normalizedRating.includes('crevice') ||
         normalizedRating.includes('틈새')) {
       return 'c'; // 틈새 부식 위험
     }
-    
+
     if (normalizedRating.includes('intergranular') ||
         normalizedRating.includes('입계')) {
       return 'ig'; // 입계 부식 위험
     }
-    
+
     if (normalizedRating.includes('boiling') ||
         normalizedRating.includes('bp') ||
         normalizedRating === 'bp') {
       return 'BP'; // 끓는 용액
     }
-    
+
     if (normalizedRating.includes('no data') ||
         normalizedRating.includes('nd') ||
         normalizedRating === 'nd') {
       return 'ND'; // 데이터 없음
     }
-    
+
     if (normalizedRating === '0ps') {
       return '0';
     }
@@ -654,15 +654,15 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
     if (normalizedRating === '1p') {
       return '1';
     }
-    
+
     // 숫자 등급 (0, 1, 2) 또는 기존 문자 등급 (p, c, s, ig 등)은 그대로 반환
-    if (/^[0-2]$/.test(normalizedRating) || 
+    if (/^[0-2]$/.test(normalizedRating) ||
         /^[pcsig]+$/i.test(normalizedRating) ||
         normalizedRating === 'bp' ||
         normalizedRating === 'nd') {
       return rating.toUpperCase();
     }
-    
+
     // 알 수 없는 텍스트는 빈 문자열로 반환 (표시하지 않음)
     return '';
   };
@@ -670,7 +670,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
   // 등급별 색상 및 아이콘 반환
   const getRatingInfo = (rating: string) => {
     const normalizedRating = normalizeRating(rating);
-    
+
     // Alleima 등급 시스템에 따른 색상 및 아이콘 매핑
     switch (normalizedRating) {
       case '0':
@@ -692,7 +692,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
         return { color: 'bg-white border border-gray-300', icon: Info, description: '' };
     }
   };
-  
+
   const getKoreanRatingDescription = (rating: string): string => {
     const symbols = rating.split(',').map(s => s.trim());
     for (const symbol of symbols) {
@@ -765,12 +765,12 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
 
   const getDetailedRatingDescription = (combinedRating: string) => {
     if (!combinedRating) return '';
-  
+
     // 등급이 순수하게 숫자로만 구성되어 있는지 확인
     if (/^\d+$/.test(combinedRating)) {
       return ''; // 순수 숫자 등급은 셀 클래스에 표시하지 않음
     }
-  
+
     // 'ps'와 같은 복합 등급을 단일 항목으로 처리 (대소문자 구분 없이)
     const lowerRating = combinedRating.toLowerCase();
     if (lowerRating === 'ps' || lowerRating.includes('ps')) {
@@ -779,7 +779,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
 
     const descriptions: string[] = [];
     let currentNumericPart = '';
-  
+
     for (let i = 0; i < combinedRating.length; i++) {
       const char = combinedRating[i];
       if (/[0-9]/.test(char)) {
@@ -792,14 +792,14 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
     }
     return descriptions.join(', ');
   };
-  
+
   // 등급별 아이콘 반환
   const getRatingIcon = (rating: string) => {
     const ratingInfo = getRatingInfo(rating);
     const IconComponent = ratingInfo.icon;
-    
+
     return (
-      <IconComponent 
+      <IconComponent
         className={`w-4 h-4 ${
           rating === '0' ? 'text-green-600' :
           rating === '1' ? 'text-yellow-600' :
@@ -813,7 +813,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
   const getRatingBadge = (rating: string) => {
     const ratingInfo = getRatingInfo(rating);
     const IconComponent = ratingInfo.icon;
-    
+
     return (
       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ratingInfo.color === 'bg-white border border-gray-300' ? 'text-gray-700' : 'text-white'} ${ratingInfo.color}`}>
         <IconComponent className="w-2 h-2 mr-1" />
@@ -846,7 +846,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
        </div>
         </div>
         <div className="p-6 pt-0">
-            
+
         <div className="flex flex-col md:flex-row md:items-end gap-2 md:gap-3 mt-2 mb-2">
           {/* 화학물질 선택 */}
           <div className="w-full md:w-[200px]">
@@ -866,7 +866,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
               </SelectContent>
             </Select>
           </div>
-        
+
           <div className="w-full md:w-[200px]">
             <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
               재질 선택
@@ -884,7 +884,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="w-full md:w-[200px]">
             <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
               모든 등급
@@ -933,14 +933,14 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                   let concentration = '';
                   let temperature = '';
                   let actualRating = rating.rating;
-                  
+
                   if (isMultipleChemicals) {
                     // 혼합 화학물질의 경우
                     const firstChemical = selectedChemical.split('+')[0].trim();
                     const secondChemical = selectedChemical.split('+')[1].trim();
                     const conc1 = rating.concentrations.concentration_1?.value || '';
                     const conc2 = rating.concentrations.concentration_2?.value || '';
-                    
+
                     // concentration_2가 없는 경우 (예: Acetic acid + formic acid)
                     if (!conc2) {
                       // concentration_1의 chemical 정보를 확인하여 어떤 화학물질의 농도인지 판단
@@ -955,7 +955,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                     } else {
                       concentration = `${firstChemical} ${conc1}% + ${secondChemical} ${conc2}%`;
                     }
-                    
+
                     // 온도 정보는 rating.temperature에서 직접 가져오기
                     temperature = rating.temperature || 'N/A';
                   } else {
@@ -964,7 +964,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                     concentration = `${conc1}%`;
                     temperature = rating.temperature;
                   }
-                  
+
                   return (
                     <div key={index} className="border rounded-lg p-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1016,7 +1016,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             {getChemicalTitleWithFormulas(selectedChemical)} 호환성 결과
           </h3>
-          
+
           {/* 모바일에서는 카드 형태로 표시 */}
           <div className="block sm:hidden space-y-4">
             {compatibilityResults.map((result, index) => (
@@ -1026,12 +1026,12 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                     <span className="font-semibold text-sm text-gray-700 min-w-fit block mb-1">재질명</span>
                     <span className="text-sm font-medium text-right break-words max-w-full block">{result.material}</span>
                   </div>
-                  
+
                   {selectedChemical && selectedChemical.includes('+') ? (
                     (() => {
                       const chemicalParts = selectedChemical.split('+').map(part => part.trim());
                       const chemicalCount = chemicalParts.length;
-                      
+
                       if (chemicalCount >= 3) {
                         const multiChemMapping = multiChemicalConcentrations[selectedChemical];
                         if (multiChemMapping && result.concentrations) {
@@ -1043,13 +1043,13 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                           ));
                         }
                       }
-                      
+
                       return chemicalParts.map((chemName, idx) => (
                         <div key={idx} className="flex flex-wrap justify-between items-center">
                           <span className="font-semibold text-sm text-gray-700 min-w-[80px]">{chemName} 농도</span>
                           <span className="text-sm text-right break-words max-w-[60%]">
-                            {idx === 0 ? result.concentration1 : 
-                             idx === 1 ? result.concentration2 : 
+                            {idx === 0 ? result.concentration1 :
+                             idx === 1 ? result.concentration2 :
                              idx === 2 ? result.concentration3 : 'N/A'}
                           </span>
                         </div>
@@ -1061,12 +1061,12 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                       <span className="text-sm text-right break-words max-w-[60%]">{result.concentration}</span>
                     </div>
                   )}
-                  
+
                   <div className="flex flex-wrap justify-between items-center">
                     <span className="font-semibold text-sm text-gray-700 min-w-[80px]">온도 (°C)</span>
                     <span className="text-sm text-right break-words max-w-[60%]">{result.temperature}</span>
                   </div>
-                  
+
                   <div className="flex flex-wrap justify-between items-center">
                     <span className="font-semibold text-sm text-gray-700 min-w-[80px]">호환성 등급</span>
                     <span className="text-sm text-right break-words max-w-[60%]">
@@ -1076,7 +1076,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                       </span>
                     </span>
                   </div>
-                  
+
                   <div className="pt-2 border-t">
                     <span className="font-semibold text-sm text-gray-700 block mb-1">비고</span>
                     <div className="text-sm text-gray-600 break-words" dangerouslySetInnerHTML={{ __html: getDetailedRatingDescription(result.rating) || 'N/A' }} />
@@ -1098,7 +1098,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                     (() => {
                       const chemicalParts = selectedChemical.split('+').map(part => part.trim());
                       const chemicalCount = chemicalParts.length;
-                      
+
                       // 3개 이상의 화학물질인 경우 매핑 데이터에서 화학물질 이름 가져오기
                       if (chemicalCount >= 3) {
                         const multiChemMapping = multiChemicalConcentrations[selectedChemical];
@@ -1110,7 +1110,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                           ));
                         }
                       }
-                      
+
                       // 2개 화학물질인 경우 (기존 로직)
                       return chemicalParts.map((chemName, idx) => (
                         <th key={idx} className="px-4 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider whitespace-nowrap">
@@ -1202,41 +1202,73 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                           {result.material === "Alleima® 3R12" ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span>Alleima® 3R12 (&apos;304L&apos;) <span className="cursor-pointer text-gray-400 text-sm">ℹ️</span></span>
+                              <span className="flex items-center justify-center">
+                                Alleima® 3R12 (&apos;304L&apos;)
+                                <Info className="w-4 h-4 ml-1 text-gray-400 cursor-pointer" />
+                              </span>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="!bg-white !p-2 !border !border-black !rounded-md !shadow-lg !opacity-100">
-                              ASTM : TP304/TP304L
-                              UNS : S30400/S30403
+                            <TooltipContent
+                              side="top"
+                              sideOffset={5}
+                              className="relative bg-white text-black p-2 border border-gray-300 rounded-md shadow-lg"
+                            >
+                              <p>ASTM: TP304/TP304L</p>
+                              <p>UNS: S30400/S30403</p>
+                              <div className="absolute left-1/2 transform -translate-x-1/2 top-full w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-white"></div>
                             </TooltipContent>
                           </Tooltip>
                         ) : result.material === "Alleima® 2RK65 ('904L')" ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span>Alleima® 2RK65 (&apos;904L&apos;) <span className="cursor-pointer text-gray-400 text-sm">ℹ️</span></span>
+                              <span className="flex items-center justify-center">
+                                Alleima® 2RK65 (&apos;904L&apos;)
+                                <Info className="w-4 h-4 ml-1 text-gray-400 cursor-pointer" />
+                              </span>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="!bg-white !p-2 !border !border-black !rounded-md !shadow-lg !opacity-100">
-                              ASTM : 904L
-                              UNS : N08904
+                            <TooltipContent
+                              side="top"
+                              sideOffset={5}
+                              className="relative bg-white text-black p-2 border border-gray-300 rounded-md shadow-lg"
+                            >
+                              <p>ASTM: 904L</p>
+                              <p>UNS: N08904</p>
+                              <div className="absolute left-1/2 transform -translate-x-1/2 top-full w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-white"></div>
                             </TooltipContent>
                           </Tooltip>
                         ) : result.material === "Alleima® 3R64 ('317L')" ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span>Alleima® 3R64 (&apos;317L&apos;) <span className="cursor-pointer text-gray-400 text-sm">ℹ️</span></span>
+                              <span className="flex items-center justify-center">
+                                Alleima® 3R64 (&apos;317L&apos;)
+                                <Info className="w-4 h-4 ml-1 text-gray-400 cursor-pointer" />
+                              </span>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="!bg-white !p-2 !border !border-black !rounded-md !shadow-lg !opacity-100">
-                              ASTM : TP317L
-                              UNS : S31703
+                            <TooltipContent
+                              side="top"
+                              sideOffset={5}
+                              className="relative bg-white text-black p-2 border border-gray-300 rounded-md shadow-lg"
+                            >
+                              <p>ASTM: TP317L</p>
+                              <p>UNS: S31703</p>
+                              <div className="absolute left-1/2 transform -translate-x-1/2 top-full w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-white"></div>
                             </TooltipContent>
                           </Tooltip>
                         ) : result.material === "Alleima® 3R60" ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span>Alleima® 3R60 (&apos;316L&apos;) <span className="cursor-pointer text-gray-400 text-sm">ℹ️</span></span>
+                              <span className="flex items-center justify-center">
+                                Alleima® 3R60 (&apos;316L&apos;)
+                                <Info className="w-4 h-4 ml-1 text-gray-400 cursor-pointer" />
+                              </span>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="!bg-white !p-2 !border !border-black !rounded-md !shadow-lg !opacity-100">
-                              ASTM : TP316/TP316L
-                              UNS : S31600/S31603
+                            <TooltipContent
+                              side="top"
+                              sideOffset={5}
+                              className="relative bg-white text-black p-2 border border-gray-300 rounded-md shadow-lg"
+                            >
+                              <p>ASTM: TP316/TP316L</p>
+                              <p>UNS: S31600/S31603</p>
+                              <div className="absolute left-1/2 transform -translate-x-1/2 top-full w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-white"></div>
                             </TooltipContent>
                           </Tooltip>
                         ) : result.material}
@@ -1308,7 +1340,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
       {results.length > 0 && (
         <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
           <h3 className="text-xl font-bold text-gray-800 mb-4">호환성 조회 결과</h3>
-          
+
           {/* 모바일 카드 뷰 */}
           <div className="block sm:hidden space-y-4">
             {results.map((result, index) => (
@@ -1320,7 +1352,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                       {result.material === "SUS304L" ? "SUS304L" : result.material}
                     </span>
                   </div>
-                  
+
                   {result.isMultipleChemicals ? (
                     <>
                       <div className="flex flex-wrap justify-between items-center">
@@ -1342,17 +1374,17 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
                       <span className="text-sm text-gray-900">{result.concentration}</span>
                     </div>
                   )}
-                  
+
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-gray-600">온도 (°C)</span>
                     <span className="text-sm text-gray-900">{result.temperature}</span>
                   </div>
-                  
+
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-gray-600">호환성 등급</span>
                     <div>{getRatingBadge(result.rating)}</div>
                   </div>
-                  
+
                   <div className="space-y-1">
                     <span className="text-sm font-medium text-gray-600">셀 클래스</span>
                     <p className="text-sm text-gray-900 break-words">
@@ -1445,7 +1477,7 @@ const CorrosionCompatibility: React.FC<CorrosionCompatibilityProps> = ({ selecte
             </div>
           ))}
         </div>
-        
+
 
       </div>
     </div>
