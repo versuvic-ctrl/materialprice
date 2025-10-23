@@ -3,7 +3,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { redis } from '@/utils/redis';
 import { load } from 'cheerio';
-import { createClient } from '@/utils/supabase/server';
+
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -124,34 +124,13 @@ export async function POST() {
       return NextResponse.json({ success: false, error: 'No market indicators found' }, { status: 404 });
     }
 
-    const supabase = await createClient();
-    const formattedData = indicators.map(indicator => ({
-      name: indicator.name,
-      value: indicator.value,
-      change_value: indicator.change,
-      change_direction: indicator.change > 0 ? '상승' : (indicator.change < 0 ? '하락' : '유지'),
-      changerate: indicator.changerate,
-      category: indicator.category,
-      unit: indicator.unit,
-      updated_at: new Date().toISOString(),
-    }));
-
-    const { data, error } = await supabase.from('market_indicators').upsert(formattedData, { onConflict: 'name' });
-
-    if (error) {
-      console.error('Supabase upsert error:', error);
-      return new NextResponse(JSON.stringify({ message: 'Failed to update market indicators in Supabase', error: error.message }), { status: 500 });
-    }
-
-    console.log('Supabase upsert successful:', data);
-
     // [수정] 통일된 캐시 키로 Redis에 데이터를 저장합니다.
     await redis.setex(CACHE_KEY, CACHE_EXPIRATION_SECONDS, JSON.stringify(indicators));
     console.log(`Redis cache updated successfully with ${indicators.length} items.`);
 
     return NextResponse.json({
       success: true,
-      message: `Successfully scraped and cached ${indicators.length} market indicators in Redis and updated Supabase.`,
+      message: `Successfully scraped and cached ${indicators.length} market indicators in Redis.`,
       data: indicators
     });
   } catch (error) {
