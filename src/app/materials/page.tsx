@@ -143,20 +143,20 @@ const MaterialsPage: React.FC = () => {
     React.useMemo(() => ({ major: selectedLevel1, middle: selectedLevel2, sub: selectedLevel3, specification: selectedLevel4 }), [selectedLevel1, selectedLevel2, selectedLevel3, selectedLevel4])
   );
 
-  // 상세규격이 하나뿐일 경우 자동으로 선택하고 차트에 추가
+  // 상세규격이 하나뿐일 경우 4레벨 규격을 차트에 추가 (5레벨 표시 안함)
+  // 5레벨이 2개 이상일 때는 4레벨을 자동으로 차트에 추가하지 않음
   useEffect(() => {
     if (selectedLevel4 && !level5Categories.isLoading && level5Categories.data) {
       if (level5Categories.data.length === 1) {
-        const singleSpec = level5Categories.data[0];
-        if (!singleSpec.includes('가①격')) {
-          setCategory(5, singleSpec);
-          addMaterialToChart(singleSpec);
-        }
+        // 5레벨이 하나만 있으면 4레벨 규격만 차트에 추가
+        addMaterialToChart(selectedLevel4);
       } else if (level5Categories.data.length === 0) {
+        // 5레벨이 없으면 4레벨 규격을 차트에 추가
         addMaterialToChart(selectedLevel4);
       }
+      // 5레벨이 2개 이상일 때는 4레벨을 자동으로 추가하지 않음 (사용자가 5레벨을 직접 선택해야 함)
     }
-  }, [selectedLevel1, selectedLevel2, selectedLevel3, selectedLevel4, level5Categories.data, level5Categories.isLoading, setCategory, addMaterialToChart]);
+  }, [selectedLevel1, selectedLevel2, selectedLevel3, selectedLevel4, level5Categories.data, level5Categories.isLoading, addMaterialToChart]);
 
   // 상세규격이 선택되면 자동으로 차트에 추가
   useEffect(() => {

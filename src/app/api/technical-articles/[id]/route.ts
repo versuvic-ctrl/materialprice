@@ -34,7 +34,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     }
     
     const cacheKey = `technical_article_${id}`;
-    const cacheExpiry = 3600; // 1시간 (초 단위)
+    const cacheExpiry = 86400; // 24시간 (초 단위) - CRUD 작업 시에만 무효화
 
   // 1. Redis 캐시 확인
   try {

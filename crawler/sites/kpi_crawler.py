@@ -371,6 +371,33 @@ class KpiCrawler:
                 log(f"  ✅ Redis 캐시 무효화 성공: {len(keys_to_delete)}개 키 삭제")
             else:
                 log(f"  ✅ 삭제할 Redis '{match_pattern}' 캐시가 없습니다.")
+                
+            # 크롤링 완료 시 대시보드 관련 캐시도 무효화
+            if not major_name:  # 전체 크롤링 완료 시
+                dashboard_keys = ['dashboard_summary_data', 'total_materials_count']
+                for key in dashboard_keys:
+                    try:
+                        await self.redis.delete(key)
+                        log(f"  ✅ 대시보드 캐시 무효화: {key}")
+                    except Exception as e:
+                        log(f"  ❌ 대시보드 캐시 무효화 실패 ({key}): {str(e)}", "ERROR")
+                
+                # 집계 테이블 업데이트 (Supabase 함수 호출)
+                try:
+                    from supabase import create_client
+                    supabase_url = os.getenv('SUPABASE_URL')
+                    supabase_key = os.getenv('SUPABASE_KEY')
+                    
+                    if supabase_url and supabase_key:
+                        supabase = create_client(supabase_url, supabase_key)
+                        # update_material_statistics 함수 호출
+                        result = supabase.rpc('update_material_statistics').execute()
+                        log(f"  ✅ 집계 테이블 업데이트 완료")
+                    else:
+                        log(f"  ⚠️ Supabase 환경변수 없음, 집계 테이블 업데이트 건너뜀", "WARNING")
+                except Exception as e:
+                    log(f"  ❌ 집계 테이블 업데이트 실패: {str(e)}", "ERROR")
+                        
         except Exception as e:
             log(f"  ❌ Redis 캐시 삭제 실패: {str(e)}", "ERROR")
 

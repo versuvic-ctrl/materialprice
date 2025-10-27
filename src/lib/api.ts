@@ -84,6 +84,9 @@ export interface CalculationResult {
   volume?: number;
   weight?: number;
   npsh?: number;
+  npshAvailable?: number; // NPSHCalculator에서 사용
+  vaporPressureHead?: number; // NPSHCalculator에서 사용
+  atmosphericPressureHead?: number; // NPSHCalculator에서 사용
   results?: {
     flow_rate: number;
     head: number;
@@ -117,6 +120,8 @@ export interface NPSHCalculationInput {
   vapor_pressure: number;
   static_head: number;
   friction_loss: number;
+  liquid_density: number;
+  temperature: number;
 }
 
 export interface AffinityCalculationInput {

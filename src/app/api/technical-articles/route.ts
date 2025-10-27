@@ -7,7 +7,7 @@ export const revalidate = 0;
 
 export async function GET() {
   const cacheKey = 'technical_articles_list';
-  const cacheExpiry = 3600; // 1시간 (초 단위)
+  const cacheExpiry = 86400; // 24시간 (초 단위) - CRUD 작업 시에만 무효화
 
   // 1. Redis 캐시 확인
   try {

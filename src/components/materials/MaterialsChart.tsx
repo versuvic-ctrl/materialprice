@@ -12,7 +12,36 @@ import { formatWeekLabel, formatXAxisLabel } from "@/utils/dateFormatter";
 const supabase = createClient(); // Supabase 클라이언트 생성
 
 const shortenMaterialName = (materialName: string, otherMaterials: string[]): string => {
+  // 5레벨 상세규격이 하나만 있는 경우 4레벨 규격만 표시
+  // 5레벨이 2개 이상 있는 경우 4레벨+5레벨 형태로 표시
   const parts = materialName.split(' ');
+  
+  // 마지막 부분이 크기/규격 정보인지 확인 (예: 2.0mm, 3mm 등)
+  const lastPart = parts[parts.length - 1];
+  const isSizeSpec = /^\d+(?:\.\d+)?(?:mm|㎜|A|인치|inch)$/i.test(lastPart);
+  
+  // 크기 규격이 있는 경우
+  if (isSizeSpec) {
+    const baseNameWithoutSize = parts.slice(0, -1).join(' ');
+    const otherBasenames = otherMaterials.map(other => {
+      const otherParts = other.split(' ');
+      const otherLastPart = otherParts[otherParts.length - 1];
+      const otherIsSizeSpec = /^\d+(?:\.\d+)?(?:mm|㎜|A|인치|inch)$/i.test(otherLastPart);
+      return otherIsSizeSpec ? otherParts.slice(0, -1).join(' ') : other;
+    });
+    
+    // 같은 기본명을 가진 다른 자재가 있는지 확인
+    const hasSameBasename = otherBasenames.some(basename => basename === baseNameWithoutSize);
+    
+    if (!hasSameBasename) {
+      // 5레벨이 하나만 있는 경우: 4레벨만 표시 (크기 규격 제거)
+      materialName = baseNameWithoutSize;
+    } else {
+      // 5레벨이 2개 이상 있는 경우: 4레벨+5레벨 형태로 표시 (크기 규격 유지)
+      // materialName은 그대로 유지
+    }
+  }
+  
   const keywordMap: { [key: string]: string } = {
     '공진식': '공진식',
     '자흡식펌프': '자흡식펌프',
@@ -62,11 +91,13 @@ const shortenMaterialName = (materialName: string, otherMaterials: string[]): st
       displayName += `(${materialMatch[1]})`;
   }
   
-  // 구경/크기 정보 추출
-  const sizeMatch = materialName.match(/구경[^0-9]*(\d+(?:\.\d+)?[A-Za-z]*)/i) || 
-                   materialName.match(/(\d+(?:\.\d+)?(?:mm|A|㎜))/i);
-  if (sizeMatch) {
-      displayName += ` ${sizeMatch[1]}`;
+  // 구경/크기 정보 추출 (5레벨이 여러 개 있을 때만)
+  if (!isSizeSpec || otherMaterials.some(other => other.includes(materialName.replace(lastPart, '').trim()))) {
+    const sizeMatch = materialName.match(/구경[^0-9]*(\d+(?:\.\d+)?[A-Za-z]*)/i) || 
+                     materialName.match(/(\d+(?:\.\d+)?(?:mm|A|㎜))/i);
+    if (sizeMatch) {
+        displayName += ` ${sizeMatch[1]}`;
+    }
   }
   
   // 중복 체크 및 추가 구분자

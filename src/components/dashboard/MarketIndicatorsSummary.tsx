@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader } from '@/components/ui/card';
 
 interface MarketIndicator {
   category: string;
@@ -99,12 +99,12 @@ export default function MarketIndicatorsSummary() {
     <Card className="min-h-[220px] bg-white shadow-sm border border-gray-100 overflow-hidden">
       <div className="h-full flex flex-col">
         {/* 헤더 */}
-        <div className="px-3 sm:px-4 py-2 border-b border-gray-100">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
-            <h3 className="text-sm sm:text-base font-bold text-gray-900">주요 시장지표 SUMMARY</h3>
-            <span className="text-xs text-gray-500">(전일비)</span>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pt-2 pb-2 px-3 sm:px-4 border-b border-gray-100">
+          <div className="flex flex-row justify-between items-center gap-1 flex-nowrap w-full">
+            <h3 className="text-sm sm:text-base font-bold text-gray-900 flex-shrink-0 flex-grow">주요 시장지표 SUMMARY</h3>
+            <span className="text-xs text-gray-500 flex-shrink-0 whitespace-nowrap">(전일비)</span>
           </div>
-        </div>
+        </CardHeader>
 
         {/* 지표 목록 (조건부 렌더링으로 수정) */}
         <div className="flex-1 px-4 py-4 overflow-hidden">

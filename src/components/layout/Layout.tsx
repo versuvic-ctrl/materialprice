@@ -65,8 +65,13 @@ function Layout({ children }: LayoutProps) {
   const pathname = usePathname();
 
   // 현재 경로에 맞는 페이지 제목 찾기
-  const currentPage = navigation.find((item) => item.href === pathname);
-  const pageTitle = currentPage ? currentPage.name : '';
+  let pageTitle = '';
+  if (pathname.startsWith('/calculator')) {
+    pageTitle = '엔지니어링 계산기';
+  } else {
+    const currentPage = navigation.find((item) => item.href === pathname);
+    pageTitle = currentPage ? currentPage.name : '';
+  }
 
   // 클라이언트에서만 localStorage 값을 불러와서 상태 설정
   // 사이드바 접힘 상태를 브라우저 새로고침 후에도 유지

@@ -1,419 +1,236 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 interface TankVisualizationProps {
-  diameter: number;
-  height: number;
-  topHeadType: string;
-  bottomHeadType: string;
+  tankType: string;
+  diameter?: number;
+  height?: number;
+  length?: number;
+  width?: number;
+  radius1?: number;
+  radius2?: number;
+  topDiameter?: number;
+  bottomDiameter?: number;
+  cylinderHeight?: number;
+  coneHeight?: number;
+  unit?: string;
 }
 
-export default function TankVisualization({ 
-  diameter, 
-  height, 
-  topHeadType, 
-  bottomHeadType 
+// Tank 타입과 이미지 파일 매핑
+const TANK_TYPE_IMAGES = {
+  'vertical-cylinder': '/tank type/vertical-cylinder-tank-volume.webp',
+  'horizontal-cylinder': '/tank type/horizontal-cylinder-tank-volume.webp',
+  'rectangular-prism': '/tank type/rectangular-prism-tank-volume.webp',
+  'vertical-capsule': '/tank type/vertical-capsule-tank-volume.webp',
+  'horizontal-capsule': '/tank type/horizontal-capsule-tank-volume.webp',
+  'vertical-elliptical': '/tank type/vertical-elliptical-tank-volume.webp',
+  'horizontal-elliptical': '/tank type/horizontal-elliptical-tank-volume.webp',
+  'cone-bottom': '/tank type/cone-bottom-tank-volume.webp',
+  'cone-top': '/tank type/cone-top-tank-volume.webp',
+  'frustum': '/tank type/frustum-tank-volume.webp',
+} as const;
+
+// Tank 타입별 한글 이름
+const TANK_TYPE_NAMES = {
+  'vertical-cylinder': '수직 원통형',
+  'horizontal-cylinder': '수평 원통형',
+  'rectangular-prism': '직육면체',
+  'vertical-capsule': '수직 캡슐형',
+  'horizontal-capsule': '수평 캡슐형',
+  'vertical-elliptical': '수직 타원형',
+  'horizontal-elliptical': '수평 타원형',
+  'cone-bottom': '원뿔 바닥형',
+  'cone-top': '원뿔 상단형',
+  'frustum': '절두체 (깔때기형)',
+} as const;
+
+export default function TankVisualization({
+  tankType,
+  diameter,
+  height,
+  length,
+  width,
+  radius1,
+  radius2,
+  topDiameter,
+  bottomDiameter,
+  cylinderHeight,
+  coneHeight,
+  unit = 'm'
 }: TankVisualizationProps) {
-  const mountRef = useRef<HTMLDivElement>(null);
-  const sceneRef = useRef<THREE.Scene | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const controlsRef = useRef<OrbitControls | null>(null);
-  const animationIdRef = useRef<number | null>(null);
-  const tankGroupRef = useRef<THREE.Group | null>(null);
-  const dimensionGroupRef = useRef<THREE.Group | null>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
+  // Tank 타입이 변경될 때마다 이미지 로딩 상태 초기화
   useEffect(() => {
-    const currentMount = mountRef.current;
-    if (!currentMount) return;
+    setImageLoaded(false);
+    setImageError(false);
+  }, [tankType]);
 
-    // 기존 렌더러가 있으면 정리
-    if (rendererRef.current) {
-      if (animationIdRef.current) {
-        cancelAnimationFrame(animationIdRef.current);
-      }
-      if (currentMount.contains(rendererRef.current.domElement)) {
-        currentMount.removeChild(rendererRef.current.domElement);
-      }
-      rendererRef.current.dispose();
-    }
+  // 현재 Tank 타입에 해당하는 이미지 경로
+  const currentImage = TANK_TYPE_IMAGES[tankType as keyof typeof TANK_TYPE_IMAGES];
+  const currentName = TANK_TYPE_NAMES[tankType as keyof typeof TANK_TYPE_NAMES];
 
-    // Scene 초기화
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf8fafc);
-    sceneRef.current = scene;
-
-    // Camera 설정
-    const camera = new THREE.PerspectiveCamera(
-      50,
-      currentMount.clientWidth / currentMount.clientHeight,
-      0.1,
-      1000
-    );
-
-    // Renderer 설정 (개선된 버전)
-    const renderer = new THREE.WebGLRenderer({ 
-      antialias: true, 
-      alpha: true,
-      powerPreference: 'high-performance'
-    });
-    renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    rendererRef.current = renderer;
-    currentMount.appendChild(renderer.domElement);
-
-    // 조명 설정 (개선된 버전)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    scene.add(ambientLight);
-
-    // 주 조명
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    directionalLight.position.set(10, 10, 5);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 4096;
-    directionalLight.shadow.mapSize.height = 4096;
-    directionalLight.shadow.camera.near = 0.1;
-    directionalLight.shadow.camera.far = 50;
-    directionalLight.shadow.camera.left = -20;
-    directionalLight.shadow.camera.right = 20;
-    directionalLight.shadow.camera.top = 20;
-    directionalLight.shadow.camera.bottom = -20;
-    scene.add(directionalLight);
-
-    // 보조 조명 (림 라이트)
-    const rimLight = new THREE.DirectionalLight(0x6366f1, 0.3);
-    rimLight.position.set(-5, 5, -5);
-    scene.add(rimLight);
-
-    // 환경 맵핑을 위한 점광원
-    const pointLight = new THREE.PointLight(0xffffff, 0.5, 100);
-    pointLight.position.set(0, 10, 10);
-    scene.add(pointLight);
-
-    // 탱크 업데이트 함수
-    const updateTank = () => {
-      // 기존 탱크 제거
-      if (tankGroupRef.current) {
-        scene.remove(tankGroupRef.current);
-      }
-      if (dimensionGroupRef.current) {
-        scene.remove(dimensionGroupRef.current);
-      }
-
-      // 새 탱크 그룹 생성
-      const tankGroup = new THREE.Group();
-      const dimensionGroup = new THREE.Group();
-      tankGroupRef.current = tankGroup;
-      dimensionGroupRef.current = dimensionGroup;
-
-      // 스케일링 계산
-      const radius = diameter / 2;
-      const maxDimension = Math.max(diameter, height);
-      const scaleFactor = Math.max(0.5, Math.min(3, 8 / maxDimension));
-      const scaledRadius = radius * scaleFactor;
-      const scaledHeight = height * scaleFactor;
-
-      // 재질 정의 (개선된 버전)
-      const tankMaterial = new THREE.MeshStandardMaterial({
-        color: 0x4f46e5,
-        metalness: 0.7,
-        roughness: 0.2,
-        transparent: false,
-        opacity: 1.0
-      });
-
-      const headMaterial = new THREE.MeshStandardMaterial({
-        color: 0x4f46e5, // 바디와 동일한 색상으로 통일
-        metalness: 0.7,
-        roughness: 0.2,
-        transparent: false,
-        opacity: 1.0
-      });
-
-      // 용접선 재질
-      const weldMaterial = new THREE.MeshStandardMaterial({
-        color: 0x6b7280,
-        metalness: 0.8,
-        roughness: 0.4
-      });
-
-      // 원통형 몸체 (고해상도)
-      const bodyGeometry = new THREE.CylinderGeometry(
-        scaledRadius, 
-        scaledRadius, 
-        scaledHeight, 
-        64, // 더 높은 해상도
-        1
-      );
-      const body = new THREE.Mesh(bodyGeometry, tankMaterial);
-      body.castShadow = true;
-      body.receiveShadow = true;
-      tankGroup.add(body);
-
-      // 용접선 추가 (헤드와 바디 연결부)
-      const createWeldLine = (yPosition: number) => {
-        const weldGeometry = new THREE.TorusGeometry(
-          scaledRadius + scaleFactor * 0.02, 
-          scaleFactor * 0.01, 
-          8, 
-          64
-        );
-        const weld = new THREE.Mesh(weldGeometry, weldMaterial);
-        weld.position.y = yPosition;
-        weld.rotation.x = Math.PI / 2;
-        return weld;
-      };
-
-      // 헤드 생성 함수 (개선된 버전)
-      const createHead = (type: string, isTop: boolean) => {
-        let geometry;
-        // const headHeight = scaledRadius * 0.5; // 높이 증가 (현재 미사용)
-        
-        switch (type) {
-          case 'elliptical':
-            // 타원형 헤드 - 더 정확한 형태
-            geometry = new THREE.SphereGeometry(scaledRadius, 64, 32);
-            geometry.scale(1, 0.4, 1); // 더 납작한 타원
-            break;
-          case 'hemispherical':
-            // 반구형 헤드 - 완전한 반구
-            geometry = new THREE.SphereGeometry(scaledRadius, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2);
-            break;
-          default: // flat
-            // 평면 헤드 - 더 얇게
-            geometry = new THREE.CylinderGeometry(
-              scaledRadius, 
-              scaledRadius, 
-              scaleFactor * 0.05, 
-              64
-            );
-        }
-        
-        const head = new THREE.Mesh(geometry, headMaterial);
-        head.castShadow = true;
-        head.receiveShadow = true;
-        
-        // 위치 조정 - 바디와 완전히 연결되도록
-        if (isTop) {
-          if (type === 'flat') {
-            head.position.y = scaledHeight / 2 + scaleFactor * 0.025;
-          } else if (type === 'elliptical') {
-            head.position.y = scaledHeight / 2 + scaledRadius * 0.2;
-          } else { // hemispherical
-            head.position.y = scaledHeight / 2;
-            head.rotation.x = 0;
-          }
-        } else {
-          if (type === 'flat') {
-            head.position.y = -scaledHeight / 2 - scaleFactor * 0.025;
-          } else if (type === 'elliptical') {
-            head.position.y = -scaledHeight / 2 - scaledRadius * 0.2;
-          } else { // hemispherical
-            head.position.y = -scaledHeight / 2;
-            head.rotation.x = Math.PI;
-          }
-        }
-        
-        return head;
-      };
-
-      // 헤드 추가
-      const topHead = createHead(topHeadType, true);
-      const bottomHead = createHead(bottomHeadType, false);
-      tankGroup.add(topHead);
-      tankGroup.add(bottomHead);
-
-      // 용접선 추가 (헤드가 flat이 아닌 경우에만)
-      if (topHeadType !== 'flat') {
-        const topWeld = createWeldLine(scaledHeight / 2);
-        tankGroup.add(topWeld);
-      }
-      if (bottomHeadType !== 'flat') {
-        const bottomWeld = createWeldLine(-scaledHeight / 2);
-        tankGroup.add(bottomWeld);
-      }
-
-      // 치수선 생성 함수
-      const createDimensionLine = (
-        start: THREE.Vector3, 
-        end: THREE.Vector3, 
-        text: string
-      ) => {
-        const lineGroup = new THREE.Group();
-        
-        // 치수선
-        const lineGeometry = new THREE.BufferGeometry().setFromPoints([start, end]);
-        const lineMaterial = new THREE.LineBasicMaterial({ 
-          color: 0x374151, 
-          linewidth: 2 
-        });
-        const line = new THREE.Line(lineGeometry, lineMaterial);
-        lineGroup.add(line);
-        
-        // 화살표 (작은 원뿔)
-        const arrowGeometry = new THREE.ConeGeometry(0.05 * scaleFactor, 0.1 * scaleFactor, 8);
-        const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0x374151 });
-        
-        const arrow1 = new THREE.Mesh(arrowGeometry, arrowMaterial);
-        const arrow2 = new THREE.Mesh(arrowGeometry, arrowMaterial);
-        
-        arrow1.position.copy(start);
-        arrow2.position.copy(end);
-        
-        // 화살표 방향 설정
-        const direction = new THREE.Vector3().subVectors(end, start).normalize();
-        arrow1.lookAt(start.clone().add(direction));
-        arrow2.lookAt(end.clone().sub(direction));
-        
-        lineGroup.add(arrow1);
-        lineGroup.add(arrow2);
-        
-        // 텍스트 라벨
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d')!;
-        canvas.width = 512;
-        canvas.height = 128;
-        
-        // 배경
-        context.fillStyle = 'rgba(255, 255, 255, 0.95)';
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // 테두리
-        context.strokeStyle = '#374151';
-        context.lineWidth = 2;
-        context.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
-        
-        // 텍스트
-        context.fillStyle = '#374151';
-        context.font = 'bold 48px Arial';
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        context.fillText(text, canvas.width / 2, canvas.height / 2);
-        
-        const texture = new THREE.CanvasTexture(canvas);
-        const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
-        const sprite = new THREE.Sprite(spriteMaterial);
-        
-        // 라벨 위치
-        const midPoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
-        sprite.position.copy(midPoint);
-        sprite.scale.set(2.4 * scaleFactor, 0.6 * scaleFactor, 1);
-        
-        lineGroup.add(sprite);
-        return lineGroup;
-      };
-
-      // 치수선 추가
-      const totalHeight = scaledHeight + 
-        (topHeadType === 'flat' ? scaleFactor * 0.1 : scaledRadius * 0.4) +
-        (bottomHeadType === 'flat' ? scaleFactor * 0.1 : scaledRadius * 0.4);
-      
-      // 높이 치수선
-      const heightLine = createDimensionLine(
-        new THREE.Vector3(scaledRadius + scaleFactor * 0.8, -totalHeight / 2, 0),
-        new THREE.Vector3(scaledRadius + scaleFactor * 0.8, totalHeight / 2, 0),
-        `H: ${height.toFixed(1)}m`
-      );
-      
-      // 직경 치수선
-      const diameterLine = createDimensionLine(
-        new THREE.Vector3(-scaledRadius, totalHeight / 2 + scaleFactor * 0.8, 0),
-        new THREE.Vector3(scaledRadius, totalHeight / 2 + scaleFactor * 0.8, 0),
-        `Ø: ${diameter.toFixed(1)}m`
-      );
-      
-      dimensionGroup.add(heightLine);
-      dimensionGroup.add(diameterLine);
-
-      // 바닥 그리드 (선택적)
-      const gridHelper = new THREE.GridHelper(
-        scaledRadius * 3, 
-        20, 
-        0xd1d5db, 
-        0xe5e7eb
-      );
-      gridHelper.position.y = -totalHeight / 2 - scaleFactor * 0.2;
-      scene.add(gridHelper);
-
-      scene.add(tankGroup);
-      scene.add(dimensionGroup);
-
-      // 카메라 위치 조정
-      const distance = Math.max(scaledRadius * 3, totalHeight * 1.5);
-      camera.position.set(distance * 1.2, distance * 0.8, distance * 1.2);
-      camera.lookAt(0, 0, 0);
-
-      // 컨트롤 업데이트
-      if (controlsRef.current) {
-        controlsRef.current.target.set(0, 0, 0);
-        controlsRef.current.minDistance = distance * 0.5;
-        controlsRef.current.maxDistance = distance * 3;
-        controlsRef.current.update();
-      }
-    };
-
-    // 컨트롤 설정
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.enableZoom = true;
-    controls.enablePan = true;
-    controls.autoRotate = false;
-    controlsRef.current = controls;
-
-    // 초기 탱크 생성
-    updateTank();
-
-    // 애니메이션 루프
-    const animate = () => {
-      animationIdRef.current = requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
-    };
-    animate();
-
-    // 리사이즈 핸들러
-    const handleResize = () => {
-      if (!mountRef.current || !renderer || !camera) return;
-      
-      const width = mountRef.current.clientWidth;
-      const height = mountRef.current.clientHeight;
-      
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-      renderer.setSize(width, height);
-    };
+  // 치수 정보 생성
+  const getDimensionInfo = () => {
+    const dimensions: string[] = [];
     
-    window.addEventListener('resize', handleResize);
+    switch (tankType) {
+      case 'vertical-cylinder':
+      case 'horizontal-cylinder':
+        if (diameter) dimensions.push(`직경: ${diameter}${unit}`);
+        if (height) dimensions.push(`높이: ${height}${unit}`);
+        if (length) dimensions.push(`길이: ${length}${unit}`);
+        break;
+      
+      case 'rectangular-prism':
+        if (length) dimensions.push(`길이: ${length}${unit}`);
+        if (width) dimensions.push(`폭: ${width}${unit}`);
+        if (height) dimensions.push(`높이: ${height}${unit}`);
+        break;
+      
+      case 'vertical-capsule':
+      case 'horizontal-capsule':
+      case 'vertical-elliptical':
+      case 'horizontal-elliptical':
+        if (diameter) dimensions.push(`직경: ${diameter}${unit}`);
+        if (height) dimensions.push(`높이: ${height}${unit}`);
+        if (length) dimensions.push(`길이: ${length}${unit}`);
+        break;
+      
+      case 'cone-bottom':
+      case 'cone-top':
+        if (topDiameter) dimensions.push(`상단 직경: ${topDiameter}${unit}`);
+        if (bottomDiameter) dimensions.push(`하단 직경: ${bottomDiameter}${unit}`);
+        if (cylinderHeight) dimensions.push(`원통 높이: ${cylinderHeight}${unit}`);
+        if (coneHeight) dimensions.push(`원뿔 높이: ${coneHeight}${unit}`);
+        break;
+      
+      case 'frustum':
+        if (radius1) dimensions.push(`상단 반지름: ${radius1}${unit}`);
+        if (radius2) dimensions.push(`하단 반지름: ${radius2}${unit}`);
+        if (height) dimensions.push(`높이: ${height}${unit}`);
+        break;
+      
+      default:
+        if (diameter) dimensions.push(`직경: ${diameter}${unit}`);
+        if (height) dimensions.push(`높이: ${height}${unit}`);
+    }
+    
+    return dimensions;
+  };
 
-    // 클린업
-    return () => {
-      if (animationIdRef.current) {
-        cancelAnimationFrame(animationIdRef.current);
-      }
-      window.removeEventListener('resize', handleResize);
-      if (controlsRef.current) {
-        controlsRef.current.dispose();
-      }
-      if (currentMount && renderer.domElement && currentMount.contains(renderer.domElement)) {
-        currentMount.removeChild(renderer.domElement);
-      }
-      renderer.dispose();
-    };
-  }, [diameter, height, topHeadType, bottomHeadType]);
+  const dimensionInfo = getDimensionInfo();
+
+  // 이미지가 없는 경우 기본 표시
+  if (!currentImage) {
+    return (
+      <div className="w-full h-full bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg overflow-hidden flex items-center justify-center">
+        <div className="text-center p-8">
+          <div className="text-6xl mb-4">🛢️</div>
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">
+            {currentName || 'Tank 시각화'}
+          </h3>
+          <p className="text-sm text-gray-500">
+            이미지를 불러올 수 없습니다
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div 
-      ref={mountRef} 
-      className="w-full h-full bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg overflow-hidden"
-      style={{ minHeight: '400px' }}
-    />
+    <div className="w-full h-full bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg overflow-hidden relative">
+      {/* 로딩 상태 */}
+      {!imageLoaded && !imageError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <p className="text-sm text-gray-600">이미지 로딩 중...</p>
+          </div>
+        </div>
+      )}
+
+      {/* 에러 상태 */}
+      {imageError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="text-center p-8">
+            <div className="text-4xl mb-4">⚠️</div>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">
+              {currentName}
+            </h3>
+            <p className="text-sm text-gray-500">
+              이미지를 불러올 수 없습니다
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Tank 타입 이미지 */}
+      <div className="relative w-full h-full">
+        <Image
+          src={currentImage}
+          alt={`${currentName} 구조도`}
+          fill
+          className={`object-contain p-4 transition-opacity duration-300 ${
+            imageLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
+          onLoad={() => setImageLoaded(true)}
+          onError={() => setImageError(true)}
+          priority
+        />
+        
+        {/* Tank 타입 정보 오버레이 */}
+        {imageLoaded && (
+          <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg">
+            <h3 className="font-semibold text-gray-800 mb-1">
+              {currentName}
+            </h3>
+            <p className="text-xs text-gray-600">
+              {tankType}
+            </p>
+          </div>
+        )}
+
+        {/* 치수 정보 오버레이 */}
+        {imageLoaded && dimensionInfo.length > 0 && (
+          <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg max-w-xs">
+            <h4 className="font-semibold text-gray-800 mb-2 text-sm">
+              📏 치수 정보
+            </h4>
+            <div className="space-y-1">
+              {dimensionInfo.map((dimension, index) => (
+                <p key={index} className="text-xs text-gray-600 font-mono">
+                  {dimension}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
+
+
+      </div>
+
+      {/* 추가 정보 패널 (선택적) */}
+      <div className="absolute top-1/2 left-2 transform -translate-y-1/2 opacity-0 hover:opacity-100 transition-opacity duration-300">
+        <div className="bg-gray-800/80 text-white p-2 rounded-lg text-xs max-w-48">
+          <p className="font-semibold mb-1">Tank 타입 특징:</p>
+          <p className="text-gray-300">
+            {tankType === 'vertical-cylinder' && '수직으로 설치되는 원통형 탱크'}
+            {tankType === 'horizontal-cylinder' && '수평으로 설치되는 원통형 탱크'}
+            {tankType === 'rectangular-prism' && '직육면체 형태의 저장 탱크'}
+            {tankType === 'vertical-capsule' && '양 끝이 반구형인 수직 캡슐 탱크'}
+            {tankType === 'horizontal-capsule' && '양 끝이 반구형인 수평 캡슐 탱크'}
+            {tankType === 'vertical-elliptical' && '타원형 헤드를 가진 수직 탱크'}
+            {tankType === 'horizontal-elliptical' && '타원형 헤드를 가진 수평 탱크'}
+            {tankType === 'cone-bottom' && '바닥이 원뿔 형태인 탱크'}
+            {tankType === 'cone-top' && '상단이 원뿔 형태인 탱크'}
+            {tankType === 'frustum' && '절두체(깔때기) 형태의 탱크'}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }

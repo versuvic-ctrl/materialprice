@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BookOpenIcon,
   DocumentTextIcon,
@@ -15,7 +15,7 @@ interface ReferenceItem {
   title: string;
   description: string;
   url: string;
-  category: 'standard' | 'regulation' | 'guide' | 'calculator' | 'database';
+  category: string; // Changed from literal union to string
   rating: number;
   isBookmarked: boolean;
 }
@@ -25,73 +25,66 @@ interface ReferenceSectionProps {
 }
 
 const ReferenceSection: React.FC<ReferenceSectionProps> = ({ title = '참고 자료' }) => {
-  // 샘플 참고자료 데이터
-  const referenceItems: ReferenceItem[] = [
-    {
-      id: '1',
-      title: 'KS D 3503 - 일반구조용 압연강재',
-      description: '일반구조용 압연강재의 한국산업표준 규격서입니다.',
-      url: 'https://standard.go.kr',
-      category: 'standard',
-      rating: 5,
-      isBookmarked: true
-    },
-    {
-      id: '2',
-      title: 'ASTM A36 - 구조용 탄소강 표준',
-      description: 'ASTM A36 구조용 탄소강의 국제 표준 규격입니다.',
-      url: 'https://astm.org',
-      category: 'standard',
-      rating: 5,
-      isBookmarked: true
-    },
-    {
-      id: '3',
-      title: '건설공사 표준품셈',
-      description: '국토교통부 건설공사 표준품셈 및 자재 단가 정보입니다.',
-      url: 'https://www.molit.go.kr',
-      category: 'regulation',
-      rating: 4,
-      isBookmarked: false
-    },
-    {
-      id: '4',
-      title: '강재 중량 계산기',
-      description: '다양한 형태의 강재 중량을 계산할 수 있는 온라인 도구입니다.',
-      url: '#',
-      category: 'calculator',
-      rating: 4,
-      isBookmarked: true
-    },
-    {
-      id: '5',
-      title: '알루미늄 합금 특성 데이터베이스',
-      description: '알루미늄 합금의 물리적, 화학적 특성 정보를 제공합니다.',
-      url: '#',
-      category: 'database',
-      rating: 4,
-      isBookmarked: false
-    },
-    {
-      id: '6',
-      title: '용접 설계 가이드라인',
-      description: '구조용 강재 용접 설계 시 참고할 수 있는 가이드라인입니다.',
-      url: '#',
-      category: 'guide',
-      rating: 3,
-      isBookmarked: false
-    }
-  ];
+  const [referenceItems, setReferenceItems] = useState<ReferenceItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const getCategoryInfo = (category: ReferenceItem['category']) => {
-    const categoryMap = {
-      standard: { label: '표준', color: 'bg-blue-100 text-blue-800', icon: DocumentTextIcon },
-      regulation: { label: '규정', color: 'bg-red-100 text-red-800', icon: BookOpenIcon },
-      guide: { label: '가이드', color: 'bg-green-100 text-green-800', icon: BookOpenIcon },
-      calculator: { label: '계산기', color: 'bg-purple-100 text-purple-800', icon: LinkIcon },
-      database: { label: 'DB', color: 'bg-orange-100 text-orange-800', icon: LinkIcon }
+  useEffect(() => {
+    const fetchReferenceItems = async () => {
+      try {
+        const response = await fetch('/api/technical-articles');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+
+        // API 응답 데이터를 ReferenceItem 인터페이스에 맞게 매핑
+        const mappedItems: ReferenceItem[] = data.map((item: any) => ({
+          id: item.id.toString(),
+          title: item.title,
+          description: item.description || '설명 없음',
+          url: item.url || '#', // API 응답에 url이 없으면 기본값으로 '#' 설정
+          category: item.category || 'guide', // API 응답에 category가 없으면 기본값으로 'guide' 설정
+          rating: item.rating || 5, // API 응답에 rating이 없으면 기본값으로 5 설정
+          isBookmarked: item.isBookmarked || false, // API 응답에 isBookmarked가 없으면 기본값으로 false 설정
+        }));
+        setReferenceItems(mappedItems);
+      } catch (e: any) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
     };
-    return categoryMap[category];
+
+    fetchReferenceItems();
+  }, []);
+
+  const getCategoryInfo = (category: string) => {
+    const categoryMap = {
+      '기계/배관': { label: '기계/배관', color: 'bg-blue-100 text-blue-800', icon: DocumentTextIcon },
+      '전기/계기': { label: '전기/계기', color: 'bg-yellow-100 text-yellow-800', icon: LinkIcon },
+      '규격/법규': { label: '규격/법규', color: 'bg-red-100 text-red-800', icon: BookOpenIcon },
+      '기타': { label: '기타', color: 'bg-gray-100 text-gray-800', icon: BookOpenIcon },
+      '표준': { label: '표준', color: 'bg-blue-100 text-blue-800', icon: DocumentTextIcon },
+      '규정': { label: '규정', color: 'bg-red-100 text-red-800', icon: BookOpenIcon },
+      '가이드': { label: '가이드', color: 'bg-green-100 text-green-800', icon: BookOpenIcon },
+      '계산기': { label: '계산기', color: 'bg-purple-100 text-purple-800', icon: LinkIcon },
+      'DB': { label: 'DB', color: 'bg-orange-100 text-orange-800', icon: LinkIcon }
+    };
+
+    // Try to find a match by key (e.g., 'standard')
+    if (categoryMap.hasOwnProperty(category)) {
+      return categoryMap[category as keyof typeof categoryMap];
+    }
+
+    // Try to find a match by label (e.g., '표준')
+    for (const key in categoryMap) {
+      if (categoryMap[key as keyof typeof categoryMap].label === category) {
+        return categoryMap[key as keyof typeof categoryMap];
+      }
+    }
+
+    return categoryMap['기타']; // Default to '기타' if no match is found
   };
 
   const renderStars = (rating: number) => {
@@ -119,56 +112,69 @@ const ReferenceSection: React.FC<ReferenceSectionProps> = ({ title = '참고 자
           <h3 className="text-base sm:text-lg font-semibold text-gray-900">{title}</h3>
         </div>
         
-        <button className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1 self-start sm:self-auto">
+        <a href="/technical-data" className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1 self-start sm:self-auto">
           <span>전체보기</span>
           <ArrowTopRightOnSquareIcon className="w-4 h-4" />
-        </button>
+        </a>
       </div>
 
       {/* Reference Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-        {referenceItems.map((item) => {
-          const categoryInfo = getCategoryInfo(item.category);
-          const CategoryIcon = categoryInfo.icon;
-          
-          return (
-            <div
-              key={item.id}
-              className="group p-3 sm:p-4 rounded-lg border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all duration-200 cursor-pointer"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center space-x-2">
-                  <CategoryIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color} truncate`}>
-                    {categoryInfo.label}
-                  </span>
+      {loading && <p className="text-center text-gray-500">참고 자료를 불러오는 중...</p>}
+      {error && <p className="text-center text-red-500">오류 발생: {error}</p>}
+      {!loading && !error && referenceItems.length === 0 && <p className="text-center text-gray-500">참고 자료가 없습니다.</p>}
+      {!loading && !error && referenceItems.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+          {referenceItems.map((item) => {
+            const categoryInfo = getCategoryInfo(item.category);
+            const CategoryIcon = categoryInfo.icon;
+            
+            return (
+              <div
+                key={item.id}
+                className="group p-3 sm:p-4 rounded-lg border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all duration-200 cursor-pointer"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <CategoryIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${categoryInfo.color} truncate`}>
+                      {categoryInfo.label}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    {item.isBookmarked && (
+                      <StarSolidIcon className="w-4 h-4 text-yellow-400" />
+                    )}
+                    <ArrowTopRightOnSquareIcon className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                  </div>
                 </div>
                 
-                <div className="flex items-center space-x-2">
-                  {item.isBookmarked && (
-                    <StarSolidIcon className="w-4 h-4 text-yellow-400" />
-                  )}
-                  <ArrowTopRightOnSquareIcon className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
-                </div>
+                <h4 className="text-xs sm:text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors mb-2 line-clamp-2 truncate">
+                  {item.title}
+                </h4>
+                
+                <p className="text-xs text-gray-600 line-clamp-2 mb-3">
+                  {item.description}
+                </p>
+                
+                {/* <div className="flex items-center justify-between">
+                  {renderStars(item.rating)}
+                  <span className="text-xs text-gray-500">
+                    평점 {item.rating}/5
+                  </span>
+                </div> */}
               </div>
-              
-              <h4 className="text-xs sm:text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors mb-2 line-clamp-2 truncate">
-                {item.title}
-              </h4>
-              
-              <p className="text-xs text-gray-600 line-clamp-2 mb-3">
-                {item.description}
-              </p>
-              
-              <div className="flex items-center justify-between">
-                {renderStars(item.rating)}
-                <span className="text-xs text-gray-500">
-                  평점 {item.rating}/5
-                </span>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="mt-2 pt-2 border-t border-gray-200">
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <span>총 {referenceItems.length}개 자료</span>
+          <span>북마크 {referenceItems.filter(item => item.isBookmarked).length}개</span>
+        </div>
       </div>
 
       {/* Quick Links */}
@@ -191,14 +197,6 @@ const ReferenceSection: React.FC<ReferenceSectionProps> = ({ title = '참고 자
               <ArrowTopRightOnSquareIcon className="w-3 h-3 ml-1" />
             </a>
           ))}
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="mt-2 pt-2 border-t border-gray-200">
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>총 {referenceItems.length}개 자료</span>
-          <span>북마크 {referenceItems.filter(item => item.isBookmarked).length}개</span>
         </div>
       </div>
     </div>

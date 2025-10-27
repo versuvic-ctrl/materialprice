@@ -45,6 +45,8 @@ export interface TankCalculationInput {
   topHeadType?: string;
   bottomHeadType?: string;
   material?: string;
+  thickness?: number;
+  density?: number;
 }
 
 export interface NPSHCalculationInput {
@@ -76,7 +78,15 @@ const MATERIAL_DENSITIES = {
 
 // ==================== Tank 부피/무게 계산 ====================
 export function calculateTankVolume(input: TankCalculationInput): CalculationResult {
-  const { diameter, height, topHeadType = 'flat', bottomHeadType = 'flat', material = 'carbon' } = input;
+  const { 
+    diameter, 
+    height, 
+    topHeadType = 'flat', 
+    bottomHeadType = 'flat', 
+    material = 'carbon',
+    thickness = 6, // mm 단위
+    density: inputDensity
+  } = input;
   
   if (diameter <= 0 || height <= 0) {
     throw new Error('직경과 높이는 0보다 커야 합니다.');
@@ -109,14 +119,16 @@ export function calculateTankVolume(input: TankCalculationInput): CalculationRes
   // 총 부피
   const totalVolume = cylinderVolume + topHeadVolume + bottomHeadVolume;
   
-  // 무게 계산 (탱크 벽 두께를 6mm로 가정)
-  const wallThickness = 0.006; // 6mm
+  // 무게 계산 (입력된 두께 또는 기본값 사용)
+  const wallThickness = thickness / 1000; // mm를 m로 변환
   const shellSurfaceArea = Math.PI * diameter * height;
   const topBottomArea = 2 * Math.PI * Math.pow(radius, 2);
   const totalSurfaceArea = shellSurfaceArea + topBottomArea;
   const materialVolume = totalSurfaceArea * wallThickness;
-  const density = MATERIAL_DENSITIES[material as keyof typeof MATERIAL_DENSITIES] || MATERIAL_DENSITIES.carbon;
-  const weight = materialVolume * density;
+  
+  // 밀도 계산 (입력된 밀도 또는 재질별 기본값 사용)
+  const materialDensity = inputDensity || MATERIAL_DENSITIES[material as keyof typeof MATERIAL_DENSITIES] || MATERIAL_DENSITIES.carbon;
+  const weight = materialVolume * materialDensity;
   
   return {
     volume: Math.round(totalVolume * 1000) / 1000, // L 단위로 반올림
@@ -131,7 +143,8 @@ export function calculateTankVolume(input: TankCalculationInput): CalculationRes
       topHeadType,
       bottomHeadType,
       material,
-      density: `${density} kg/m³`
+      thickness: `${thickness} mm`,
+      density: `${materialDensity} kg/m³`
     }
   };
 }

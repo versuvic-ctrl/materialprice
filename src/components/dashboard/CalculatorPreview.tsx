@@ -2,13 +2,15 @@
 
 import React, { useState } from 'react';
 import {
-  CalculatorIcon,
+  BookOpenIcon,
   CubeIcon,
   ScaleIcon,
   BeakerIcon,
-  ArrowRightIcon
+  CalculatorIcon,
+  ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+// Remove: import { ExternalLinkIcon } from 'lucide-react';
 
 interface CalculatorItem {
   id: string;
@@ -119,7 +121,7 @@ const CalculatorPreview: React.FC<CalculatorPreviewProps> = ({ title = '엔지�
           className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1 self-start sm:self-auto"
         >
           <span>전체보기</span>
-          <ArrowRightIcon className="w-4 h-4" />
+          <ArrowTopRightOnSquareIcon className="w-4 h-4" />
         </Link>
       </div>
 
@@ -226,7 +228,10 @@ const CalculatorPreview: React.FC<CalculatorPreviewProps> = ({ title = '엔지�
       <div className="mt-4 pt-4 border-t border-gray-200">
         <div className="flex items-center justify-between text-xs text-gray-500">
           <span>총 {calculators.length}개 계산기</span>
-          <span>단위: SI 기준</span>
+          <a href="/calculator" className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1 self-start sm:self-auto">
+            <span>전체보기</span>
+            <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+          </a>
         </div>
       </div>
     </div>

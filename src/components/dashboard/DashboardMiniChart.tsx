@@ -371,7 +371,7 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
             : isError ? <div className="flex h-full items-center justify-center text-center text-sm text-red-500">데이터 로딩 실패<br/>({error?.message || '알 수 없는 오류'})</div>
             : !chartData || chartData.length === 0 ? <div className="flex h-full items-center justify-center text-sm text-gray-500">표시할 데이터가 없습니다.</div>
             : (
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minHeight={192}>
               <LineChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="2 2" strokeOpacity={0.5} vertical={true} />
                 <XAxis dataKey="time_bucket" tick={{ fontSize: 10 }} tickFormatter={(value) => formatXAxisLabel(value, interval)} />

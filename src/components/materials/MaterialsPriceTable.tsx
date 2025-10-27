@@ -95,6 +95,38 @@ const isLargeWeightUnit = (unit: string, materialName: string): boolean => {
   return largeMaterialKeywords.some(keyword => materialLower.includes(keyword));
 };
 
+// 5레벨 상세규격이 하나만 있을 때 4레벨만 표시하는 함수
+const formatMaterialName = (materialName: string, allMaterials: string[]): string => {
+  // 마지막 부분이 크기/규격 정보인지 확인 (예: 2.0mm, 3mm 등)
+  const parts = materialName.split(' ');
+  const lastPart = parts[parts.length - 1];
+  const isSizeSpec = /^\d+(?:\.\d+)?(?:mm|㎜|A|인치|inch)$/i.test(lastPart);
+  
+  // 크기 규격이 있는 경우
+  if (isSizeSpec) {
+    const baseNameWithoutSize = parts.slice(0, -1).join(' ');
+    const otherBasenames = allMaterials.map(other => {
+      const otherParts = other.split(' ');
+      const otherLastPart = otherParts[otherParts.length - 1];
+      const otherIsSizeSpec = /^\d+(?:\.\d+)?(?:mm|㎜|A|인치|inch)$/i.test(otherLastPart);
+      return otherIsSizeSpec ? otherParts.slice(0, -1).join(' ') : other;
+    });
+    
+    // 같은 기본명을 가진 다른 자재가 있는지 확인
+    const hasSameBasename = otherBasenames.some(basename => basename === baseNameWithoutSize);
+    
+    if (!hasSameBasename) {
+      // 5레벨이 하나만 있는 경우: 4레벨만 표시 (크기 규격 제거)
+      return baseNameWithoutSize;
+    } else {
+      // 5레벨이 2개 이상 있는 경우: 4레벨+5레벨 형태로 표시 (크기 규격 유지)
+      return materialName;
+    }
+  }
+  
+  return materialName;
+};
+
 const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMaterials }) => {
   const { hiddenMaterials, interval, startDate, endDate } = useMaterialStore();
 
@@ -312,7 +344,7 @@ const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMater
                   <div key={index} className="grid gap-2 px-3 py-2 transition-colors" style={{ gridTemplateColumns: '2.5fr 0.8fr 1.2fr 1.2fr 1.2fr 1.2fr' }}>
                     {/* 품목명 */}
                     <div className="text-sm text-gray-900 text-center overflow-hidden text-ellipsis whitespace-nowrap" title={item.name}>
-                      {item.name}
+                      {formatMaterialName(item.name, selectedMaterials)}
                     </div>
                     
                     {/* 단위 */}

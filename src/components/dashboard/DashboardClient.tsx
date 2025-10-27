@@ -191,7 +191,7 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
       <Card className="lg:col-span-2 min-h-[220px] bg-white shadow-sm border border-gray-100">
         <div className="h-full flex flex-col">
-            <div className="px-3 sm:px-4 py-2 border-b border-gray-100"><div className="flex flex-row justify-between items-center gap-1"><h3 className="text-sm sm:text-base font-bold text-gray-900">자재 가격 변동 SUMMARY</h3><span className="text-xs text-gray-500">(전월비)</span></div></div>
+            <div className="px-3 sm:px-4 py-2 border-b border-gray-100"><div className="flex flex-row justify-between items-center gap-1 flex-nowrap"><h3 className="text-sm sm:text-base font-bold text-gray-900 flex-shrink-0">자재 가격 변동 SUMMARY</h3><span className="text-xs text-gray-500 flex-shrink-0">(전월비)</span></div></div>
           <div className="flex-1 px-3 sm:px-4 py-2 sm:py-3 overflow-hidden"><div className="h-full space-y-1">
           {summaryLoading ? (
             <div className="space-y-3">
