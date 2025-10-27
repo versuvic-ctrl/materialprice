@@ -124,8 +124,7 @@
     "tailwind-scrollbar": "^4.0.2",
     "three": "^0.179.1",
     "three-iges-loader": "^1.2.2",
-    "zustand": "^5.0.8",
-    "@tailwindcss/postcss": "^4"
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
