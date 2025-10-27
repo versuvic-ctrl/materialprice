@@ -21,7 +21,6 @@ const nextConfig = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname, 'src'),
     };
-    config.cache = false;
     return config;
   },
 };

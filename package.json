@@ -124,11 +124,11 @@
     "tailwind-scrollbar": "^4.0.2",
     "three": "^0.179.1",
     "three-iges-loader": "^1.2.2",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.8",
+    "@tailwindcss/postcss": "^4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
     "@types/estree": "^1.0.8",
     "@types/json-schema": "*",
     "@types/lodash.throttle": "^4.1.9",
