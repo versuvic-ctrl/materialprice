@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Plus, X, Download, RotateCcw, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, X, Download, RotateCcw, Loader2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { translateDescription, getKoreanSummary } from '../../utils/translateDescription';
+
 import CorrosionCompatibility from '../corrosion/CorrosionCompatibility';
 
 interface MakeItFromMaterial {
@@ -350,6 +353,10 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
   const [selectedDetail, setSelectedDetail] = useState<string>('');
   const [selectedMaterials, setSelectedMaterials] = useState<SelectedMaterial[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // 검색 기능을 위한 상태
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
 
   useEffect(() => {
     setSelectedMaterials([]); // 페이지 로드 시 selectedMaterials 초기화
@@ -398,6 +405,82 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
     
     return [];
   })();
+
+  // 전체 재료 목록을 검색하기 위한 함수
+  const getAllMaterials = useMemo((): NewMaterialData[] => {
+    const materials: NewMaterialData[] = [];
+    
+    Object.entries(allData).forEach(([majorKey, majorValue]) => {
+      Object.entries(majorValue).forEach(([middleKey, middleValue]) => {
+        if ('materials' in middleValue && Array.isArray(middleValue.materials)) {
+          // 3-level 구조
+          materials.push(...middleValue.materials);
+        } else {
+          // 4-level 구조
+          Object.entries(middleValue).forEach(([subKey, subValue]) => {
+            if (Array.isArray(subValue)) {
+              materials.push(...subValue);
+            } else if (subValue && typeof subValue === 'object' && 'materials' in subValue && Array.isArray(subValue.materials)) {
+              materials.push(...subValue.materials);
+            }
+          });
+        }
+      });
+    });
+    
+    return materials;
+  }, [allData]);
+
+  // 검색 결과 필터링
+  const searchResults = useMemo((): NewMaterialData[] => {
+    if (!searchQuery.trim()) return [];
+    
+    const query = searchQuery.toLowerCase().trim();
+    return getAllMaterials.filter(material => 
+      material.name.toLowerCase().includes(query) ||
+      material.category.toLowerCase().includes(query)
+    ).slice(0, 20); // 최대 20개 결과만 표시
+  }, [searchQuery, getAllMaterials]);
+
+  // 검색에서 재료 추가
+  const handleAddMaterialFromSearch = (material: NewMaterialData) => {
+    // 이미 추가된 재료인지 확인
+    if (selectedMaterials.some(m => m.name === material.name)) return;
+
+    // 물성 데이터 변환
+    const properties: { [key: string]: { value: string; unit?: string } } = {};
+    let basePrice: { value: string; unit?: string } | undefined;
+    let composition: { [key: string]: string } = {};
+
+    material.properties.forEach(prop => {
+      if (prop.name === 'Base Metal Price') {
+        basePrice = {
+          value: prop.scalars,
+          unit: prop.units
+        };
+      } else if (prop.name === 'Alloy Composition') {
+        composition['Composition'] = prop.scalars;
+      } else {
+        properties[prop.name] = {
+          value: prop.scalars,
+          unit: prop.units
+        };
+      }
+    });
+
+    const newMaterial: SelectedMaterial = {
+      id: material.name,
+      name: material.name,
+      properties,
+      composition,
+      basePrice,
+      active: true,
+    };
+
+    setSelectedMaterials(prev => [...prev, newMaterial]);
+    setSearchQuery('');
+    setShowSearchResults(false);
+  };
 
   // 재료 추가
   const handleAddMaterial = () => {
@@ -513,7 +596,7 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
     <>
 
       <Tabs defaultValue="properties" className="w-full">
-      <TabsList className="grid w-full grid-cols-2">
+      <TabsList className="grid w-full grid-cols-2 h-12 bg-white">
         <TabsTrigger value="properties" className="text-sm font-semibold">재질별 물성</TabsTrigger>
         <TabsTrigger value="corrosion" className="text-sm font-semibold">부식 호환성</TabsTrigger>
       </TabsList>
@@ -534,7 +617,8 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3 mt-2 mb-2">
+          {/* 드롭다운 선택 섹션 */}
+          <div className="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3 mb-4">
             {/* 대분류 선택 */}
             <div className="w-full sm:flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-2 sr-only">
@@ -642,11 +726,68 @@ export default function MaterialComparisonPage({ initialData }: { initialData: C
               <button
                 onClick={handleAddMaterial}
                 disabled={!selectedDetail}
-                className="w-[120px] bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                className="w-[120px] h-8 bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-xs"
               >
                 재질 추가
               </button>
             </div>
+          </div>
+
+          {/* 검색 섹션 */}
+          <div className="mb-4 relative">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  type="text"
+                  placeholder="재료명으로 검색하세요 (예: 316, 625, Stainless, Alloy)"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowSearchResults(e.target.value.trim().length > 0);
+                  }}
+                  className="pl-10 h-8 text-sm"
+                />
+              </div>
+              {searchQuery && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setShowSearchResults(false);
+                  }}
+                  className="h-10"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            
+            {/* 검색 결과 */}
+            {showSearchResults && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                {searchResults.map((material, index) => (
+                  <div
+                    key={`${material.name}-${index}`}
+                    className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                    onClick={() => handleAddMaterialFromSearch(material)}
+                  >
+                    <div className="font-medium text-sm text-gray-900">{material.name}</div>
+                    <div className="text-xs text-gray-500 mt-1">{material.category}</div>
+                    {material.description && (
+                      <div className="text-xs text-gray-400 mt-1 truncate">{getKoreanSummary(material.description)}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {showSearchResults && searchQuery && searchResults.length === 0 && (
+              <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg p-3">
+                <div className="text-sm text-gray-500 text-center">검색 결과가 없습니다.</div>
+              </div>
+            )}
           </div>
 
           {/* 선택된 재료 목록 */}
