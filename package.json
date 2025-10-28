@@ -137,12 +137,13 @@
     "@types/react-dom": "^19",
     "@types/stats.js": "^0.17.4",
     "@types/webxr": "^0.5.24",
-
+  
     "concurrently": "^8.2.2",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
     "lightningcss": "^1.30.2",
-
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
     "playwright": "^1.55.1",
     "sass": "^1.93.2",
     "supabase": "^2.53.6",
