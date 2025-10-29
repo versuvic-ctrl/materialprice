@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
 import {
   BookOpenIcon,
@@ -102,7 +103,7 @@ const ReferenceSection: React.FC<ReferenceSectionProps> = ({ title = '참고 자
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 flex flex-col">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-2">
         <div className="flex items-center space-x-3">
@@ -123,15 +124,16 @@ const ReferenceSection: React.FC<ReferenceSectionProps> = ({ title = '참고 자
       {error && <p className="text-center text-red-500">오류 발생: {error}</p>}
       {!loading && !error && referenceItems.length === 0 && <p className="text-center text-gray-500">참고 자료가 없습니다.</p>}
       {!loading && !error && referenceItems.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 flex-grow">
           {referenceItems.map((item) => {
             const categoryInfo = getCategoryInfo(item.category);
             const CategoryIcon = categoryInfo.icon;
             
             return (
-              <div
+              <Link
                 key={item.id}
-                className="group p-3 sm:p-4 rounded-lg border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all duration-200 cursor-pointer"
+                href="/technical-data"
+                className="group p-3 sm:p-4 rounded-lg border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all duration-200 cursor-pointer block"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center space-x-2">
@@ -163,7 +165,7 @@ const ReferenceSection: React.FC<ReferenceSectionProps> = ({ title = '참고 자
                     평점 {item.rating}/5
                   </span>
                 </div> */}
-              </div>
+              </Link>
             );
           })}
         </div>
@@ -177,28 +179,7 @@ const ReferenceSection: React.FC<ReferenceSectionProps> = ({ title = '참고 자
         </div>
       </div>
 
-      {/* Quick Links */}
-      <div className="mt-4 pt-2 border-t border-gray-200">
-        <h4 className="text-sm font-medium text-gray-900 mb-3">빠른 링크</h4>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { name: 'KS 표준', url: '#' },
-            { name: 'ASTM 표준', url: '#' },
-            { name: '건설공사 표준품셈', url: '#' },
-            { name: '한국물가정보', url: '#' },
-            { name: '강재 계산기', url: '#' }
-          ].map((link) => (
-            <a
-              key={link.name}
-              href={link.url}
-              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-            >
-              {link.name}
-              <ArrowTopRightOnSquareIcon className="w-3 h-3 ml-1" />
-            </a>
-          ))}
-        </div>
-      </div>
+
     </div>
   );
 };

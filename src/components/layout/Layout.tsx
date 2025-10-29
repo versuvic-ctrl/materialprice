@@ -21,7 +21,7 @@ import Link from 'next/link';
  * - 모바일: 오버레이 사이드바
  * - 데스크톱: 고정 사이드바 (접힘/펼침 가능)
  */
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   HomeIcon,
@@ -31,8 +31,8 @@ import {
   Cog6ToothIcon,
   Bars3Icon,
   XMarkIcon,
-  BellIcon,
-  UserCircleIcon,
+  BellAlertIcon, // Changed from BellIcon
+  UserIcon,       // Changed from UserCircleIcon
   MagnifyingGlassIcon,
   ShieldCheckIcon,
   ChevronLeftIcon,
@@ -64,6 +64,9 @@ function Layout({ children }: LayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   // 현재 페이지 경로 (활성 메뉴 표시용)
   const pathname = usePathname();
+
+  // 프로필 드롭다운 상태
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // 현재 경로에 맞는 페이지 제목 찾기
   let pageTitle = '';
@@ -219,11 +222,11 @@ function Layout({ children }: LayoutProps) {
             <div className={`flex items-center ${
               sidebarCollapsed ? 'justify-center' : ''
             }`}>
-              <UserCircleIcon className="h-6 w-6 text-gray-400" />
+              <UserIcon className="h-6 w-6 text-gray-400" />
               {!sidebarCollapsed && (
-                <div className="ml-3">
+                <div className="ml-10">
                   <p className="text-sm font-medium text-gray-700">관리자</p>
-                  <p className="text-xs text-gray-500">최성호 M</p>
+                  <p className="text-sm text-gray-500">공무기술 최성호 M</p>
                 </div>
               )}
             </div>
@@ -251,19 +254,6 @@ function Layout({ children }: LayoutProps) {
             </div>
 
             <div className="flex items-center space-x-4">
-              {/* Search */}
-              <div className="hidden md:block">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                    <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="검색..."
-                    className="block w-48 pl-8 pr-2 py-1 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
-                </div>
-              </div>
 
               {/* Notifications */}
               <button
@@ -271,17 +261,18 @@ function Layout({ children }: LayoutProps) {
                 aria-label="Notifications"
                 title="Notifications"
               >
-                <BellIcon className="h-5 w-5" />
+                <BellAlertIcon className="h-5 w-5" />
               </button>
 
-              {/* Profile */}
-              <button
+              {/* Profile Link */}
+              <Link
+                href="/settings"
                 className="text-gray-400 hover:text-gray-500"
                 aria-label="Profile"
                 title="Profile"
               >
-                <UserCircleIcon className="h-5 w-5" />
-              </button>
+                <UserIcon className="h-5 w-5" />
+              </Link>
             </div>
           </div>
         </header>
