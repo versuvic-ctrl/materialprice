@@ -225,8 +225,8 @@ function Layout({ children }: LayoutProps) {
               <UserIcon className="h-6 w-6 text-gray-400" />
               {!sidebarCollapsed && (
                 <div className="ml-10">
-                  <p className="text-sm font-medium text-gray-700">관리자</p>
-                  <p className="text-sm text-gray-500">공무기술 최성호 M</p>
+                  <p className="text-xs font-medium text-gray-700">관리자</p>
+                  <p className="text-xs text-gray-500">최성호 M</p>
                 </div>
               )}
             </div>

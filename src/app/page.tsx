@@ -258,7 +258,7 @@ export default async function Dashboard() {
       {/* 계산기 미리보기와 참고자료를 2열로 배치 */}
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
         <CalculatorPreview title="엔지니어링 계산기 요약" />
-        <ReferenceSection title="참고 자료 요약" />
+        <ReferenceSection title="기술 자료 요약" />
       </div>
     </>
   );
