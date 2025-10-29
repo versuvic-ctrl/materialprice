@@ -37,7 +37,7 @@ export const DASHBOARD_CHARTS_CONFIG = [
   {
     title: '테프론(Teflon)',
     materials: [
-      { id: 'AGRU UHP PVDF T-DIAPHRAGM VALVE SDR21, BUTT TYPE -  110×20㎜', displayName: 'PVDF관(4",5m)', summaryName: 'PVDF관' },
+      { id: 'UHP PVDF PIPE SDR21 - (1PC=5M) 110㎜', displayName: 'PVDF관(4",5m)', summaryName: 'PVDF관' },
       { id: 'ECTFE PIPE SDR21(1본=5m) -  110㎜', displayName: 'ECTFE(4",5m)', summaryName: 'ECTFE' },
     ]
   },

@@ -17,6 +17,7 @@ import PriceTable, { MaterialPriceData } from '../materials/PriceTable';
 import { formatXAxisLabel } from '@/utils/dateFormatter';
 import { materialInfoMap } from '@/config/chartConfig';
 
+
 /**
  * 자재 가격 데이터를 Redis 캐시 우선으로 가져오는 함수
  */
@@ -67,6 +68,12 @@ const transformDataForChart = (
   const displayNameMap = new Map(materialsMap.map(m => [m.id, m.displayName]));
   const visibleMaterials = materialsMap.map(m => m.displayName);
 
+  // 단위 변환 로직을 함수 내부에 정의 - 데이터베이스 단위 정보만 사용
+  const shouldConvertUnit = (unit: string) => {
+    const unitLower = unit.toLowerCase();
+    return unitLower.includes('ton') || unitLower.includes('톤');
+  };
+
   const groupedData = data.reduce((acc, item) => {
     const { time_bucket, specification, average_price, unit } = item;
     const displayName = displayNameMap.get(specification);
@@ -77,7 +84,7 @@ const transformDataForChart = (
 
     if (displayName) {
       const rawPrice = parseFloat(average_price);
-      const isLargeUnit = isLargeWeightUnit(unit, specification);
+      const isLargeUnit = shouldConvertUnit(unit);
       const isSpecialMaterial = specification && specification.toLowerCase().includes('pp봉');
       const convertedPrice = (isLargeUnit && !isSpecialMaterial) ? rawPrice / 1000 : rawPrice;
       acc[time_bucket][displayName] = convertedPrice;
@@ -259,13 +266,21 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
 
 const formatYAxisPrice = (value: number) => value.toFixed(1).replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,') + '원';
 const formatTooltipValue = (value: number, unit?: string) => value.toFixed(1).replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,') + (unit ? ` ${unit}` : '');
-const isLargeWeightUnit = (unit: string, materialName: string): boolean => {
-  const unitLower = unit?.toLowerCase() || '';
-  if (unitLower.includes('ton') || unitLower.includes('톤') || unitLower === 't') return true;
-  const materialLower = materialName?.toLowerCase() || '';
-  const largeMaterialKeywords = ['pp', 'hdpe', 'pvc', 'abs', 'pc', 'pet', 'ps', '플라스틱', '수지'];
-  return largeMaterialKeywords.some(keyword => materialLower.includes(keyword));
-};
+// 하드코딩된 단위 판별 함수 제거 - 이제 데이터베이스에서 실제 단위를 가져옴
+// const isLargeWeightUnit = (unit: string, materialName: string): boolean => {
+//   const unitLower = unit?.toLowerCase() || '';
+//   if (unitLower.includes('ton') || unitLower.includes('톤') || unitLower === 't') return true;
+//   
+//   const materialLower = materialName?.toLowerCase() || '';
+//   
+//   // PVDF는 제외 - 미터 단위로 거래됨
+//   if (materialLower.includes('pvdf')) {
+//     return false;
+//   }
+//   
+//   const largeMaterialKeywords = ['pp', 'hdpe', 'pvc', 'abs', 'pc', 'pet', 'ps', '플라스틱', '수지'];
+//   return largeMaterialKeywords.some(keyword => materialLower.includes(keyword));
+// };
 
 interface MaterialInfo {
   id: string;
@@ -280,6 +295,12 @@ interface DashboardMiniChartProps {
 const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, materials }) => {
   const { interval, startDate, endDate } = useMaterialStore();
   const materialIds = useMemo(() => materials.map(m => m.id), [materials]);
+
+  // 단위 판별 함수 (데이터베이스 단위 정보만 사용)
+  const isLargeWeightUnit = (unit: string) => {
+    const unitLower = unit.toLowerCase();
+    return unitLower.includes('ton') || unitLower.includes('톤');
+  };
 
   const {
     data: rawData,
@@ -304,55 +325,73 @@ const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({ title, material
   }, [chartData, materials]);
 
   const tableData: MaterialPriceData[] = useMemo(() => {
-      if (!rawData || rawData.length === 0) return [];
-      return materials.map((material) => {
-        const materialData = rawData.filter((item: any) => item.specification === material.id);
-        if (materialData.length === 0) return { name: material.displayName, currentPrice: 0, unit: '', monthlyChange: null, yearlyChange: null, twoYearAgoChange: null };
-        const sortedData = materialData.sort((a: { time_bucket: string }, b: { time_bucket: string }) => new Date(b.time_bucket).getTime() - new Date(a.time_bucket).getTime());
-        const rawPrice = parseFloat(sortedData[0]?.average_price || '0');
-        const actualUnit = sortedData[0]?.unit || '';
-        const isLargeUnit = isLargeWeightUnit(actualUnit, material.id);
-        let currentPrice = rawPrice;
-        let displayUnit = actualUnit;
-        const isSpecialMaterial = material.id.toLowerCase().includes('pp봉');
-        if (isLargeUnit && !isSpecialMaterial) {
-            currentPrice = rawPrice / 1000;
-            displayUnit = 'kg';
-        } else if (isSpecialMaterial) {
-            displayUnit = actualUnit || 'ton';
+    if (!rawData || rawData.length === 0) return [];
+
+    return materials.map((material) => {
+      const materialData = rawData.filter((item: any) => item.specification === material.id);
+      if (materialData.length === 0) return { name: material.displayName, currentPrice: 0, unit: '', monthlyChange: null, yearlyChange: null, twoYearAgoChange: null };
+
+      const sortedData = materialData.sort((a: { time_bucket: string }, b: { time_bucket: string }) => new Date(b.time_bucket).getTime() - new Date(a.time_bucket).getTime());
+      const rawPrice = parseFloat(sortedData[0]?.average_price || '0');
+      
+      // 데이터베이스에서 가져온 실제 단위 정보 사용
+      const actualUnit = sortedData[0]?.unit || '';
+      const isLargeUnit = actualUnit.toLowerCase().includes('ton') || actualUnit.toLowerCase().includes('톤');
+      
+      let currentPrice = rawPrice;
+      let displayUnit = actualUnit;
+      
+      // 대용량 단위 처리 (ton -> kg 변환)
+      if (isLargeUnit) {
+        currentPrice = rawPrice / 1000;
+        displayUnit = 'kg';
+      }
+
+      // 월간 변화율 계산
+      let monthlyChange: number | null = null;
+      if (sortedData.length >= 2) {
+        const previousRawPrice = parseFloat(sortedData[1]?.average_price || '0');
+        const previousPrice = isLargeUnit ? previousRawPrice / 1000 : previousRawPrice;
+        if (previousPrice !== 0) {
+          monthlyChange = ((currentPrice - previousPrice) / previousPrice) * 100;
+          monthlyChange = Math.round(monthlyChange * 100) / 100;
         }
-        let monthlyChange: number | null = null;
-        if (sortedData.length >= 2) {
-            const previousRawPrice = parseFloat(sortedData[1]?.average_price || '0');
-            const previousPrice = (isLargeUnit && !isSpecialMaterial) ? previousRawPrice / 1000 : previousRawPrice;
-            if (previousPrice !== 0) {
-                monthlyChange = ((currentPrice - previousPrice) / previousPrice) * 100;
-                monthlyChange = Math.round(monthlyChange * 100) / 100;
-            }
+      }
+
+      // 연간 변화율 계산
+      let yearlyChange: number | null = null;
+      const yearAgoIndex = Math.min(12, sortedData.length - 1);
+      if (yearAgoIndex > 0) {
+        const yearAgoRawPrice = parseFloat(sortedData[yearAgoIndex]?.average_price || '0');
+        const yearAgoPrice = isLargeUnit ? yearAgoRawPrice / 1000 : yearAgoRawPrice;
+        if (yearAgoPrice !== 0) {
+          yearlyChange = ((currentPrice - yearAgoPrice) / yearAgoPrice) * 100;
+          yearlyChange = Math.round(yearlyChange * 100) / 100;
         }
-        let yearlyChange: number | null = null;
-        const yearAgoIndex = Math.min(12, sortedData.length - 1);
-        if (yearAgoIndex > 0) {
-            const yearAgoRawPrice = parseFloat(sortedData[yearAgoIndex]?.average_price || '0');
-            const yearAgoPrice = (isLargeUnit && !isSpecialMaterial) ? yearAgoRawPrice / 1000 : yearAgoRawPrice;
-            if (yearAgoPrice !== 0) {
-                yearlyChange = ((currentPrice - yearAgoPrice) / yearAgoPrice) * 100;
-                yearlyChange = Math.round(yearlyChange * 100) / 100;
-            }
+      }
+
+      // 2년 전 대비 변화율 계산
+      let twoYearAgoChange: number | null = null;
+      const twoYearAgoIndex = Math.min(24, sortedData.length - 1);
+      if (twoYearAgoIndex > 0) {
+        let twoYearAgoRawPrice = parseFloat(sortedData[twoYearAgoIndex]?.average_price || '0');
+        if (isNaN(twoYearAgoRawPrice)) twoYearAgoRawPrice = 0;
+        const twoYearAgoPrice = isLargeUnit ? twoYearAgoRawPrice / 1000 : twoYearAgoRawPrice;
+        if (twoYearAgoPrice !== 0) {
+          twoYearAgoChange = ((currentPrice - twoYearAgoPrice) / twoYearAgoPrice) * 100;
+          twoYearAgoChange = Math.round(twoYearAgoChange * 100) / 100;
         }
-        let twoYearAgoChange: number | null = null;
-        const twoYearAgoIndex = Math.min(24, sortedData.length - 1);
-        if (twoYearAgoIndex > 0) {
-            let twoYearAgoRawPrice = parseFloat(sortedData[twoYearAgoIndex]?.average_price || '0');
-            if (isNaN(twoYearAgoRawPrice)) twoYearAgoRawPrice = 0;
-            const twoYearAgoPrice = (isLargeUnit && !isSpecialMaterial) ? twoYearAgoRawPrice / 1000 : twoYearAgoRawPrice;
-            if (twoYearAgoPrice !== 0) {
-                twoYearAgoChange = ((currentPrice - twoYearAgoPrice) / twoYearAgoPrice) * 100;
-                twoYearAgoChange = Math.round(twoYearAgoChange * 100) / 100;
-            }
-        }
-        return { name: material.displayName, currentPrice: Math.round(currentPrice), unit: displayUnit, monthlyChange, yearlyChange, twoYearAgoChange };
-      });
+      }
+
+      return { 
+        name: material.displayName, 
+        currentPrice: Math.round(currentPrice), 
+        unit: displayUnit, 
+        monthlyChange, 
+        yearlyChange, 
+        twoYearAgoChange 
+      };
+    });
   }, [rawData, materials]);
 
   return (

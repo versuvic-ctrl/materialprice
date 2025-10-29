@@ -76,6 +76,8 @@ const formatChangeWithPrice = (change: number | null, price: number | null): { t
 };
 
 // 톤 단위 감지 함수 - 단위와 자재명을 모두 고려
+// 하드코딩된 단위 판별 로직 - 데이터베이스 기반 로직으로 대체됨
+/*
 const isLargeWeightUnit = (unit: string, materialName: string): boolean => {
   if (!unit && !materialName) return false;
   
@@ -87,6 +89,12 @@ const isLargeWeightUnit = (unit: string, materialName: string): boolean => {
   
   // 자재명 기반 판별 (특정 자재들은 톤 단위로 거래되는 경우가 많음)
   const materialLower = materialName?.toLowerCase() || '';
+  
+  // PVDF는 제외 - 미터 단위로 거래됨
+  if (materialLower.includes('pvdf')) {
+    return false;
+  }
+  
   const largeMaterialKeywords = [
     'pp', 'hdpe', 'ldpe', 'pvc', 'abs', 'pc', 'pa', 'pom', 'pet', 'ps',
     '플라스틱', '수지', '펠릿', '원료', '화학', '석유화학'
@@ -94,6 +102,7 @@ const isLargeWeightUnit = (unit: string, materialName: string): boolean => {
   
   return largeMaterialKeywords.some(keyword => materialLower.includes(keyword));
 };
+*/
 
 // 5레벨 상세규격이 하나만 있을 때 4레벨만 표시하는 함수
 const formatMaterialName = (materialName: string, allMaterials: string[]): string => {
@@ -129,6 +138,12 @@ const formatMaterialName = (materialName: string, allMaterials: string[]): strin
 
 const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMaterials }) => {
   const { hiddenMaterials, interval, startDate, endDate } = useMaterialStore();
+
+  // 단위 판별 함수 (데이터베이스 단위 정보만 사용)
+  const isLargeWeightUnit = (unit: string) => {
+    const unitLower = unit.toLowerCase();
+    return unitLower.includes('ton') || unitLower.includes('톤');
+  };
 
   const { data: priceData, isLoading, error } = useQuery<MaterialPriceData[], Error>({
     queryKey: ['materialPrices', selectedMaterials, interval, startDate, endDate],
@@ -196,7 +211,6 @@ const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMater
         );
         
         const rawPrice = parseFloat(sortedData[0]?.average_price || '0');
-        const actualUnit = sortedData[0]?.unit || '';
         
         // 전월비 계산 및 전월 가격 저장
         let monthlyChange: number | null = null;
@@ -236,8 +250,11 @@ const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMater
           }
         }
 
-        // 단위 변환 적용 (톤 -> kg)
-        const shouldConvert = isLargeWeightUnit(actualUnit, material);
+        // 데이터베이스에서 가져온 실제 단위 정보 사용
+        const actualUnit = sortedData[0]?.unit || '';
+        const shouldConvert = isLargeWeightUnit(actualUnit);
+        
+        // 단위 변환 적용 (ton -> kg)
         const displayPrice = shouldConvert ? rawPrice / 1000 : rawPrice;
         const displayUnit = shouldConvert ? 'kg' : actualUnit;
         const displayPreviousMonthPrice = shouldConvert && previousMonthPrice ? previousMonthPrice / 1000 : previousMonthPrice;

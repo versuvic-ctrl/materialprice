@@ -1,3 +1,7 @@
+'use client';
+
+import Link from 'next/link';
+
 /**
  * Layout.tsx - 애플리케이션 전체 레이아웃 컴포넌트
  * 
@@ -17,10 +21,7 @@
  * - 모바일: 오버레이 사이드바
  * - 데스크톱: 고정 사이드바 (접힘/펼침 가능)
  */
-'use client';
-
 import { useState, useEffect, memo } from 'react';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   HomeIcon,
@@ -158,7 +159,9 @@ function Layout({ children }: LayoutProps) {
               </div>
               {!sidebarCollapsed && (
                 <div className="ml-3">
-                  <h1 className="text-base font-semibold text-gray-900">Materials Dashboard</h1>
+                  <Link href="/">
+                    <h1 className="text-base font-semibold text-gray-900">Materials Dashboard</h1>
+                  </Link>
                 </div>
               )}
             </div>
