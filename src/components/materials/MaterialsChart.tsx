@@ -5,6 +5,7 @@ import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { GripHorizontal } from 'lucide-react';
 import useMaterialStore from '@/store/materialStore';
 import { createClient } from '@/utils/supabase/client'; // 표준 클라이언트 import
 import { formatWeekLabel, formatXAxisLabel } from "@/utils/dateFormatter";
@@ -361,212 +362,75 @@ const calculateTickInterval = (min: number, max: number, targetTickCount: number
   return niceInterval * magnitude;
 };
 
-// 사용자 요구사항에 맞춘 새로운 Y축 도메인과 눈금 계산 함수 - 범위를 4로 나누어 5개 눈금 생성
-const calculateFixedYAxisDomain = (data: any[], materials: string[]): [number, number, number[]] => {
-  if (!data || data.length === 0) {
-    return [0, 1000, [0, 250, 500, 750, 1000]];
-  }
 
-  let min = Infinity;
-  let max = -Infinity;
 
-  // 선택된 날짜 범위 내의 자재별 최고가와 최저가 분석
-  data.forEach(item => {
-    materials.forEach(material => {
-      const value = item[material];
-      if (value !== null && value !== undefined && !isNaN(value)) {
-        min = Math.min(min, value);
-        max = Math.max(max, value);
-      }
-    });
-  });
-
-  if (min === Infinity || max === -Infinity) {
-    return [0, 1000, [0, 250, 500, 750, 1000]];
-  }
-
-  // 데이터 범위에 약간의 여유 공간 추가 (상하 5%)
-  const range = max - min;
-  const padding = range * 0.05;
-  let paddedMin = Math.max(0, min - padding);
-  let paddedMax = max + padding;
-
-  // 범위가 0인 경우 (모든 값이 동일한 경우) 기본 범위 설정
-  if (paddedMax === paddedMin) {
-    const baseValue = paddedMin;
-    paddedMin = Math.max(0, baseValue - 200);
-    paddedMax = baseValue + 200;
-  }
-
-  // 전체 범위를 4로 나누어 5개의 눈금 생성
-  const totalRange = paddedMax - paddedMin;
-  const tickInterval = totalRange / 4;
-
-  // 눈금 값들을 적절히 반올림하여 깔끔한 숫자로 만들기
-  const magnitude = Math.pow(10, Math.floor(Math.log10(tickInterval)));
-  const normalizedInterval = tickInterval / magnitude;
-  
-  let niceInterval;
-  if (normalizedInterval <= 1) {
-    niceInterval = 1;
-  } else if (normalizedInterval <= 2) {
-    niceInterval = 2;
-  } else if (normalizedInterval <= 5) {
-    niceInterval = 5;
-  } else {
-    niceInterval = 10;
-  }
-  
-  const finalInterval = niceInterval * magnitude;
-
-  // 시작점을 깔끔한 숫자로 조정
-  const domainMin = Math.max(0, Math.floor(paddedMin / finalInterval) * finalInterval);
-  
-  // 정확히 5개의 눈금 생성
-  const ticks: number[] = [];
-  for (let i = 0; i < 5; i++) {
-    ticks.push(domainMin + (finalInterval * i));
-  }
-
-  const domainMax = ticks[4]; // 마지막 눈금이 최대값
-
-  return [domainMin, domainMax, ticks];
-};
-
-const calculateSmartYAxisDomain = (data: any[], materials: string[]): [number, number, number[]] => {
-  if (!data || data.length === 0 || materials.length === 0) {
-    return [0, 1000, [0, 250, 500, 750, 1000]];
-  }
-
-  let min = Infinity;
-  let max = -Infinity;
-
-  data.forEach(item => {
-    materials.forEach(material => {
-      const value = item[material];
-      // 더 엄격한 숫자 검증
-      if (typeof value === 'number' && isFinite(value) && value >= 0) {
-        min = Math.min(min, value);
-        max = Math.max(max, value);
-      }
-    });
-  });
-
-  if (min === Infinity || max === -Infinity) {
-    return [0, 1000, [0, 250, 500, 750, 1000]];
-  }
-
-  // 데이터 범위에 최소한의 여유 공간만 추가 (상하 2% 패딩으로 줄임)
-  const range = max - min;
-  const padding = range * 0.02; // 10%에서 2%로 줄임
-  const paddedMin = Math.max(0, min - padding); // 최소값이 0보다 작아지지 않도록 제한
-  const paddedMax = max + padding;
-
-  // 적절한 눈금 간격 계산 (패딩된 범위 기준)
-  const tickInterval = calculateTickInterval(paddedMin, paddedMax, 5);
-  
-  // 도메인 범위를 눈금에 맞춰 조정하되, 데이터에 더 가깝게 설정
-  const domainMin = Math.max(0, Math.floor(paddedMin / tickInterval) * tickInterval);
-  const domainMax = Math.ceil(paddedMax / tickInterval) * tickInterval;
-  
-  // 눈금 배열 생성
-  const ticks: number[] = [];
-  for (let tick = domainMin; tick <= domainMax; tick += tickInterval) {
-    ticks.push(tick);
-  }
-  
-  // 최소 3개, 최대 7개의 눈금 보장하되 데이터 범위를 벗어나지 않도록 조정
-  if (ticks.length < 3) {
-    const additionalTicks = Math.ceil((3 - ticks.length) / 2);
-    const newMin = Math.max(0, domainMin - (additionalTicks * tickInterval));
-    const newMax = domainMax + (additionalTicks * tickInterval);
-    
-    ticks.length = 0;
-    for (let tick = newMin; tick <= newMax; tick += tickInterval) {
-      ticks.push(tick);
-    }
-  }
-  
-  return [ticks[0], ticks[ticks.length - 1], ticks];
-};
-
-// 올림 처리 로직 함수
-const roundUpValue = (value: number): number => {
-  if (value >= 100000) {
-    // 100,000원 이상은 만원 단위에서 올림
-    return Math.ceil(value / 10000) * 10000;
-  } else if (value >= 10000) {
-    // 10,000원 이상은 천원 단위에서 올림
-    return Math.ceil(value / 1000) * 1000;
-  } else if (value >= 1000) {
-    // 1,000원 이상은 백원 단위에서 올림
-    return Math.ceil(value / 100) * 100;
-  } else {
-    // 1,000원 미만은 십원 단위에서 올림
-    return Math.ceil(value / 10) * 10;
-  }
-};
-
-// 내림 처리 로직 함수
-const roundDownValue = (value: number): number => {
-  if (value >= 100000) {
-    // 100,000원 이상은 만원 단위에서 내림
-    return Math.floor(value / 10000) * 10000;
-  } else if (value >= 10000) {
-    // 10,000원 이상은 천원 단위에서 내림
-    return Math.floor(value / 1000) * 1000;
-  } else if (value >= 1000) {
-    // 1,000원 이상은 백원 단위에서 내림
-    return Math.floor(value / 100) * 100;
-  } else {
-    // 1,000원 미만은 십원 단위에서 내림
-    return Math.floor(value / 10) * 10;
-  }
-};
-
-// 새로운 축 범위 계산 함수 - 최대값과 최소값 모두 고려
+// DashboardMiniChart의 스마트한 Y축 도메인 계산 로직 적용
 const calculateOptimizedAxisDomain = (data: any[], materials: string[]): [number, number, number[]] => {
-  if (!data || data.length === 0 || materials.length === 0) {
-    return [0, 1000, [0, 250, 500, 750, 1000]];
-  }
-
-  let min = Infinity;
-  let max = -Infinity;
-
-  // 자재들의 실제 가격 범위 분석
-  data.forEach(item => {
-    materials.forEach(material => {
-      const value = item[material];
-      if (value !== null && value !== undefined && !isNaN(value)) {
-        min = Math.min(min, value);
-        max = Math.max(max, value);
-      }
+    if (!data || data.length === 0) return [0, 1000, [0, 250, 500, 750, 1000]];
+    let min = Infinity, max = -Infinity;
+    data.forEach(item => {
+        materials.forEach(material => {
+            const value = item[material];
+            if (value !== null && !isNaN(value)) {
+                min = Math.min(min, value);
+                max = Math.max(max, value);
+            }
+        });
     });
-  });
-
-  if (min === Infinity || max === -Infinity) {
-    return [0, 1000, [0, 250, 500, 750, 1000]];
-  }
-
-  // 최대값에 25% 마진 적용 후 올림
-  const maxWithMargin = max * 1.25;
-  const roundedMax = roundUpValue(maxWithMargin);
-
-  // 최소값에 25% 마진 적용 후 내림 (0.75를 곱함)
-  const minWithMargin = min * 0.75;
-  const roundedMin = Math.max(0, roundDownValue(minWithMargin)); // 0보다 작아지지 않도록
-
-  // 범위 계산 후 4로 나누어 5개의 눈금 생성
-  const range = roundedMax - roundedMin;
-  const tickInterval = range / 4;
-
-  // 정확히 5개의 눈금 생성
-  const ticks: number[] = [];
-  for (let i = 0; i < 5; i++) {
-    ticks.push(roundedMin + (tickInterval * i));
-  }
-
-  return [roundedMin, roundedMax, ticks];
+    if (min === Infinity || max === -Infinity) return [0, 1000, [0, 250, 500, 750, 1000]];
+    const range = max - min;
+    const targetTickCount = 5;
+    const rawInterval = range / (targetTickCount - 1);
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rawInterval)));
+    const niceFractions = [1, 2, 2.5, 5, 10];
+    let tickInterval = 10 * magnitude;
+    let minError = Infinity;
+    for (const fraction of niceFractions) {
+        const niceInterval = fraction * magnitude;
+        const error = Math.abs(rawInterval - niceInterval);
+        if (error < minError) {
+            minError = error;
+            tickInterval = niceInterval;
+        }
+    }
+    let domainMin, domainMax;
+    if (min / max < 0.3) {
+        domainMin = 0;
+        domainMax = Math.ceil(max / tickInterval) * tickInterval;
+        if (domainMax < max + tickInterval * 0.1) domainMax += tickInterval;
+    } else {
+        const padding = (max - min) * 0.1;
+        const paddedMin = min - padding;
+        const paddedMax = max + padding;
+        const paddedRange = paddedMax - paddedMin;
+        const rawPaddedInterval = paddedRange > 0 ? paddedRange / (targetTickCount - 1) : tickInterval;
+        const paddedMagnitude = Math.pow(10, Math.floor(Math.log10(rawPaddedInterval)));
+        let paddedMinError = Infinity;
+        for (const fraction of niceFractions) {
+            const niceInterval = fraction * paddedMagnitude;
+            const error = Math.abs(rawPaddedInterval - niceInterval);
+            if (error < paddedMinError) {
+                paddedMinError = error;
+                tickInterval = niceInterval;
+            }
+        }
+        domainMin = Math.floor(paddedMin / tickInterval) * tickInterval;
+        domainMax = Math.ceil(paddedMax / tickInterval) * tickInterval;
+    }
+    const newRange = domainMax - domainMin;
+    tickInterval = newRange / 4;
+    const ticks: number[] = [];
+    const factor = 1 / Math.pow(10, Math.max(0, Math.ceil(-Math.log10(tickInterval))));
+    let currentTick = Math.round(domainMin * factor) / factor;
+    while (currentTick <= domainMax + tickInterval * 0.001) {
+        ticks.push(currentTick);
+        currentTick = Math.round((currentTick + tickInterval) * factor) / factor;
+    }
+    if (ticks.length < 2) {
+        domainMax += tickInterval;
+        ticks.push(domainMax);
+    }
+    return [domainMin, domainMax, ticks];
 };
 
 // 우축 전용 도메인 계산 함수 - 새로운 로직 적용
@@ -786,42 +650,88 @@ const CustomLegend: React.FC<CustomLegendProps> = (props) => {
     axisAssignment.rightAxisMaterials.includes(p.dataKey)
   );
 
-  const renderLegendItems = (items: any[], title: string) => (
-    <div className="flex-1 min-w-0">
-      {items.length > 0 && (
-        <>
-          <div className="text-xs font-medium text-gray-600 mb-2">{title}</div>
-          <div className="flex flex-wrap gap-2 overflow-hidden">
-            {items.map((entry: any, index: number) => {
-              const materialName = entry.dataKey;
-              const materialUnit = unitMap?.get(materialName) || 'kg';
-              const isHidden = hiddenMaterials?.has(materialName) ?? false;
+  // 범례 아이템이 X축 중앙을 넘지 않도록 자동 2줄 배치 계산
+  const calculateLegendLayout = (items: any[]) => {
+    if (items.length <= 2) return { firstRow: items, secondRow: [] };
+    
+    // 4개 이상일 때 2줄로 분할 (X축 중앙을 넘지 않도록)
+    const midPoint = Math.ceil(items.length / 2);
+    return {
+      firstRow: items.slice(0, midPoint),
+      secondRow: items.slice(midPoint)
+    };
+  };
 
-              return (
-                <div 
-                  key={`${title}-${materialName}-${index}`} 
-                  className={`flex items-center space-x-1 cursor-pointer transition-opacity min-w-0 flex-shrink-0 ${isHidden ? 'opacity-50' : 'opacity-100'}`}
-                  onClick={() => onVisibilityChange?.(materialName)}
-                >
-                  <div 
-                    className="w-3 h-3 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: entry.color }}
-                  />
-                  <span className="text-xs text-gray-700 truncate max-w-[120px]" title={`${shortenMaterialName(entry.value as string, payload.map((p: { dataKey: string }) => p.dataKey))} (원/${materialUnit})`}>
-                    {shortenMaterialName(entry.value as string, payload.map((p: { dataKey: string }) => p.dataKey))} (원/{materialUnit})
-                  </span>
+  const renderLegendItems = (items: any[], title: string) => {
+    const layout = calculateLegendLayout(items);
+    
+    return (
+      <div className="flex-1 min-w-0">
+        {items.length > 0 && (
+          <>
+            <div className="text-xs font-medium text-gray-600 mb-1">{title}</div>
+            <div className="space-y-1">
+              {/* 첫 번째 줄 */}
+              <div className="flex flex-wrap gap-1 overflow-hidden">
+                {layout.firstRow.map((entry: any, index: number) => {
+                  const materialName = entry.dataKey;
+                  const materialUnit = unitMap?.get(materialName) || 'kg';
+                  const isHidden = hiddenMaterials?.has(materialName) ?? false;
+
+                  return (
+                    <div 
+                      key={`${title}-row1-${materialName}-${index}`} 
+                      className={`flex items-center space-x-1 cursor-pointer transition-opacity min-w-0 flex-shrink-0 ${isHidden ? 'opacity-50' : 'opacity-100'}`}
+                      onClick={() => onVisibilityChange?.(materialName)}
+                    >
+                      <div 
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: entry.color }}
+                      />
+                      <span className="text-xs text-gray-700 truncate max-w-[100px]" title={`${shortenMaterialName(entry.value as string, payload.map((p: { dataKey: string }) => p.dataKey))} (원/${materialUnit})`}>
+                        {shortenMaterialName(entry.value as string, payload.map((p: { dataKey: string }) => p.dataKey))} (원/{materialUnit})
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* 두 번째 줄 (필요한 경우만) */}
+              {layout.secondRow.length > 0 && (
+                <div className="flex flex-wrap gap-1 overflow-hidden">
+                  {layout.secondRow.map((entry: any, index: number) => {
+                    const materialName = entry.dataKey;
+                    const materialUnit = unitMap?.get(materialName) || 'kg';
+                    const isHidden = hiddenMaterials?.has(materialName) ?? false;
+
+                    return (
+                      <div 
+                        key={`${title}-row2-${materialName}-${index}`} 
+                        className={`flex items-center space-x-1 cursor-pointer transition-opacity min-w-0 flex-shrink-0 ${isHidden ? 'opacity-50' : 'opacity-100'}`}
+                        onClick={() => onVisibilityChange?.(materialName)}
+                      >
+                        <div 
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: entry.color }}
+                        />
+                        <span className="text-xs text-gray-700 truncate max-w-[100px]" title={`${shortenMaterialName(entry.value as string, payload.map((p: { dataKey: string }) => p.dataKey))} (원/${materialUnit})`}>
+                          {shortenMaterialName(entry.value as string, payload.map((p: { dataKey: string }) => p.dataKey))} (원/{materialUnit})
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </div>
-  );
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
 
   return (
-    <div className="mt-4 px-3 py-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
-      <div className="flex gap-6">
+    <div className="mt-2 px-2 py-2 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+      <div className="flex gap-4">
         {renderLegendItems(leftPayload, '주축 (왼쪽)')}
         {renderLegendItems(rightPayload, '보조축 (오른쪽)')}
       </div>
@@ -847,6 +757,12 @@ const MaterialsChart: React.FC<MaterialsChartProps> = ({ tableRowCount = 0 }) =>
 
   const [shouldRotateLabels, setShouldRotateLabels] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
+  
+  // 차트 높이 상태 관리
+  const [chartHeight, setChartHeight] = useState(400);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartY, setDragStartY] = useState(0);
+  const [dragStartHeight, setDragStartHeight] = useState(0);
 
   // visibleMaterials를 useMemo로 최적화하여 무한 렌더링 방지
   // 토글 스위치에 의해 숨겨진 자재는 차트에서 제외
@@ -902,22 +818,55 @@ const MaterialsChart: React.FC<MaterialsChartProps> = ({ tableRowCount = 0 }) =>
     return calculateSmartAxisAssignment(chartData, visibleMaterials);
   }, [chartData, visibleMaterials]);
 
-  // 범례 높이 계산 (자재 수에 따른 동적 계산)
+  // 드래그 이벤트 핸들러
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    setIsDragging(true);
+    setDragStartY(e.clientY);
+    setDragStartHeight(chartHeight);
+    e.preventDefault();
+  }, [chartHeight]);
+
+  // 전역 마우스 이벤트 리스너 등록
+  useEffect(() => {
+    if (isDragging) {
+      const mouseMoveHandler = (e: MouseEvent) => {
+        const deltaY = e.clientY - dragStartY;
+        const newHeight = Math.max(200, Math.min(800, dragStartHeight + deltaY));
+        setChartHeight(newHeight);
+      };
+
+      const mouseUpHandler = () => {
+        setIsDragging(false);
+      };
+
+      document.addEventListener('mousemove', mouseMoveHandler);
+      document.addEventListener('mouseup', mouseUpHandler);
+      document.body.style.cursor = 'ns-resize';
+      document.body.style.userSelect = 'none';
+      
+      return () => {
+        document.removeEventListener('mousemove', mouseMoveHandler);
+        document.removeEventListener('mouseup', mouseUpHandler);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+    }
+  }, [isDragging, dragStartY, dragStartHeight]); // 함수 참조 대신 값들만 의존성으로 사용
+
+  // 범례 높이 계산 (자재 수에 따른 동적 계산) - 고정 높이로 변경
   const calculateLegendHeight = useMemo(() => {
     if (!visibleMaterials || visibleMaterials.length === 0) return 0;
     
-    const leftCount = axisAssignment?.leftAxisMaterials?.length || 0;
-    const rightCount = axisAssignment?.rightAxisMaterials?.length || 0;
-    const maxCount = Math.max(leftCount, rightCount);
+    // 범례 높이를 고정값으로 설정하여 Y축 높이가 줄어드는 문제 해결
+    // 1줄: 32px, 2줄: 56px로 고정
+    const totalMaterials = visibleMaterials.length;
+    const estimatedLines = totalMaterials > 4 ? 2 : 1; // 4개 초과시 2줄로 추정
     
-    // 각 범례 아이템당 약 20px + 패딩
-    return Math.max(maxCount * 20 + 10, 30);
-  }, [visibleMaterials, axisAssignment]);
+    return estimatedLines === 1 ? 32 : 56;
+  }, [visibleMaterials]);
 
-  // 차트 높이 계산 (테이블 행 수에 따라 동적 조정)
-  const calculateChartHeight = useMemo(() => {
-    if (!chartRef.current) return 500;
-    
+  // 초기 차트 높이 설정 (컴포넌트 마운트 시 한 번만 실행)
+  useEffect(() => {
     // 기본 뷰포트 높이 (브라우저 창 높이)
     const viewportHeight = window.innerHeight;
     
@@ -942,8 +891,11 @@ const MaterialsChart: React.FC<MaterialsChartProps> = ({ tableRowCount = 0 }) =>
     const maxHeight = 500;
     
     // 계산된 높이가 최소값보다 작으면 최소값 사용, 최대값보다 크면 최대값 사용
-    return Math.max(minHeight, Math.min(maxHeight, availableHeight));
-  }, [tableRowCount]);
+    const calculatedHeight = Math.max(minHeight, Math.min(maxHeight, availableHeight));
+    
+    // 초기에만 설정 (사용자가 조절하지 않은 경우)
+    setChartHeight(calculatedHeight);
+  }, [tableRowCount]); // tableRowCount가 변경될 때만 재계산
 
   // X축 라벨 간격 계산 (월 단위로 표시)
   const xAxisInterval = useMemo(() => {
@@ -1078,7 +1030,7 @@ const MaterialsChart: React.FC<MaterialsChartProps> = ({ tableRowCount = 0 }) =>
             </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-3 bg-white">
+      <CardContent className="px-3 pt-3 pb-1 bg-white">
         {/* 단위 표시 - 오른쪽 위 */}
         {unitInfo.displayUnit && (
           <div className="absolute top-4 right-6 text-xs text-gray-500 bg-white/80 px-2 py-1 rounded border border-gray-200 z-10">
@@ -1088,7 +1040,7 @@ const MaterialsChart: React.FC<MaterialsChartProps> = ({ tableRowCount = 0 }) =>
         
         <div 
           className="bg-white rounded-lg border-0 shadow-none relative"
-          style={{ height: `${calculateChartHeight + calculateLegendHeight}px` }}
+          style={{ height: `${chartHeight + calculateLegendHeight}px` }}
           ref={chartRef}
         >
           {isLoading ? (
@@ -1109,8 +1061,8 @@ const MaterialsChart: React.FC<MaterialsChartProps> = ({ tableRowCount = 0 }) =>
             </div>
           ) : (
             <div className="w-full">
-              <ResponsiveContainer width="100%" height={calculateChartHeight}>
-                  <LineChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: shouldRotateLabels ? 25 : 5 }}>
+              <ResponsiveContainer width="100%" height={chartHeight}>
+                  <LineChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: shouldRotateLabels ? 15 : 2 }}>
                     <CartesianGrid 
                       strokeDasharray="3 3" 
                       stroke="#e5e7eb" 
@@ -1181,19 +1133,20 @@ const MaterialsChart: React.FC<MaterialsChartProps> = ({ tableRowCount = 0 }) =>
                         dot={{ fill: COLORS[materialIndex % COLORS.length], strokeWidth: 2, r: 4, stroke: 'white' }}
                         activeDot={{ r: 6, stroke: COLORS[materialIndex % COLORS.length], strokeWidth: 2, fill: 'white' }}
                         connectNulls
+                        isAnimationActive={false}
                       />
                     );
                   })}
                 </LineChart>
               </ResponsiveContainer>
               
-              {/* 커스텀 범례 - 대시보드 차트와 동일한 방식으로 차트 외부에 렌더링 */}
+              {/* 커스텀 범례 - Y축별 배치 및 2줄 자동 배치 적용 */}
               {visibleMaterials.length > 0 && (
-                <div className="mt-2 flex justify-between items-start">
-                  {/* 좌측 범례 (주축) */}
-                  <div className="flex-1">
+                <div className="mt-1 flex justify-between items-start gap-4">
+                  {/* 좌측 범례 (주축) - 레이아웃 제한 적용 */}
+                  <div className="flex-1 max-w-[50%]">
                     {axisAssignment.leftAxisMaterials.length > 0 && (
-                      <div className="flex flex-wrap gap-3">
+                      <div className="flex flex-wrap gap-x-2 gap-y-1">
                         {axisAssignment.leftAxisMaterials.map((materialName) => {
                           const materialIndex = selectedMaterialsForChart.findIndex(m => m === materialName);
                           const isHidden = hiddenMaterials.has(materialName);
@@ -1201,14 +1154,14 @@ const MaterialsChart: React.FC<MaterialsChartProps> = ({ tableRowCount = 0 }) =>
                           return (
                             <div 
                               key={materialName} 
-                              className={`flex items-center space-x-2 cursor-pointer transition-opacity ${isHidden ? 'opacity-50' : 'opacity-100'}`}
+                              className={`flex items-center space-x-1.5 cursor-pointer transition-opacity max-w-[140px] ${isHidden ? 'opacity-50' : 'opacity-100'}`}
                               onClick={() => handleLegendVisibilityChange(materialName)}
                             >
                               <div 
-                                className="w-3 h-0.5 rounded"
+                                className="w-2.5 h-2.5 rounded"
                                 style={{ backgroundColor: COLORS[materialIndex % COLORS.length] }}
                               />
-                              <span className="text-xs text-gray-700 whitespace-nowrap">
+                              <span className="text-xs text-gray-700 truncate">
                                 {shortenMaterialName(materialName, selectedMaterialsForChart)} (원/{materialUnit})
                               </span>
                             </div>
@@ -1218,10 +1171,10 @@ const MaterialsChart: React.FC<MaterialsChartProps> = ({ tableRowCount = 0 }) =>
                     )}
                   </div>
                   
-                  {/* 우측 범례 (보조축) */}
-                  <div className="flex-1 flex justify-end">
+                  {/* 우측 범례 (보조축) - 2줄 자동 배치 적용 */}
+                  <div className="flex-1 max-w-[50%] flex justify-end">
                     {axisAssignment.rightAxisMaterials.length > 0 && (
-                      <div className="flex gap-3 justify-end overflow-hidden">
+                      <div className="flex flex-wrap gap-x-2 gap-y-1 justify-end">
                         {axisAssignment.rightAxisMaterials.map((materialName) => {
                           const materialIndex = selectedMaterialsForChart.findIndex(m => m === materialName);
                           const isHidden = hiddenMaterials.has(materialName);
@@ -1229,14 +1182,14 @@ const MaterialsChart: React.FC<MaterialsChartProps> = ({ tableRowCount = 0 }) =>
                           return (
                             <div 
                               key={materialName} 
-                              className={`flex items-center space-x-2 cursor-pointer transition-opacity ${isHidden ? 'opacity-50' : 'opacity-100'}`}
+                              className={`flex items-center space-x-1.5 cursor-pointer transition-opacity max-w-[140px] ${isHidden ? 'opacity-50' : 'opacity-100'}`}
                               onClick={() => handleLegendVisibilityChange(materialName)}
                             >
                               <div 
-                                className="w-3 h-0.5 rounded"
+                                className="w-2.5 h-2.5 rounded"
                                 style={{ backgroundColor: COLORS[materialIndex % COLORS.length] }}
                               />
-                              <span className="text-xs text-gray-700 whitespace-nowrap">
+                              <span className="text-xs text-gray-700 truncate">
                                 {shortenMaterialName(materialName, selectedMaterialsForChart)} (원/{materialUnit})
                               </span>
                             </div>
@@ -1249,6 +1202,15 @@ const MaterialsChart: React.FC<MaterialsChartProps> = ({ tableRowCount = 0 }) =>
               )}
             </div>
           )}
+        </div>
+        
+        {/* 리사이즈 핸들 */}
+        <div 
+          className={`w-full h-3 flex items-center justify-center cursor-ns-resize hover:bg-gray-100 transition-colors border-t border-gray-200 ${isDragging ? 'bg-gray-200' : ''}`}
+          onMouseDown={handleMouseDown}
+          title="드래그하여 차트 높이 조절"
+        >
+          <GripHorizontal className="w-4 h-4 text-gray-400" />
         </div>
       </CardContent>
     </Card>

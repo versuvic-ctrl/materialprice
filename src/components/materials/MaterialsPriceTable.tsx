@@ -325,12 +325,12 @@ const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMater
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
         {/* 테이블 헤더 */}
         <div className="grid gap-2 px-3 py-2 bg-blue-50 border-b border-gray-200" style={{ gridTemplateColumns: '2.5fr 0.8fr 1.2fr 1.2fr 1.2fr 1.2fr' }}>
-          <div className="text-sm font-medium text-gray-700 text-center">품목</div>
-            <div className="text-sm font-medium text-gray-700 text-center">단위</div>
-            <div className="text-sm font-medium text-gray-700 text-center">2년전비</div>
-            <div className="text-sm font-medium text-gray-700 text-center">전년비</div>
-            <div className="text-sm font-medium text-gray-700 text-center">전월비</div>
-            <div className="text-sm font-medium text-gray-700 text-center">현재가</div>
+          <div className="text-xs font-medium text-gray-700 text-center">품목</div>
+            <div className="text-xs font-medium text-gray-700 text-center">단위</div>
+            <div className="text-xs font-medium text-gray-700 text-center">2년전비</div>
+            <div className="text-xs font-medium text-gray-700 text-center">전년비</div>
+            <div className="text-xs font-medium text-gray-700 text-center">전월비</div>
+            <div className="text-xs font-medium text-gray-700 text-center">현재가</div>
         </div>
         
         {isLoading && (
@@ -360,35 +360,35 @@ const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMater
                 return (
                   <div key={index} className="grid gap-2 px-3 py-2 transition-colors" style={{ gridTemplateColumns: '2.5fr 0.8fr 1.2fr 1.2fr 1.2fr 1.2fr' }}>
                     {/* 품목명 */}
-                    <div className="text-sm text-gray-900 text-center overflow-hidden text-ellipsis whitespace-nowrap" title={item.name}>
+                    <div className="text-xs text-gray-900 text-center overflow-hidden text-ellipsis whitespace-nowrap" title={item.name}>
                       {formatMaterialName(item.name, selectedMaterials)}
                     </div>
                     
                     {/* 단위 */}
-                    <div className="text-sm text-gray-900 text-center">
+                    <div className="text-xs text-gray-900 text-center">
                       {item.unit}
                     </div>
 
                     {/* 2년전비 */}
-                    <div className="text-sm text-center font-medium" title={twoYearAgoChangeFormat.text}>
+                    <div className="text-xs text-center font-medium" title={twoYearAgoChangeFormat.text}>
                       <span className="text-gray-900">{twoYearAgoChangeFormat.priceText}</span>
                       <span className={twoYearAgoChangeFormat.color}>{twoYearAgoChangeFormat.changeText}</span>
                     </div>
                     
                     {/* 전년비 */}
-                    <div className="text-sm text-center font-medium" title={yearlyChangeFormat.text}>
+                    <div className="text-xs text-center font-medium" title={yearlyChangeFormat.text}>
                       <span className="text-gray-900">{yearlyChangeFormat.priceText}</span>
                       <span className={yearlyChangeFormat.color}>{yearlyChangeFormat.changeText}</span>
                     </div>
 
                     {/* 전월비 */}
-                    <div className="text-sm text-center font-medium" title={monthlyChangeFormat.text}>
+                    <div className="text-xs text-center font-medium" title={monthlyChangeFormat.text}>
                       <span className="text-gray-900">{monthlyChangeFormat.priceText}</span>
                       <span className={monthlyChangeFormat.color}>{monthlyChangeFormat.changeText}</span>
                     </div>
 
                     {/* 가격 */}
-                    <div className="text-sm text-gray-900 text-center font-medium">
+                    <div className="text-xs text-gray-900 text-center font-medium">
                       {formatPrice(item.currentPrice)}
                     </div>
                   </div>
@@ -398,7 +398,7 @@ const MaterialsPriceTable: React.FC<MaterialsPriceTableProps> = ({ selectedMater
         )}
 
         {!isLoading && !error && (!priceData || priceData.length === 0) && (
-          <div className="text-center text-sm text-gray-500 py-4">
+          <div className="text-center text-xs text-gray-500 py-4">
             표시할 가격 정보가 없습니다.
           </div>
         )}
