@@ -305,26 +305,33 @@ class KpiCrawler:
                                 prices_text = [p.strip().replace(',', '') for p in cols_text[1:]]
                                 data_headers = headers[1:]
                                 
-                                for idx, header_text in enumerate(data_headers):
-                                    if idx < len(prices_text) and prices_text[idx].isdigit():
-                                        is_price_header = '가격' in header_text or re.match(r'가[①-⑩]', header_text)
-                                        is_region = self._is_region_header(header_text)
+                                # 지역 헤더가 있는지 확인
+                                has_region_header = any(self._is_region_header(h) for h in data_headers)
 
-                                        region = "전국"
-                                        detail_spec = None
-                                        
-                                        if is_region:
-                                            region = self._remove_roman_numerals(header_text)
-                                            detail_spec = None
-                                        elif is_price_header:
+                                if has_region_header:
+                                    # 지역 헤더가 있으면 첫 번째 지역 데이터만 처리
+                                    first_region_header = next((h for h in data_headers if self._is_region_header(h)), None)
+                                    if first_region_header:
+                                        idx = data_headers.index(first_region_header)
+                                        if idx < len(prices_text) and prices_text[idx].isdigit():
+                                            region = self._remove_roman_numerals(first_region_header)
+                                            all_crawled_data.append(self._create_data_entry(
+                                                major_name, middle_name, sub_name, spec['name'],
+                                                region, None, date, prices_text[idx], unit
+                                            ))
+                                else:
+                                    # 지역 헤더가 없으면 기존 로직대로 처리
+                                    for idx, header_text in enumerate(data_headers):
+                                        if idx < len(prices_text) and prices_text[idx].isdigit():
+                                            is_price_header = '가격' in header_text or re.match(r'가[①-⑩]', header_text)
+                                            
+                                            region = "전국"
                                             detail_spec = header_text
-                                        else:
-                                            detail_spec = header_text
-                                        
-                                        all_crawled_data.append(self._create_data_entry(
-                                            major_name, middle_name, sub_name, spec['name'], 
-                                            region, detail_spec, date, prices_text[idx], unit
-                                        ))
+
+                                            all_crawled_data.append(self._create_data_entry(
+                                                major_name, middle_name, sub_name, spec['name'],
+                                                region, detail_spec, date, prices_text[idx], unit
+                                            ))
                         except Exception as spec_e:
                             log(f"      - Spec '{spec.get('name', 'N/A')[:20]}...' 처리 중 오류: {spec_e}", "WARNING")
                             continue
