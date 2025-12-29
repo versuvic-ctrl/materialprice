@@ -73,9 +73,15 @@ class KpiCrawler:
         browser = None
         try:
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True, args=['--no-sandbox'])
-                self.context = await browser.new_context()
+                # 가짜 User-Agent 설정 및 브라우저 실행
+                browser = await p.chromium.launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
+                self.context = await browser.new_context(
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                )
                 self.page = await self.context.new_page()
+
+                # 속도 최적화: 불필요한 리소스 로딩 차단
+                await self.page.route("**/*.{png,jpg,jpeg,gif,svg,css,woff,woff2,pdf}", lambda route: route.abort())
 
                 await self._login()
                 await self._navigate_to_category()
@@ -94,7 +100,8 @@ class KpiCrawler:
     async def _login(self):
         """로그인 수행 (안정화 버전)"""
         log("로그인 페이지로 이동 중...")
-        await self.page.goto(f"{self.base_url}/www/member/login.asp", timeout=90000, wait_until="networkidle")
+        # networkidle 대신 domcontentloaded 사용
+        await self.page.goto(f"{self.base_url}/www/member/login.asp", timeout=90000, wait_until="domcontentloaded")
         
         username = os.environ.get("KPI_USERNAME")
         password = os.environ.get("KPI_PASSWORD")
@@ -104,41 +111,56 @@ class KpiCrawler:
 
         await self.page.locator("#user_id").fill(username)
         await self.page.locator("#user_pw").fill(password)
-        await self.page.locator("#sendLogin").click()
         
-        # 페이지가 이동할 때까지 충분히 기다림
-        await self.page.wait_for_load_state('networkidle', timeout=60000)
+        # 클릭과 페이지 이동을 동시에 기다림
+        await asyncio.gather(
+            self.page.wait_for_load_state("domcontentloaded", timeout=60000),
+            self.page.locator("#sendLogin").click()
+        )
 
-        # 로그인 성공 여부 확인
-        if "login.asp" in self.page.url:
-             raise ValueError("로그인 실패: KPI 웹사이트 로그인 정보를 확인하세요.")
-        
-        log("로그인 성공", "SUCCESS")
+        # 로그인 후 메인이나 특정 요소가 나타나는지 확인 (로그인 성공 확인)
+        try:
+            await self.page.wait_for_selector("a[href*='logout'], .login-info", timeout=30000)
+            log("로그인 성공", "SUCCESS")
+        except:
+            if "login.asp" in self.page.url:
+                 raise ValueError("로그인 실패: KPI 웹사이트 로그인 정보를 확인하세요.")
+            log("로그인 성공 여부 확인이 불분명하지만 계속 진행합니다.", "WARNING")
 
     async def _navigate_to_category(self):
         """카테고리 페이지로 이동 및 팝업 처리"""
         log("종합물가정보 페이지로 이동 중...")
-        await self.page.goto(f"{self.base_url}/www/price/category.asp", timeout=90000, wait_until="networkidle")
+        # networkidle은 외부 스크립트 때문에 무한 대기할 수 있으므로 domcontentloaded 후 셀렉터 대기 방식 사용
+        await self.page.goto(f"{self.base_url}/www/price/category.asp", timeout=90000, wait_until="domcontentloaded")
         
-        popups = await self.page.query_selector_all(".pop-btn-close")
-        for popup_close in popups:
-            try:
+        try:
+            # 카테고리 메뉴가 보일 때까지 대기
+            await self.page.wait_for_selector("#left_menu_kpi", timeout=60000)
+        except Exception as e:
+            log(f"카테고리 메뉴 로딩 지연: {str(e)}", "WARNING")
+        
+        # 팝업 닫기
+        try:
+            popups = await self.page.query_selector_all(".pop-btn-close")
+            for popup_close in popups:
                 if await popup_close.is_visible():
-                    await popup_close.click(timeout=15000)
+                    await popup_close.click(timeout=5000)
                     log("팝업 닫기 성공")
-            except Exception:
-                continue
+        except Exception:
+            pass
         
         log("카테고리 페이지 이동 완료", "SUCCESS")
 
     async def _crawl_categories(self):
         """대분류 -> 중분류 -> 소분류 순차적으로 크롤링"""
         major_selector = '#left_menu_kpi > ul.panel > li.file-item > a'
+        # 요소가 로드될 때까지 대기
+        await self.page.wait_for_selector(major_selector, timeout=30000)
         major_categories_elements = await self.page.locator(major_selector).all()
 
         major_links = []
         for cat in major_categories_elements:
-            name = await cat.inner_text()
+            name = (await cat.inner_text()).strip()
             href = await cat.get_attribute('href')
             if name in INCLUSION_LIST:
                 major_links.append({'name': name, 'href': href})
@@ -148,24 +170,26 @@ class KpiCrawler:
                 continue
 
             log(f"대분류 '{major['name']}' 크롤링 시작...")
-            await self.page.goto(f"{self.base_url}{major['href']}")
-            await self.page.wait_for_load_state('networkidle', timeout=60000)
-
+            await self.page.goto(f"{self.base_url}{major['href']}", wait_until="domcontentloaded", timeout=60000)
+            
+            # 우측 퀵메뉴 닫기 (방해 요소 제거)
             try:
                 close_button = self.page.locator("#right_quick .q_cl")
-                if await close_button.is_visible(timeout=10000):
+                if await close_button.is_visible(timeout=5000):
                     await close_button.click()
                     log("  'Right Quick' 메뉴를 숨겼습니다.")
-                    await self.page.wait_for_timeout(1000)
             except Exception:
-                log("  'Right Quick' 메뉴가 없거나 이미 숨겨져 있어 계속 진행합니다.", "DEBUG")
+                pass
 
+            # 모든 분류 펼치기
             open_sub_button = self.page.locator('a[href="javascript:openSub();"]')
             if await open_sub_button.count() > 0:
                 log("  openSub() 버튼 클릭하여 모든 분류 펼치는 중...")
                 await open_sub_button.click()
-                await self.page.wait_for_timeout(5000)
+                await self.page.wait_for_timeout(3000)
 
+            # 중분류 요소 로드 대기
+            await self.page.wait_for_selector('.part-open-list', timeout=30000)
             all_middle_elements = await self.page.locator('.part-open-list').all()
             
             for middle_element in all_middle_elements:
@@ -203,14 +227,12 @@ class KpiCrawler:
                     log(f"  중분류 처리 중 오류 발생: {e}", "ERROR")
                     continue
             
-            # 대분류 크롤링 완료 후 해당 대분류 캐시 무효화
             log(f"[캐시 무효화] 대분류 '{major['name']}' 크롤링 완료 후 관련 캐시를 무효화합니다.")
             await self.clear_redis_cache(major_name=major['name'])
 
     async def _crawl_subcategories_parallel(self, major_name, middle_name, sub_categories_info):
         """소분류 병렬 크롤링 후 중분류 단위로 저장 및 캐시 무효화"""
         if not sub_categories_info:
-            log(f"    중분류 '{middle_name}': 처리할 소분류가 없습니다.")
             return
 
         log(f"    중분류 '{middle_name}': {len(sub_categories_info)}개 소분류를 병렬로 처리합니다.")
@@ -236,10 +258,7 @@ class KpiCrawler:
             log(f"  중분류 '{middle_name}'에서 최종 저장할 데이터가 없습니다.")
 
     async def _crawl_single_subcategory(self, major_name, middle_name, sub_info):
-        """
-        [최종 수정본] 단일 소분류의 모든 데이터를 수집하여 반환합니다.
-        테이블 타입(지역, 가격, 상세규격)을 정확히 판별하여 데이터를 파싱합니다.
-        """
+        """단일 소분류의 모든 데이터를 수집하여 반환"""
         async with self.semaphore:
             sub_name = sub_info['name']
             sub_href = sub_info['href']
@@ -252,11 +271,19 @@ class KpiCrawler:
             for attempt in range(max_retries):
                 try:
                     new_page = await self.context.new_page()
-                    await new_page.goto(sub_url, timeout=90000, wait_until="networkidle")
-                    await new_page.click('a[href*="detail_change.asp"]', timeout=15000)
+                    # 새 페이지에도 리소스 차단 적용
+                    await new_page.route("**/*.{png,jpg,jpeg,gif,svg,css,woff,woff2}", lambda route: route.abort())
                     
+                    await new_page.goto(sub_url, timeout=60000, wait_until="domcontentloaded")
+                    
+                    # '상세보기/추이' 버튼 대기 및 클릭
+                    detail_btn_selector = 'a[href*="detail_change.asp"]'
+                    await new_page.wait_for_selector(detail_btn_selector, timeout=30000)
+                    await new_page.click(detail_btn_selector)
+                    
+                    # 규격 드롭다운 대기
                     spec_dropdown_selector = 'select#ITEM_SPEC_CD'
-                    await new_page.wait_for_selector(spec_dropdown_selector, timeout=60000) # 타임아웃 60초로 증가
+                    await new_page.wait_for_selector(spec_dropdown_selector, timeout=60000)
 
                     options = await new_page.locator(f'{spec_dropdown_selector} option').all()
                     specs_to_crawl = [{'name': (await o.inner_text()).strip(), 'value': await o.get_attribute('value')} for o in options if await o.get_attribute('value')]
@@ -268,13 +295,16 @@ class KpiCrawler:
                     all_crawled_data = []
                     for i, spec in enumerate(specs_to_crawl):
                         try:
-                            await new_page.wait_for_timeout(5000)
-                            await new_page.select_option(spec_dropdown_selector, value=spec['value'], timeout=60000) # select_option에도 타임아웃 60초 지정
+                            # 페이지 안정화 대기
+                            await new_page.wait_for_timeout(2000)
+                            await new_page.select_option(spec_dropdown_selector, value=spec['value'], timeout=30000)
 
                             if i == 0:
+                                # 시작 기간 설정
                                 await new_page.select_option('select#DATA_YEAR_F', value=self.start_year)
                                 await new_page.select_option('select#DATA_MONTH_F', value=self.start_month)
                                 
+                                # 종료 기간 설정 (최신 데이터까지)
                                 end_year_selector = 'select#DATA_YEAR_T'
                                 latest_year = await new_page.locator(f'{end_year_selector} option').first.get_attribute('value')
                                 await new_page.select_option(end_year_selector, value=latest_year)
@@ -283,20 +313,21 @@ class KpiCrawler:
                                 latest_month = await new_page.locator(f'{end_month_selector} option').last.get_attribute('value')
                                 await new_page.select_option(end_month_selector, value=latest_month)
                             
+                            # 조회 버튼 클릭 후 응답 대기
                             async with new_page.expect_response(lambda r: "detail_change.asp" in r.url, timeout=60000):
                                 await new_page.click('form[name="sForm"] input[type="image"]')
                             
+                            # 테이블 로드 대기
                             try:
-                                await new_page.wait_for_selector('table#priceTrendDataArea tr:nth-child(2)', timeout=30000)
+                                await new_page.wait_for_selector('table#priceTrendDataArea tr:nth-child(2)', timeout=20000)
                             except Exception:
-                                log(f"      - Spec '{spec['name'][:20]}...': 조회 기간 내 데이터 없음 (건너뜀).", "INFO")
+                                log(f"      - Spec '{spec['name'][:20]}...': 데이터 없음.", "INFO")
                                 continue
 
                             unit = self._get_unit_from_inclusion_list(major_name, middle_name, sub_name, spec['name'])
-                            
                             headers = [th.strip() for th in await new_page.locator('table#priceTrendDataArea th').all_inner_texts()]
-                            
                             rows = await new_page.locator('table#priceTrendDataArea tr').all()
+
                             for row in rows[1:]:
                                 cols_text = await row.locator('td').all_inner_texts()
                                 if not cols_text: continue
@@ -305,11 +336,9 @@ class KpiCrawler:
                                 prices_text = [p.strip().replace(',', '') for p in cols_text[1:]]
                                 data_headers = headers[1:]
                                 
-                                # 지역 헤더가 있는지 확인
                                 has_region_header = any(self._is_region_header(h) for h in data_headers)
 
                                 if has_region_header:
-                                    # 지역 헤더가 있으면 첫 번째 지역 데이터만 처리
                                     first_region_header = next((h for h in data_headers if self._is_region_header(h)), None)
                                     if first_region_header:
                                         idx = data_headers.index(first_region_header)
@@ -320,14 +349,10 @@ class KpiCrawler:
                                                 region, None, date, prices_text[idx], unit
                                             ))
                                 else:
-                                    # 지역 헤더가 없으면 기존 로직대로 처리
                                     for idx, header_text in enumerate(data_headers):
                                         if idx < len(prices_text) and prices_text[idx].isdigit():
-                                            is_price_header = '가격' in header_text or re.match(r'가[①-⑩]', header_text)
-                                            
                                             region = "전국"
                                             detail_spec = header_text
-
                                             all_crawled_data.append(self._create_data_entry(
                                                 major_name, middle_name, sub_name, spec['name'],
                                                 region, detail_spec, date, prices_text[idx], unit
@@ -350,21 +375,17 @@ class KpiCrawler:
         return []
 
     async def clear_redis_cache(self, major_name: str = None, middle_name: str = None):
-        """AsyncRedis에 맞는 비동기 방식으로 캐시를 무효화합니다."""
+        """AsyncRedis에 맞는 비동기 방식으로 캐시를 무효화"""
         if self.redis is None:
-            log("  ⚠️ Redis 비활성화, 캐시 삭제 건너뜀.", "WARNING")
             return
             
         try:
             if major_name and middle_name:
                 match_pattern = f"material_prices:{major_name}:{middle_name}:*"
-                log(f"  [캐시 무효화] 중분류 '{middle_name}' 관련 캐시를 무효화합니다. 패턴: {match_pattern}")
             elif major_name:
                 match_pattern = f"material_prices:{major_name}:*"
-                log(f"  [캐시 무효화] 대분류 '{major_name}' 관련 캐시를 무효화합니다. 패턴: {match_pattern}")
             else:
                 match_pattern = "material_prices:*"
-                log(f"  [캐시 무효화] 모든 material_prices 캐시를 무효화합니다. 패턴: {match_pattern}")
 
             cursor, keys = await self.redis.scan(0, match=match_pattern, count=500)
             keys_to_delete = keys
@@ -376,32 +397,21 @@ class KpiCrawler:
             if keys_to_delete:
                 await self.redis.delete(*keys_to_delete)
                 log(f"  ✅ Redis 캐시 무효화 성공: {len(keys_to_delete)}개 키 삭제")
-            else:
-                log(f"  ✅ 삭제할 Redis '{match_pattern}' 캐시가 없습니다.")
                 
-            # 크롤링 완료 시 대시보드 관련 캐시도 무효화
-            if not major_name:  # 전체 크롤링 완료 시
-                dashboard_keys = ['dashboard_summary_data', 'total_materials_count']
-                for key in dashboard_keys:
-                    try:
-                        await self.redis.delete(key)
-                        log(f"  ✅ 대시보드 캐시 무효화: {key}")
-                    except Exception as e:
-                        log(f"  ❌ 대시보드 캐시 무효화 실패 ({key}): {str(e)}", "ERROR")
+            # 전체 크롤링 완료 시 대시보드 관련 캐시도 무효화
+            if not major_name:
+                for key in ['dashboard_summary_data', 'total_materials_count']:
+                    try: await self.redis.delete(key)
+                    except: pass
                 
-                # 집계 테이블 업데이트 (Supabase 함수 호출)
+                # 집계 테이블 업데이트
                 try:
                     from supabase import create_client
-                    supabase_url = os.getenv('SUPABASE_URL')
-                    supabase_key = os.getenv('SUPABASE_KEY')
-                    
-                    if supabase_url and supabase_key:
-                        supabase = create_client(supabase_url, supabase_key)
-                        # update_material_statistics 함수 호출
-                        result = supabase.rpc('update_material_statistics').execute()
+                    s_url, s_key = os.getenv('SUPABASE_URL'), os.getenv('SUPABASE_KEY')
+                    if s_url and s_key:
+                        client = create_client(s_url, s_key)
+                        client.rpc('update_material_statistics').execute()
                         log(f"  ✅ 집계 테이블 업데이트 완료")
-                    else:
-                        log(f"  ⚠️ Supabase 환경변수 없음, 집계 테이블 업데이트 건너뜀", "WARNING")
                 except Exception as e:
                     log(f"  ❌ 집계 테이블 업데이트 실패: {str(e)}", "ERROR")
                         
@@ -409,7 +419,6 @@ class KpiCrawler:
             log(f"  ❌ Redis 캐시 삭제 실패: {str(e)}", "ERROR")
 
     def _remove_roman_numerals(self, text):
-        # Remove Roman numerals in circles (① to ⑩)
         return re.sub(r'[①-⑩]', '', text)
 
     def _is_region_header(self, header_text):
@@ -417,18 +426,16 @@ class KpiCrawler:
         return cleaned_header in self.base_regions
 
     def _create_data_entry(self, major, middle, sub, spec, region, detail_spec, date, price, unit):
-        """데이터베이스 저장을 위한 딕셔너리 객체 생성"""
         return {
             'major_category': major, 'middle_category': middle, 'sub_category': sub,
             'specification': spec,
             'region': region,
-            'detail_spec': detail_spec, # detail_spec을 별도 필드로 추가
+            'detail_spec': detail_spec,
             'date': f"{date.replace('.', '-')}-01",
             'price': int(price), 'unit': unit
         }
 
     def _get_unit_from_inclusion_list(self, major_name, middle_name, sub_name, spec_name=None):
-        """INCLUSION_LIST에서 단위 정보 가져오기"""
         try:
             unit_data = INCLUSION_LIST.get(major_name, {}).get(middle_name, {}).get(sub_name)
             if isinstance(unit_data, dict):
@@ -440,13 +447,12 @@ class KpiCrawler:
                 return unit_data.get("unit") or unit_data.get("default")
             elif isinstance(unit_data, str):
                 return unit_data
-        except Exception as e:
-            log(f"단위 정보 조회 중 오류: {e}", "ERROR")
+        except Exception:
+            pass
         return None
 
 # --- 5. 메인 실행 함수 ---
 async def main():
-    """메인 실행 로직: 명령행 인자 파싱 및 크롤러 실행"""
     args = {arg.split('=', 1)[0].strip('-'): arg.split('=', 1)[1].strip('"\'') for arg in sys.argv[1:] if '=' in arg}
     
     target_major = args.get('major')
