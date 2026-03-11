@@ -25,24 +25,25 @@ async function scrapeMarketIndicators(html: string): Promise<MarketIndicator[]> 
 
   // 새로운 테이블 선택자: .tbl_indicator
   $('.tbl_indicator tbody tr').each((i, el) => {
-    const category = $(el).find('th[class^="th_indi"] a span').text().trim();
-    const name = $(el).find('th[class^="th_type"] a').text().trim();
+    // Naver Finance HTML 구조에 맞춰 선택자 수정
+    const category = $(el).find('th[class^="th_indi"] span').text().trim();
+    const name = $(el).find('th[class^="th_type"] span, th[class^="th_type"] a').first().text().trim();
 
-    // 값과 단위 추출
+    // 값과 단위 추출 (첫 번째 td가 현재가)
     const valueCell = $(el).find('td').eq(0);
     const unit = valueCell.find('span').text().trim();
     const valueText = valueCell.text().replace(unit, '').replace(/,/g, '').trim();
     const value = parseFloat(valueText);
 
-    // 변동값 추출
+    // 변동값 추출 (두 번째 td가 전일비)
     const changeCell = $(el).find('td').eq(1);
-    const changeDirection = changeCell.find('img').attr('alt');
+    const changeDirection = changeCell.find('img').attr('alt') || '';
     const changeText = changeCell.text().trim();
     let change = parseFloat(changeText);
     
     // 유효성 검사
-    if (category && name && !isNaN(value)) {
-      if (changeDirection === '하락') {
+    if ((category || name) && !isNaN(value)) {
+      if (changeDirection === '하락' || changeDirection === '하향') {
         change *= -1;
       }
 

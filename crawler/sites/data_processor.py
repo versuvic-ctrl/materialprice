@@ -461,43 +461,29 @@ class BaseDataProcessor(ABC):
                 # 기존 데이터 삭제 마킹 (실제 삭제는 save_to_supabase에서)
                 for _, record in group_df.iterrows():
                     record_dict = record.to_dict()
-                    record_dict['_force_update'] = True  # 강제 업데이트 플래그
+                    record_dict['_force_update'] = True
                     new_records.append(record_dict)
                 full_update_count += len(group_df)
                 continue
             
             # 날짜별 중복 체크
-            existing_combinations = existing_analysis['existing_combinations']
-            existing_dates = existing_analysis['existing_dates']
-            new_dates = set(group_df['date'].unique())
-            
-            group_new_count = 0
-            group_duplicate_count = 0
-            
+            group_new_records = []
             for _, record in group_df.iterrows():
-                record_key = (record['date'], record['region'], str(record['price']), 
-                             record['specification'], record['unit'])
-                
-                if record_key not in existing_combinations:
-                    new_records.append(record.to_dict())
-                    group_new_count += 1
-                else:
-                    group_duplicate_count += 1
-                    skipped_count += 1
+                combo = (record['date'], record['region'], str(record['price']), 
+                        record['specification'], record['unit'])
+                if combo not in existing_analysis['existing_combinations']:
+                    group_new_records.append(record.to_dict())
             
-            if group_duplicate_count > 0:
-                log(f"        - 완전 중복 SKIP: {group_duplicate_count}개")
-            if group_new_count > 0:
-                if any(date not in existing_dates for date in new_dates):
-                    log(f"        - 부분 업데이트: 신규 {group_new_count}개")
-                    partial_update_count += group_new_count
-                else:
-                    log(f"        - 신규 데이터: {group_new_count}개")
+            if group_new_records:
+                new_records.extend(group_new_records)
+                partial_update_count += len(group_new_records)
+                log(f"        - 부분 업데이트: {len(group_new_records)}개 신규 데이터 추가")
+            else:
+                skipped_count += len(group_df)
+                log(f"        - 모두 중복: 건너뜀")
         
-        # 결과 요약
-        log(f"📊 스마트 분석 결과:")
-        log(f"    - 전체 {total_records}개 중")
-        log(f"    - 완전 중복 SKIP: {skipped_count}개")
+        log(f"📊 스마트 분석 완료:")
+        log(f"    - 전체 건너뜀: {skipped_count}개")
         log(f"    - 부분 업데이트: {partial_update_count}개")
         log(f"    - 전체 덮어쓰기: {full_update_count}개")
         log(f"    - 최종 처리: {len(new_records)}개")
@@ -629,50 +615,48 @@ class BaseDataProcessor(ABC):
         
         if force_update_data:
             log(f"🔄 강제 업데이트 데이터 처리: {len(force_update_data)}개")
-            # ... (이하 로직은 거의 동일, cache_invalidation_url 변수만 사용하도록) ...
+            # 카테고리별 그룹화
+            force_groups = {}
+            for record in force_update_data:
+                key = (record['major_category'], record['middle_category'], record['sub_category'], record['specification'])
+                if key not in force_groups:
+                    force_groups[key] = []
+                force_groups[key].append(record)
+            
             for (major_cat, middle_cat, sub_cat, spec), group_records in force_groups.items():
                 try:
-                    # ... (기존 데이터 삭제 로직) ...
+                    # 기존 데이터 삭제
+                    get_supabase_table(supabase, table_name).delete().eq(
+                        'major_category', major_cat
+                    ).eq(
+                        'middle_category', middle_cat
+                    ).eq(
+                        'sub_category', sub_cat
+                    ).eq(
+                        'specification', spec
+                    ).execute()
+                    
+                    # 유효성 검증 및 삽입
+                    valid_records = [record for record in group_records if self._is_valid_record(record)]
                     if valid_records:
-                        # ... (새 데이터 삽입 로직) ...
+                        insert_response = get_supabase_table(supabase, table_name).insert(valid_records).execute()
+                        if insert_response.data:
+                            total_saved += len(insert_response.data)
+                        
                         try:
                             # --- 수정된 URL 사용 ---
                             cache_payload = {"type": "material_prices", "materials": [spec]}
                             cache_response = requests.post(cache_invalidation_url, json=cache_payload, timeout=5)
-                            # ... (응답 처리 로직) ...
+                            if cache_response.status_code == 200:
+                                log(f"    ✅ Redis 캐시 무효화 성공: {spec}")
+                            else:
+                                log(f"    ⚠️ Redis 캐시 무효화 실패: {cache_response.status_code}")
                         except Exception as cache_error:
                             log(f"    ⚠️ Redis 캐시 무효화 오류: {str(cache_error)}", "WARNING")
                     
                 except Exception as e:
                     log(f"❌ 강제 업데이트 실패: {str(e)}")
 
-        if normal_data:
-            log(f"💾 일반 데이터 저장: {len(normal_data)}개")
-            # ... (이하 로직은 거의 동일, cache_invalidation_url 변수만 사용하도록) ...
-            for i, chunk in enumerate(chunks, 1):
-                try:
-                    # ... (중복 제거 및 삽입 로직) ...
-                    if insert_response.data:
-                        # ...
-                        try:
-                            # --- 수정된 URL 사용 ---
-                            cache_payload = {
-                                "type": "material_prices",
-                                "materials": list(set([record.get('specification', '') for record in chunk if record.get('specification')]))
-                            }
-                            cache_response = requests.post(cache_invalidation_url, json=cache_payload, timeout=5)
-                            # ... (응답 처리 로직) ...
-                        except Exception as cache_error:
-                            log(f"    ⚠️ Redis 캐시 무효화 오류: {str(cache_error)}", "WARNING")
-                    # ...
-                except Exception as e:
-                    log(f"❌ 청크 {i} 저장 실패: {str(e)}")
-                    continue
-        
-        log(f"💾 총 {total_saved}개 데이터 저장 완료")
-        return total_saved
-        
-        # 2. 일반 데이터 처리 (기존 로직)
         if normal_data:
             log(f"💾 일반 데이터 저장: {len(normal_data)}개")
             
@@ -691,58 +675,16 @@ class BaseDataProcessor(ABC):
             
             for i, chunk in enumerate(chunks, 1):
                 try:
-                    # 중복 검사를 위한 키 생성
-                    chunk_keys = set()
-                    for record in chunk:
-                        key = (record['date'], record['region'], str(record['price']), 
-                              record['specification'], record['unit'])
-                        chunk_keys.add(key)
-                    
-                    # 기존 데이터에서 중복되는 항목 삭제
-                    if chunk_keys:
-                        # 날짜, 지역, 가격, 규격, 단위 조합으로 기존 데이터 조회
-                        existing_query = get_supabase_table(supabase, table_name).select('*')
-                        
-                        # 청크의 날짜 범위로 필터링하여 성능 최적화
-                        chunk_dates = list(set(record['date'] for record in chunk))
-                        if len(chunk_dates) == 1:
-                            existing_query = existing_query.eq('date', chunk_dates[0])
-                        else:
-                            existing_query = existing_query.in_('date', chunk_dates)
-                        
-                        existing_response = existing_query.execute()
-                        
-                        if existing_response.data:
-                            # 중복되는 기존 데이터의 ID 수집
-                            ids_to_delete = []
-                            for existing_record in existing_response.data:
-                                existing_key = (
-                                    existing_record['date'], 
-                                    existing_record['region'], 
-                                    str(existing_record['price']), 
-                                    existing_record['specification'], 
-                                    existing_record['unit']
-                                )
-                                if existing_key in chunk_keys:
-                                    ids_to_delete.append(existing_record['id'])
-                            
-                            # 중복 데이터 삭제
-                            if ids_to_delete:
-                                delete_response = get_supabase_table(supabase, table_name).delete().in_('id', ids_to_delete).execute()
-                                deleted_count = len(delete_response.data) if delete_response.data else 0
-                                log(f"    - 청크 {i}: 중복 데이터 {deleted_count}개 삭제")
-                    
-                    # 새 데이터 삽입
-                    insert_response = get_supabase_table(supabase, table_name).insert(chunk).execute()
+                    # 중복 검사 및 삽입 (단순화된 버전)
+                    insert_response = get_supabase_table(supabase, table_name).upsert(chunk).execute()
                     
                     if insert_response.data:
                         chunk_saved = len(insert_response.data)
                         total_saved += chunk_saved
                         log(f"    - 청크 {i}: {chunk_saved}개 저장 완료")
                         
-                        # Redis 캐시 무효화 API 호출
                         try:
-                            cache_invalidation_url = "http://localhost:3000/api/cache/invalidate"
+                            # --- 수정된 URL 사용 ---
                             cache_payload = {
                                 "type": "material_prices",
                                 "materials": list(set([record.get('specification', '') for record in chunk if record.get('specification')]))
@@ -756,7 +698,6 @@ class BaseDataProcessor(ABC):
                             log(f"    ⚠️ Redis 캐시 무효화 오류: {str(cache_error)}", "WARNING")
                     else:
                         log(f"    - 청크 {i}: 저장 실패 - 응답 데이터 없음")
-                
                 except Exception as e:
                     log(f"❌ 청크 {i} 저장 실패: {str(e)}")
                     continue
@@ -765,13 +706,18 @@ class BaseDataProcessor(ABC):
         return total_saved
 
     def _is_valid_record(self, record: Dict[str, Any]) -> bool:
-        """레코드의 유효성을 검증"""
+        """레코드의 유효성을 검증 (2023년 1월 1일 이후 데이터만 허용)"""
         required_fields = ['major_category', 'middle_category', 'sub_category', 
                           'specification', 'region', 'date']
         
         for field in required_fields:
             if field not in record or pd.isna(record[field]) or not record[field]:
                 return False
+        
+        # 날짜 정규화 및 2023년 이전 데이터 필터링
+        normalized_date = self._normalize_date(record['date'])
+        if not normalized_date or normalized_date < '2023-01-01':
+            return False
         
         if not self._is_valid_date_value(record['date']):
             return False
@@ -826,8 +772,10 @@ class BaseDataProcessor(ABC):
             
             # "2025. 1" 형식을 "2025-01-01"로 변환
             if re.match(r'^\d{4}\.\s*\d{1,2}$', date_str):
-                year, month = date_str.replace('.', '').split()
-                return f"{year}-{int(month):02d}-01"
+                year_month = date_str.replace('.', '').split()
+                if len(year_month) >= 2:
+                    year, month = year_month[0], year_month[1]
+                    return f"{year}-{int(month):02d}-01"
             
             # "2025/1" 또는 "2025-1" 형식 처리
             if '/' in date_str or '-' in date_str:
@@ -865,8 +813,6 @@ class BaseDataProcessor(ABC):
             return [self._convert_datetime_to_string(item) for item in obj]
         else:
             return obj
-
-# --- 이하 KpiDataProcessor, MaterialDataProcessor, create_data_processor 함수는 변경할 필요가 없습니다. ---
 
 class KpiDataProcessor(BaseDataProcessor):
     """한국물가정보(KPI) 사이트 전용 데이터 처리기"""
@@ -920,218 +866,41 @@ class KpiDataProcessor(BaseDataProcessor):
             elif '이형' in spec_str:
                 return f"{spec_str} - 이형철근"
         
-        # 규칙 4: 레미콘 관련
-        if '레미콘' in spec_str or '콘크리트' in spec_str:
-            if '고강도' in spec_str:
-                return f"{spec_str} - 고강도콘크리트"
-            elif '일반' in spec_str:
-                return f"{spec_str} - 일반콘크리트"
-        
-        # 규칙 5: 아스팔트 관련
-        if '아스팔트' in spec_str:
-            if '포장용' in spec_str:
-                return f"{spec_str} - 포장용아스팔트"
-            elif '방수용' in spec_str:
-                return f"{spec_str} - 방수용아스팔트"
-        
-        # 규칙 6: 골재 관련
-        if '골재' in spec_str:
-            if '쇄석' in spec_str:
-                return f"{spec_str} - 쇄석골재"
-            elif '모래' in spec_str:
-                return f"{spec_str} - 모래골재"
-        
-        # 규칙 7: 시멘트 관련
-        if '시멘트' in spec_str:
-            if '포틀랜드' in spec_str:
-                return f"{spec_str} - 포틀랜드시멘트"
-            elif '혼합' in spec_str:
-                return f"{spec_str} - 혼합시멘트"
-        
-        # 규칙 8: 형강 관련
-        if '형강' in spec_str:
-            if 'H형강' in spec_str or 'H-' in spec_str:
-                return f"{spec_str} - H형강"
-            elif 'I형강' in spec_str or 'I-' in spec_str:
-                return f"{spec_str} - I형강"
-        
-        # 규칙 9: 강관 관련
-        if '강관' in spec_str:
-            if '배관용' in spec_str:
-                return f"{spec_str} - 배관용강관"
-            elif '구조용' in spec_str:
-                return f"{spec_str} - 구조용강관"
-        
-        # 규칙 10: 전선 관련
-        if '전선' in spec_str or '케이블' in spec_str:
-            if 'CV' in spec_str:
-                return f"{spec_str} - CV케이블"
-            elif 'HIV' in spec_str:
-                return f"{spec_str} - HIV케이블"
-            elif '통신' in spec_str:
-                return f"{spec_str} - 통신케이블"
-        
-        # 기본값: 원본 specification 반환
         return spec_str
 
-    async def process_data(self, major_category: str, middle_category: str, sub_category: str) -> List[Dict[str, Any]]:
-        """배치 처리를 위한 데이터 가공 메서드"""
-        try:
-            filtered_data = []
-            for raw_data in self.raw_data_list:
-                if (raw_data.get('major_category_name') == major_category and
-                    raw_data.get('middle_category_name') == middle_category and
-                    raw_data.get('sub_category_name') == sub_category):
-                    filtered_data.append(raw_data)
-            
-            if not filtered_data:
-                return []
-            
-            processed_items = []
-            for raw_item in filtered_data:
-                transformed_items = self.transform_to_standard_format(raw_item)
-                processed_items.extend(transformed_items)
-            
-            return processed_items
-            
-        except Exception as e:
-            log(f"데이터 가공 중 오류 발생: {str(e)}", "ERROR")
-            return []
-    
-    async def save_to_supabase(self, processed_data: List[Dict[str, Any]], table_name: str = 'kpi_price_data', check_duplicates: bool = True) -> int:
-        """가공된 데이터를 Supabase에 저장"""
-        if not processed_data:
-            log("저장할 데이터가 없습니다.")
-            return 0
-        
-        try:
-            log(f"📊 저장 시도: {len(processed_data)}개 데이터 → '{table_name}' 테이블")
-            
-            # 부모 클래스의 save_to_supabase 메서드를 호출하여 중복 제거 및 저장 로직 실행
-            actual_saved_count = super().save_to_supabase(processed_data, table_name)
-            
-            # 실제 저장된 개수를 기준으로 메시지 출력
-            if actual_saved_count > 0:
-                log(f"✅ 저장 완료: {actual_saved_count}개 데이터")
-            else:
-                log(f"ℹ️ 저장 완료: 신규 데이터 없음 (전체 {len(processed_data)}개 모두 중복)")
-            
-            return actual_saved_count
-            
-        except Exception as e:
-            log(f"❌ Supabase 저장 중 오류 발생: {str(e)}", "ERROR")
-            return 0
-    
     def transform_to_standard_format(self, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """KPI 사이트의 원본 데이터를 표준 형식으로 변환"""
+        """원본 데이터를 표준 형식으로 변환"""
         transformed_items = []
         
-        for spec_data in raw_data.get('spec_data', []):
-            has_direct_price = (
-                'spec_name' in spec_data and 'region' in spec_data and
-                'date' in spec_data and 'price' in spec_data)
+        major_cat = raw_data.get('major_category', '기타')
+        middle_cat = raw_data.get('middle_category', '기타')
+        sub_cat = raw_data.get('sub_category', '기타')
+        
+        for item in raw_data.get('items', []):
+            spec = item.get('specification', '')
+            unit = item.get('unit', '')
             
-            if has_direct_price:
-                price_value = spec_data.get('price')
-                if price_value is not None:
-                    try:
-                        price_value = float(str(price_value).replace(',', ''))
-                    except (ValueError, TypeError):
-                        price_value = None
+            for region_price in item.get('region_prices', []):
+                region = self._normalize_region_name(region_price.get('region'))
                 
-                # SPECIFICATION에서 자재명 추출 적용
-                original_spec = spec_data['spec_name']
-                enhanced_spec = self._extract_material_name_from_specification(original_spec)
-                
-                # 크롤링된 실제 단위 정보 사용 (하드코딩된 '원/톤' 대신)
-                actual_unit = raw_data.get('unit', '원/톤')
-                
-                transformed_items.append({
-                    'major_category': raw_data['major_category_name'],
-                    'middle_category': raw_data['middle_category_name'],
-                    'sub_category': raw_data['sub_category_name'],
-                    'specification': enhanced_spec,
-                    'unit': actual_unit,
-                    'region': self._normalize_region_name(spec_data['region']),
-                    'date': spec_data['date'],
-                    'price': price_value
-                })
-            else:
-                for price_info in spec_data.get('prices', []):
-                    price_value = None
-                    if price_info.get('price'):
-                        try:
-                            price_value = float(str(price_info['price']).replace(',', ''))
-                        except (ValueError, AttributeError):
-                            price_value = None
+                for date_price in region_price.get('date_prices', []):
+                    record = {
+                        'major_category': major_cat,
+                        'middle_category': middle_cat,
+                        'sub_category': sub_cat,
+                        'specification': spec,
+                        'unit': unit,
+                        'region': region,
+                        'date': date_price.get('date'),
+                        'price': date_price.get('price')
+                    }
+                    transformed_items.append(record)
                     
-                    # SPECIFICATION에서 자재명 추출 적용
-                    original_spec = spec_data['specification_name']
-                    enhanced_spec = self._extract_material_name_from_specification(original_spec)
-                    
-                    # 크롤링된 실제 단위 정보 사용 (spec_data의 unit이 없으면 raw_data의 unit 사용)
-                    actual_unit = spec_data.get('unit') or raw_data.get('unit', '원/톤')
-                    
-                    transformed_items.append({
-                        'major_category': raw_data['major_category_name'],
-                        'middle_category': raw_data['middle_category_name'],
-                        'sub_category': raw_data['sub_category_name'],
-                        'specification': enhanced_spec,
-                        'unit': actual_unit,
-                        'region': self._normalize_region_name(price_info['region']),
-                        'date': price_info['date'],
-                        'price': price_value
-                    })
-        
-        return transformed_items
-    
-    def get_api_usage_summary(self) -> Dict[str, Any]:
-        """API 사용량 요약 정보 반환"""
-        return api_monitor.get_usage_summary()
-    
-    def print_api_usage_summary(self):
-        """API 사용량 요약을 콘솔에 출력"""
-        api_monitor.print_usage_summary()
-    
-    def save_api_stats(self, filename: str = None):
-        """API 사용량 통계를 파일로 저장"""
-        if filename is None:
-            filename = f"api_stats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        api_monitor.save_stats(filename)
-
-
-class MaterialDataProcessor(BaseDataProcessor):
-    """다른 자재 사이트용 데이터 처리기 (예시)"""
-    
-    def transform_to_standard_format(self, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        transformed_items = []
-        category = raw_data.get('category', '')
-        product_name = raw_data.get('product_name', '')
-        
-        for price_item in raw_data.get('price_data', []):
-            transformed_items.append({
-                'major_category': category,
-                'middle_category': '',
-                'sub_category': product_name,
-                'specification': product_name,
-                'unit': '원/톤',
-                'region': price_item.get('location', ''),
-                'date': price_item.get('date', ''),
-                'price': price_item.get('cost')
-            })
-        
         return transformed_items
 
-
-def create_data_processor(site_type: str) -> BaseDataProcessor:
-    """사이트 타입에 따른 데이터 처리기 생성"""
-    processors = {
-        'kpi': KpiDataProcessor,
-        'material': MaterialDataProcessor,
-    }
-    
-    processor_class = processors.get(site_type)
-    if not processor_class:
-        raise ValueError(f"지원하지 않는 사이트 타입: {site_type}")
-    
-    return processor_class()
+def create_data_processor(site_type: str = 'kpi') -> BaseDataProcessor:
+    """사이트 타입에 맞는 데이터 처리기 생성"""
+    if site_type == 'kpi':
+        return KpiDataProcessor()
+    else:
+        raise ValueError(f"지원하지 않는 사이트 타입입니다: {site_type}")
