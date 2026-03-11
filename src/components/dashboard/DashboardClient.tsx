@@ -117,9 +117,9 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
       console.log(`🚀 SUMMARY 데이터 페칭 시작 (종료일: ${endDate})`);
       const startTime = performance.now();
       
-      const categoryPromises = DASHBOARD_CHARTS_CONFIG.map(async (categoryConfig) => {
-        const category = categoryConfig.title.split('(')[0];
-        const materials = categoryConfig.materials.map(m => m.id);
+           const categoryPromises = DASHBOARD_CHARTS_CONFIG.map(async (categoryConfig) => {
+          const category = categoryConfig.title.split('(')[0];
+          const materials = categoryConfig.materials.map(m => m.id);
 
         try {
           const categoryStartTime = performance.now();
@@ -139,23 +139,50 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
           const categoryData: MaterialChangeData[] = [];
           if (data && Array.isArray(data)) {
             for (const material of materials) {
-              const materialData = data.filter((item: any) => item.specification === material);
-              const sortedData = materialData.sort((a: any, b: any) => new Date(b.time_bucket).getTime() - new Date(a.time_bucket).getTime());
-              let monthlyChange: number | null = null;
-              if (sortedData.length >= 2) {
-                const currentPrice = parseFloat(sortedData[0]?.average_price || '0');
-                const previousPrice = parseFloat(sortedData[1]?.average_price || '0');
-                if (previousPrice !== 0) {
-                  monthlyChange = ((currentPrice - previousPrice) / previousPrice) * 100;
-                  monthlyChange = Math.round(monthlyChange * 100) / 100;
+               // 1. 공백 제거 후 매칭 (DB 데이터와 Config 매칭 강화)
+               const materialData = data.filter((item: any) => 
+                 (item.specification || '').trim() === material.trim()
+               );
+               
+               // 2. 날짜 기준 내림차순 정렬
+               const sortedData = materialData.sort((a: any, b: any) => 
+                 new Date(b.time_bucket).getTime() - new Date(a.time_bucket).getTime()
+               );
+ 
+               // 3. 동일 월 중복 데이터 제거 (지역별 데이터가 섞여있을 경우 대비)
+               const uniqueMonthlyData = sortedData.filter((item, index, self) =>
+                 index === self.findIndex((t) => t.time_bucket === item.time_bucket)
+               );
+ 
+                let monthlyChange: number | null = null;
+               if (uniqueMonthlyData.length >= 2) {
+                 // 4. 가격 파싱 강화 (콤마 및 문자열 처리)
+                 const parsePrice = (val: any) => {
+                   if (typeof val === 'number') return val;
+                   if (typeof val === 'string') return parseFloat(val.replace(/,/g, ''));
+                   return 0;
+                 };
+ 
+                 const currentPrice = parsePrice(uniqueMonthlyData[0]?.average_price);
+                 const previousPrice = parsePrice(uniqueMonthlyData[1]?.average_price);
+ 
+                  if (previousPrice !== 0) {
+                    monthlyChange = ((currentPrice - previousPrice) / previousPrice) * 100;
+                    monthlyChange = Math.round(monthlyChange * 100) / 100;
+                  }
+                 
+                 // 디버깅 로그 (철금속 카테고리에 대해서만)
+                 if (category === '철금속') {
+                   console.log(`📊 [${category}] ${material}: ${uniqueMonthlyData[1].time_bucket}(${previousPrice}) -> ${uniqueMonthlyData[0].time_bucket}(${currentPrice}) = ${monthlyChange}%`);
+                 }
                 }
-              }
-              const materialInfo = materialInfoMap.get(material);
-              categoryData.push({
-                name: material,
-                displayName: materialInfo ? materialInfo.displayName : material,
-                monthlyChange
-              });
+               
+                const materialInfo = materialInfoMap.get(material);
+                categoryData.push({
+                  name: material,
+                  displayName: materialInfo ? materialInfo.displayName : material,
+                  monthlyChange
+                });
             }
           }
           const { trend, summary } = generateCompactCategorySummary(categoryData);
@@ -197,70 +224,47 @@ const DashboardClient: React.FC<DashboardClientProps> = ({ dashboardData }) => {
             <div className="space-y-3">
               <div className="flex items-center gap-2 mb-3"><div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div><span className="text-sm text-gray-600">자재 가격 데이터 분석 중...</span></div>
               {DASHBOARD_CHARTS_CONFIG.map((categoryConfig, index) => (
-                <div key={categoryConfig.title} className="flex items-center gap-2"><div className="w-6 h-6 rounded bg-gray-200 animate-pulse flex items-center justify-center"><div className="w-3 h-3 bg-gray-300 rounded"></div></div><div className="flex-1"><Skeleton className="h-5 w-full" style={{ animationDelay: `${index * 100}ms` }} /></div></div>
+                <div key={index} className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-12" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
               ))}
             </div>
           ) : (
-            <div>
-              {summaryData?.map((item, index) => {
-                const renderSummary = (summary: string) => {
-                  if (summary.includes('전월대비 모든 자재 변동 없음')) {
-                    return (<span><span className="text-gray-800">전월대비 모든 자재 </span><span className="font-semibold text-green-600">변동 없음</span></span>);
-                  }
-                  if (summary.includes('모든 자재 변동 없음')) {
-                    return <span className="font-semibold text-green-600">{summary}</span>;
-                  }
-                  const escapedNames = allMaterialSummaryNames.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-                  const materialRegex = new RegExp(`(${escapedNames.join('|')})`);
-                  const parts = summary.split(materialRegex).filter(Boolean);
-                  return parts.map((part, partIndex) => {
-                    if (allMaterialSummaryNames.includes(part)) {
-                      const materialName = part;
-                      const details = parts[partIndex + 1] || '';
-                      const detailParts = details.trim().split(' ');
+            summaryData?.map((item, index) => (
+              <div key={index} className="flex items-start gap-2 py-0.5 sm:py-1 group">
+                <span className="text-base sm:text-lg flex-shrink-0 w-5 sm:w-6 text-center">
+                  {categoryIcons[item.category as keyof typeof categoryIcons] || '📦'}
+                </span>
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 min-w-0">
+                  <span className="text-xs sm:text-sm font-semibold text-gray-700 whitespace-nowrap">
+                    {item.category}:
+                  </span>
+                  <div className="text-[11px] sm:text-[13px] leading-relaxed text-gray-600 break-words line-clamp-2 group-hover:line-clamp-none transition-all duration-200">
+                    {item.summary.split(',').map((part, pIdx) => {
+                      const isUp = part.includes('상승');
+                      const isDown = part.includes('하락');
+                      const isStable = part.includes('변동 없음') || part.includes('변동없음');
+                      
                       return (
-                        <React.Fragment key={partIndex}>
-                          <span className="font-bold text-gray-800">{materialName}</span>{' '}
-                          {detailParts.map((detail, detailIndex) => {
-                            if (detail.includes('%')) {
-                              const colorClass = details.includes('상승') ? 'text-red-600' : details.includes('하락') ? 'text-blue-600' : 'text-gray-600';
-                              return <span key={detailIndex} className={`font-bold ${colorClass}`}>{detail} </span>;
-                            }
-                            if (['소폭', '대폭', '상승', '하락'].includes(detail)) {
-                                const colorClass = details.includes('상승') ? 'text-red-600' : details.includes('하락') ? 'text-blue-600' : 'text-gray-800';
-                                return <span key={detailIndex} className={`font-semibold ${colorClass}`}>{detail} </span>;
-                            }
-                            if (detail === '__SVG_ICON_UP__') return <img key={detailIndex} src="/icons/1f4c8.svg" alt="상승" className="inline-block w-4 h-4 ml-1" />;
-                            if (detail === '__SVG_ICON_DOWN__') return <img key={detailIndex} src="/icons/1f4c9.svg" alt="하락" className="inline-block w-4 h-4 ml-1" />;
-                            return `${detail} `;
-                          })}
-                        </React.Fragment>
+                        <span key={pIdx} className="inline-block mr-1">
+                          {part.trim()}
+                          {pIdx < item.summary.split(',').length - 1 && ','}
+                        </span>
                       );
-                    } 
-                    else if (partIndex > 0 && allMaterialSummaryNames.includes(parts[partIndex - 1])) return null;
-                    else return <span key={partIndex}>{part}</span>;
-                  });
-                };
-                const getCategoryEmoji = (category: string): string => {
-                  const emojiMap: { [key: string]: string } = { '철금속': '🔩', '비철금속': '⛏️', '플라스틱': '🧪', '테프론': '🔬', '전기자재': '⚡', '토건자재': '🏗️' };
-                  return emojiMap[category] || '📦';
-                };
-                return (
-                  <div key={index} className="flex flex-col sm:flex-row sm:items-center py-1 leading-relaxed">
-                    <div className="flex flex-row items-start space-x-1 w-full">
-                      <span className="text-[13px] font-bold text-gray-900 whitespace-nowrap">{getCategoryEmoji(item.category)} {item.category}:</span>
-                      <span className="text-[13px] flex-1">{renderSummary(item.summary)}</span>
-                    </div>
+                    })}
                   </div>
-                );
-              })}
-              {(!summaryData || summaryData.length === 0) && (<div className="text-gray-500 text-center py-6 text-sm">데이터를 불러오는 중입니다...</div>)}
-            </div>
+                </div>
+              </div>
+            ))
           )}
-            </div></div>
+          </div></div>
         </div>
       </Card>
-      <MarketIndicatorsSummary className="lg:col-span-5" />
+      
+      <div className="lg:col-span-5">
+        <MarketIndicatorsSummary />
+      </div>
     </div>
   );
 };
