@@ -227,21 +227,19 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
     // 최대 가격 하나만 분리되는 문제를 피하기 위해, 평균 가격의 "가장 큰 단절점"에서 2축을 분리
     let bestSplitIndex = -1;
     let bestScore = 0;
+    const minGroupSize = materialRanges.length >= 5 ? 2 : 1;
 
     for (let splitIndex = 1; splitIndex < materialRanges.length; splitIndex++) {
         const leftGroup = materialRanges.slice(0, splitIndex);
         const rightGroup = materialRanges.slice(splitIndex);
         if (leftGroup.length === 0 || rightGroup.length === 0) continue;
+        if (leftGroup.length < minGroupSize || rightGroup.length < minGroupSize) continue;
 
         const higherGroupMinAverage = leftGroup[leftGroup.length - 1].average;
         const lowerGroupMaxAverage = rightGroup[0].average;
         const separationRatio = higherGroupMinAverage / lowerGroupMaxAverage;
-
-        const leftSpreadRatio = leftGroup[0].average / leftGroup[leftGroup.length - 1].average;
-        const rightSpreadRatio = rightGroup[0].average / rightGroup[rightGroup.length - 1].average;
         const balanceRatio = Math.min(leftGroup.length, rightGroup.length) / Math.max(leftGroup.length, rightGroup.length);
-
-        const score = (separationRatio * balanceRatio) / (leftSpreadRatio * rightSpreadRatio);
+        const score = separationRatio * balanceRatio;
         if (score > bestScore) {
             bestScore = score;
             bestSplitIndex = splitIndex;

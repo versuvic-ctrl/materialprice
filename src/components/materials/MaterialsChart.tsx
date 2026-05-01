@@ -252,6 +252,7 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
   if (materialRanges.length >= 4) {
     let bestSplitIndex = -1;
     let bestScore = 0;
+    const minGroupSize = materialRanges.length >= 5 ? 2 : 1;
 
     for (let splitIndex = 1; splitIndex < materialRanges.length; splitIndex++) {
       const leftGroup = materialRanges.slice(0, splitIndex);
@@ -260,17 +261,15 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
       if (leftGroup.length === 0 || rightGroup.length === 0) {
         continue;
       }
+      if (leftGroup.length < minGroupSize || rightGroup.length < minGroupSize) {
+        continue;
+      }
 
       const higherGroupMinAverage = leftGroup[leftGroup.length - 1].average;
       const lowerGroupMaxAverage = rightGroup[0].average;
       const separationRatio = higherGroupMinAverage / lowerGroupMaxAverage;
-
-      const leftSpreadRatio = leftGroup[0].average / leftGroup[leftGroup.length - 1].average;
-      const rightSpreadRatio = rightGroup[0].average / rightGroup[rightGroup.length - 1].average;
       const balanceRatio = Math.min(leftGroup.length, rightGroup.length) / Math.max(leftGroup.length, rightGroup.length);
-
-      // 그룹 내부는 촘촘하고, 그룹 사이는 크게 벌어질수록 높은 점수
-      const score = (separationRatio * balanceRatio) / (leftSpreadRatio * rightSpreadRatio);
+      const score = separationRatio * balanceRatio;
 
       if (score > bestScore) {
         bestScore = score;
