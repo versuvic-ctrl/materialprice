@@ -38,7 +38,7 @@ INCLUSION_LIST = parse_jsonc(jsonc_content)
 class KpiCrawler:
     def __init__(self, target_major: str = None, target_middle: str = None,
                  target_sub: str = None, crawl_mode: str = "all",
-                 start_year: str = '2026', start_month: str = '01', max_concurrent=3):
+                 start_year: str = '2020', start_month: str = '01', max_concurrent=3):
         self.base_url = "https://www.kpi.or.kr"
         self.max_concurrent = max_concurrent
         self.semaphore = asyncio.Semaphore(max_concurrent)
