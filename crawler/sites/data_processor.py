@@ -1,5 +1,14 @@
 import sys
 import os
+import io
+
+# Windows 터미널 한글 깨짐 방지
+if sys.platform == 'win32':
+    if hasattr(sys.stdout, 'detach'):
+        sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8')
+    if hasattr(sys.stderr, 'detach'):
+        sys.stderr = io.TextIOWrapper(sys.stderr.detach(), encoding='utf-8')
+
 import json
 import re
 import pandas as pd

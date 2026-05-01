@@ -3,7 +3,13 @@
 import os
 import asyncio
 import sys
+import io
 import re
+
+# Windows 터미널 한글 깨짐 방지
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.detach(), encoding='utf-8')
 import psutil
 from datetime import datetime
 from dotenv import load_dotenv
@@ -32,7 +38,7 @@ INCLUSION_LIST = parse_jsonc(jsonc_content)
 class KpiCrawler:
     def __init__(self, target_major: str = None, target_middle: str = None,
                  target_sub: str = None, crawl_mode: str = "all",
-                 start_year: str = '2020', start_month: str = '01', max_concurrent=3):
+                 start_year: str = '2026', start_month: str = '01', max_concurrent=3):
         self.base_url = "https://www.kpi.or.kr"
         self.max_concurrent = max_concurrent
         self.semaphore = asyncio.Semaphore(max_concurrent)
