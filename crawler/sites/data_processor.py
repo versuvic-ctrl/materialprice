@@ -1,14 +1,5 @@
 import sys
 import os
-import io
-
-# Windows 터미널 한글 깨짐 방지
-if sys.platform == 'win32':
-    if hasattr(sys.stdout, 'detach'):
-        sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8')
-    if hasattr(sys.stderr, 'detach'):
-        sys.stderr = io.TextIOWrapper(sys.stderr.detach(), encoding='utf-8')
-
 import json
 import re
 import pandas as pd
@@ -573,7 +564,12 @@ class BaseDataProcessor(ABC):
             for i, chunk in enumerate(chunks, 1):
                 try:
                     log(f"    [Supabase] Upsert 시도: {len(chunk)}개 레코드")
-                    insert_response = get_supabase_table(supabase, table_name).upsert(chunk).execute()
+                    # on_conflict 매개변수를 사용하여 명시적으로 충돌 해결 필드 지정
+                    # unique_material_price 제약 조건에 해당하는 필드들
+                    insert_response = get_supabase_table(supabase, table_name).upsert(
+                        chunk, 
+                        on_conflict='date,region,specification,unit'
+                    ).execute()
                     log(f"    [Supabase] Upsert 응답 성공")
                     
                     try:
@@ -774,13 +770,18 @@ class BaseDataProcessor(ABC):
         return total_saved
 
     def _is_valid_record(self, record: Dict[str, Any]) -> bool:
-        """레코드의 유효성을 검증"""
+        """레코드의 유효성을 검증 (2023년 1월 1일 이후 데이터만 허용)"""
         required_fields = ['major_category', 'middle_category', 'sub_category', 
                           'specification', 'region', 'date']
         
         for field in required_fields:
             if field not in record or pd.isna(record[field]) or not record[field]:
                 return False
+        
+        # 날짜 정규화 및 2023년 이전 데이터 필터링
+        normalized_date = self._normalize_date(record['date'])
+        if not normalized_date or normalized_date < '2023-01-01':
+            return False
         
         if not self._is_valid_date_value(record['date']):
             return False
@@ -887,6 +888,8 @@ class KpiDataProcessor(BaseDataProcessor):
             return '전국'  # 기본값으로 '전국' 설정
             
         region_str = str(region_name).strip()
+        region_str = re.sub(r'[①-⑩]', '', region_str)
+        region_str = re.sub(r'\s+', '', region_str)
         
         # '공통지역'을 '전국'으로 변환
         if region_str == '공통지역':
