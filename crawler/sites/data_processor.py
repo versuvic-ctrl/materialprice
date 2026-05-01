@@ -1018,6 +1018,11 @@ class KpiDataProcessor(BaseDataProcessor):
         
         try:
             log(f"📊 저장 시도: {len(processed_data)}개 데이터 → '{table_name}' 테이블")
+
+            valid_records = [record for record in processed_data if self._is_valid_record(record)]
+            if not valid_records:
+                log(f"ℹ️ 저장 종료: 유효성 검증 실패로 저장 대상이 없습니다. (전체 {len(processed_data)}개)", "WARNING")
+                return 0
             
             # 부모 클래스의 save_to_supabase 메서드를 호출하여 중복 제거 및 저장 로직 실행
             actual_saved_count = super().save_to_supabase(processed_data, table_name)
@@ -1026,7 +1031,7 @@ class KpiDataProcessor(BaseDataProcessor):
             if actual_saved_count > 0:
                 log(f"✅ 저장 완료: {actual_saved_count}개 데이터")
             else:
-                log(f"ℹ️ 저장 완료: 신규 데이터 없음 (전체 {len(processed_data)}개 모두 중복)")
+                log(f"ℹ️ 저장 완료: 신규 데이터 없음 (유효 데이터 {len(valid_records)}개는 모두 중복 또는 업데이트 대상 없음)")
             
             return actual_saved_count
             

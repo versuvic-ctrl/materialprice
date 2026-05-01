@@ -312,12 +312,19 @@ class KpiCrawler:
                                 
                                 # 종료 기간 설정 (최신 데이터까지)
                                 end_year_selector = 'select#DATA_YEAR_T'
-                                latest_year = await new_page.locator(f'{end_year_selector} option').first.get_attribute('value')
+                                year_options = await new_page.locator(f'{end_year_selector} option').evaluate_all(
+                                    """options => options.map(option => option.value).filter(Boolean)"""
+                                )
+                                latest_year = max(year_options, key=lambda year: int(year))
                                 await new_page.select_option(end_year_selector, value=latest_year)
                                 
                                 end_month_selector = 'select#DATA_MONTH_T'
-                                latest_month = await new_page.locator(f'{end_month_selector} option').last.get_attribute('value')
+                                month_options = await new_page.locator(f'{end_month_selector} option').evaluate_all(
+                                    """options => options.map(option => option.value).filter(Boolean)"""
+                                )
+                                latest_month = max(month_options, key=lambda month: int(month))
                                 await new_page.select_option(end_month_selector, value=latest_month)
+                                log(f"      - 조회 기간 설정: {self.start_year}-{self.start_month} ~ {latest_year}-{latest_month}")
                             
                             # 조회 버튼 클릭 후 응답 대기
                             async with new_page.expect_response(lambda r: "detail_change.asp" in r.url, timeout=60000):
@@ -332,37 +339,60 @@ class KpiCrawler:
 
                             unit = self._get_unit_from_inclusion_list(major_name, middle_name, sub_name, spec['name'])
                             headers = [th.strip() for th in await new_page.locator('table#priceTrendDataArea th').all_inner_texts()]
+                            data_headers = headers[1:]
                             rows = await new_page.locator('table#priceTrendDataArea tr').all()
+                            is_date_columns_table = all(
+                                re.match(r'^\d{4}\.\s*\d{1,2}$', header) for header in data_headers
+                            ) if data_headers else False
 
-                            for row in rows[1:]:
-                                cols_text = await row.locator('td').all_inner_texts()
-                                if not cols_text: continue
-                                
-                                date = cols_text[0].strip()
-                                prices_text = [p.strip().replace(',', '') for p in cols_text[1:]]
-                                data_headers = headers[1:]
-                                
-                                has_region_header = any(self._is_region_header(h) for h in data_headers)
+                            if is_date_columns_table:
+                                for row in rows[1:]:
+                                    cells = [cell.strip() for cell in await row.locator('th, td').all_inner_texts()]
+                                    if len(cells) < 2:
+                                        continue
 
-                                if has_region_header:
-                                    first_region_header = next((h for h in data_headers if self._is_region_header(h)), None)
-                                    if first_region_header:
-                                        idx = data_headers.index(first_region_header)
-                                        if idx < len(prices_text) and prices_text[idx].isdigit():
-                                            region = self._remove_roman_numerals(first_region_header)
-                                            all_crawled_data.append(self._create_data_entry(
-                                                major_name, middle_name, sub_name, spec['name'],
-                                                region, None, date, prices_text[idx], unit
-                                            ))
-                                else:
-                                    for idx, header_text in enumerate(data_headers):
-                                        if idx < len(prices_text) and prices_text[idx].isdigit():
-                                            region = "전국"
-                                            detail_spec = header_text
-                                            all_crawled_data.append(self._create_data_entry(
-                                                major_name, middle_name, sub_name, spec['name'],
-                                                region, detail_spec, date, prices_text[idx], unit
-                                            ))
+                                    region = self._remove_roman_numerals(cells[0]).strip()
+                                    if not self._is_region_header(region):
+                                        continue
+
+                                    for idx, date_header in enumerate(data_headers):
+                                        value_idx = idx + 1
+                                        if value_idx >= len(cells):
+                                            continue
+                                        price_text = cells[value_idx].replace(',', '').strip()
+                                        if not price_text.isdigit():
+                                            continue
+                                        all_crawled_data.append(self._create_data_entry(
+                                            major_name, middle_name, sub_name, spec['name'],
+                                            region, None, date_header, price_text, unit
+                                        ))
+                            else:
+                                for row in rows[1:]:
+                                    cols_text = await row.locator('td').all_inner_texts()
+                                    if not cols_text:
+                                        continue
+                                    
+                                    date = cols_text[0].strip()
+                                    prices_text = [p.strip().replace(',', '') for p in cols_text[1:]]
+                                    has_region_header = any(self._is_region_header(h) for h in data_headers)
+
+                                    if has_region_header:
+                                        for idx, header_text in enumerate(data_headers):
+                                            if idx < len(prices_text) and prices_text[idx].isdigit() and self._is_region_header(header_text):
+                                                region = self._remove_roman_numerals(header_text).strip()
+                                                all_crawled_data.append(self._create_data_entry(
+                                                    major_name, middle_name, sub_name, spec['name'],
+                                                    region, None, date, prices_text[idx], unit
+                                                ))
+                                    else:
+                                        for idx, header_text in enumerate(data_headers):
+                                            if idx < len(prices_text) and prices_text[idx].isdigit():
+                                                region = "전국"
+                                                detail_spec = header_text
+                                                all_crawled_data.append(self._create_data_entry(
+                                                    major_name, middle_name, sub_name, spec['name'],
+                                                    region, detail_spec, date, prices_text[idx], unit
+                                                ))
                         except Exception as spec_e:
                             log(f"      - Spec '{spec.get('name', 'N/A')[:20]}...' 처리 중 오류: {spec_e}", "WARNING")
                             continue
@@ -425,19 +455,31 @@ class KpiCrawler:
             log(f"  ❌ Redis 캐시 삭제 실패: {str(e)}", "ERROR")
 
     def _remove_roman_numerals(self, text):
-        return re.sub(r'[①-⑩]', '', text)
+        return self._normalize_header_text(text)
+
+    def _normalize_header_text(self, text):
+        if text is None:
+            return ""
+        normalized = str(text).strip()
+        normalized = re.sub(r'[①-⑩]', '', normalized)
+        normalized = re.sub(r'\s+', '', normalized)
+        return normalized
 
     def _is_region_header(self, header_text):
-        cleaned_header = self._remove_roman_numerals(header_text)
-        return cleaned_header in self.base_regions
+        cleaned_header = self._normalize_header_text(header_text)
+        normalized_regions = {self._normalize_header_text(region) for region in self.base_regions}
+        return cleaned_header in normalized_regions
 
     def _create_data_entry(self, major, middle, sub, spec, region, detail_spec, date, price, unit):
+        normalized_date = self._normalize_header_text(date).replace('.', '-')
+        if re.match(r'^\d{4}-\d{1,2}$', normalized_date):
+            normalized_date = f"{normalized_date}-01"
         return {
             'major_category': major, 'middle_category': middle, 'sub_category': sub,
             'specification': spec,
             'region': region,
             'detail_spec': detail_spec,
-            'date': f"{date.replace('.', '-')}-01",
+            'date': normalized_date,
             'price': int(price), 'unit': unit
         }
 

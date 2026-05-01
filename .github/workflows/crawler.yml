@@ -41,9 +41,11 @@ jobs:
         run: playwright install --with-deps
 
       - name: Run KPI Crawler
-        run: python ./crawler/sites/kpi_crawler.py --major="${{ matrix.category }}" --start-year=2026 --start-month=1
+        run: python ./crawler/sites/kpi_crawler.py --major="${{ matrix.category }}" --start-year=2020 --start-month=1
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           KPI_USERNAME: ${{ secrets.KPI_USERNAME }}
           KPI_PASSWORD: ${{ secrets.KPI_PASSWORD }}
