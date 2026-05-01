@@ -234,92 +234,59 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
   // 각 자재의 가격 범위 분석
   const materialRanges = materials.map(material => ({
     material,
+    average: 0,
     ...analyzePriceRange(data, material)
+  })).map(item => ({
+    ...item,
+    average: (item.min + item.max) / 2
   }));
 
   // 가격 범위에 따라 자재들을 정렬 (평균 가격 기준)
   materialRanges.sort((a, b) => {
-    const avgA = (a.min + a.max) / 2;
-    const avgB = (b.min + b.max) / 2;
-    return avgB - avgA; // 높은 가격부터 정렬
+    return b.average - a.average; // 높은 가격부터 정렬
   });
 
-  // 가장 높은 가격대의 자재를 주축(좌측)에 배치
-  const leftAxisMaterials = [materialRanges[0].material];
-  const rightAxisMaterials: string[] = [];
+  const leftAxisMaterials = materialRanges.map(item => item.material);
+  let rightAxisMaterials: string[] = [];
 
-  let leftAxisRange = materialRanges[0];
+  if (materialRanges.length >= 4) {
+    let bestSplitIndex = -1;
+    let bestScore = 0;
 
-  // 두 번째 자재부터 처리
-  for (let i = 1; i < materialRanges.length; i++) {
-    const currentMaterial = materialRanges[i];
-    
-    // 현재 좌축 범위와의 차이 비율 계산
-    // 현재 좌축 범위와의 차이 비율 계산
-    calculateRangeDifferenceRatio(
-      leftAxisRange.range, 
-      currentMaterial.range
-    );
+    for (let splitIndex = 1; splitIndex < materialRanges.length; splitIndex++) {
+      const leftGroup = materialRanges.slice(0, splitIndex);
+      const rightGroup = materialRanges.slice(splitIndex);
 
-    // 가격 차이 비율 계산 (평균 가격 기준)
-    const leftAvg = (leftAxisRange.min + leftAxisRange.max) / 2;
-    const currentAvg = (currentMaterial.min + currentMaterial.max) / 2;
-    const priceRatio = Math.max(leftAvg, currentAvg) / Math.min(leftAvg, currentAvg);
+      if (leftGroup.length === 0 || rightGroup.length === 0) {
+        continue;
+      }
 
-    // 우축이 비어있거나, 좌축과의 차이가 3배 미만이면 좌축에 배치
-    if (rightAxisMaterials.length === 0 && priceRatio < 3) {
-      leftAxisMaterials.push(currentMaterial.material);
-      // 좌축 범위 업데이트 (통합된 범위)
-      leftAxisRange = {
-        material: 'combined',
-        min: Math.min(leftAxisRange.min, currentMaterial.min),
-        max: Math.max(leftAxisRange.max, currentMaterial.max),
-        range: Math.max(leftAxisRange.max, currentMaterial.max) - 
-               Math.min(leftAxisRange.min, currentMaterial.min)
-      };
-    } else {
-      // 우축이 있는 경우, 좌축과 우축 중 더 적합한 곳에 배치
-      if (rightAxisMaterials.length > 0) {
-        // 현재 우축 범위 계산
-        const rightAxisRange = rightAxisMaterials.reduce((acc, mat) => {
-          const range = materialRanges.find(r => r.material === mat)!;
-          return {
-            min: Math.min(acc.min, range.min),
-            max: Math.max(acc.max, range.max),
-            range: Math.max(acc.max, range.max) - Math.min(acc.min, range.min)
-          };
-        }, { min: Infinity, max: -Infinity, range: 0 });
+      const higherGroupMinAverage = leftGroup[leftGroup.length - 1].average;
+      const lowerGroupMaxAverage = rightGroup[0].average;
+      const separationRatio = higherGroupMinAverage / lowerGroupMaxAverage;
 
-        const rightAvg = (rightAxisRange.min + rightAxisRange.max) / 2;
-        const priceRatioWithRight = Math.max(rightAvg, currentAvg) / Math.min(rightAvg, currentAvg);
+      const leftSpreadRatio = leftGroup[0].average / leftGroup[leftGroup.length - 1].average;
+      const rightSpreadRatio = rightGroup[0].average / rightGroup[rightGroup.length - 1].average;
+      const balanceRatio = Math.min(leftGroup.length, rightGroup.length) / Math.max(leftGroup.length, rightGroup.length);
 
-        // 좌축과 우축 중 가격 차이가 더 적은 곳에 배치
-        if (priceRatio <= priceRatioWithRight) {
-          leftAxisMaterials.push(currentMaterial.material);
-          leftAxisRange = {
-            material: 'combined',
-            min: Math.min(leftAxisRange.min, currentMaterial.min),
-            max: Math.max(leftAxisRange.max, currentMaterial.max),
-            range: Math.max(leftAxisRange.max, currentMaterial.max) - 
-                   Math.min(leftAxisRange.min, currentMaterial.min)
-          };
-        } else {
-          rightAxisMaterials.push(currentMaterial.material);
-        }
-      } else {
-        // 우축이 비어있고 좌축과 가격 차이가 3배 이상인 경우 우축에 배치
-        if (priceRatio >= 3) {
-          rightAxisMaterials.push(currentMaterial.material);
-        } else {
-          leftAxisMaterials.push(currentMaterial.material);
-          leftAxisRange = {
-            material: 'combined',
-            min: Math.min(leftAxisRange.min, currentMaterial.min),
-            max: Math.max(leftAxisRange.max, currentMaterial.max),
-            range: Math.max(leftAxisRange.max, currentMaterial.max) - 
-                   Math.min(leftAxisRange.min, currentMaterial.min)
-          };
-        }
+      // 그룹 내부는 촘촘하고, 그룹 사이는 크게 벌어질수록 높은 점수
+      const score = (separationRatio * balanceRatio) / (leftSpreadRatio * rightSpreadRatio);
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestSplitIndex = splitIndex;
+      }
+    }
+
+    if (bestSplitIndex > 0) {
+      const leftGroup = materialRanges.slice(0, bestSplitIndex);
+      const rightGroup = materialRanges.slice(bestSplitIndex);
+      const separationRatio = leftGroup[leftGroup.length - 1].average / rightGroup[0].average;
+
+      // 가격대 단절이 충분히 클 때만 2축을 사용
+      if (separationRatio >= 1.8) {
+        rightAxisMaterials = rightGroup.map(item => item.material);
+        leftAxisMaterials.splice(0, leftAxisMaterials.length, ...leftGroup.map(item => item.material));
       }
     }
   }
