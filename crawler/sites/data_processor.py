@@ -109,6 +109,13 @@ class BaseDataProcessor(ABC):
         self.raw_data_list: List[Dict[str, Any]] = []
         self.processed_data_list: List[Dict[str, Any]] = []
         self.unit_validator = UnitValidator()  # 단위 검증기 초기화
+        # DB의 실제 UNIQUE 제약과 일치하는 upsert 충돌 키를 런타임에 자동 탐색/캐시
+        self._resolved_on_conflict = None
+        self._on_conflict_candidates = [
+            'date,region,specification,unit',
+            'major_category,middle_category,sub_category,specification,date,region,unit',
+            'major_category,middle_category,sub_category,specification,date,region'
+        ]
     
     def add_raw_data(self, data: Dict[str, Any]):
         """파싱된 원본 데이터를 추가"""
@@ -564,12 +571,7 @@ class BaseDataProcessor(ABC):
             for i, chunk in enumerate(chunks, 1):
                 try:
                     log(f"    [Supabase] Upsert 시도: {len(chunk)}개 레코드")
-                    # on_conflict 매개변수를 사용하여 명시적으로 충돌 해결 필드 지정
-                    # unique_material_price 제약 조건에 해당하는 필드들
-                    insert_response = get_supabase_table(supabase, table_name).upsert(
-                        chunk, 
-                        on_conflict='date,region,specification,unit'
-                    ).execute()
+                    insert_response = self._upsert_with_resolved_conflict(chunk, table_name)
                     log(f"    [Supabase] Upsert 응답 성공")
                     
                     try:
@@ -606,6 +608,59 @@ class BaseDataProcessor(ABC):
         
         log(f"🎉 최적화된 배치 저장 완료: 총 {total_saved}개 데이터")
         return total_saved
+
+    def _upsert_with_resolved_conflict(self, records: List[Dict[str, Any]], table_name: str):
+        """
+        실제 DB UNIQUE 제약과 일치하는 on_conflict를 자동 탐색하여 upsert 실행.
+        42P10이 반복되면 row-by-row insert fallback으로 신규 데이터 손실을 방지.
+        """
+        # 이전에 성공한 충돌 키를 우선 사용하고, 나머지 후보를 뒤에 붙여 재시도
+        candidates = []
+        if self._resolved_on_conflict:
+            candidates.append(self._resolved_on_conflict)
+        candidates.extend([c for c in self._on_conflict_candidates if c not in candidates])
+
+        last_error = None
+        for conflict_target in candidates:
+            try:
+                response = get_supabase_table(supabase, table_name).upsert(
+                    records,
+                    on_conflict=conflict_target
+                ).execute()
+                if self._resolved_on_conflict != conflict_target:
+                    self._resolved_on_conflict = conflict_target
+                    log(f"    ✅ on_conflict 자동 확정: {conflict_target}")
+                return response
+            except Exception as e:
+                last_error = e
+                error_text = str(e)
+                if '42P10' in error_text or 'no unique or exclusion constraint matching the ON CONFLICT specification' in error_text:
+                    log(f"    ⚠️ on_conflict 불일치: {conflict_target} (다음 후보 시도)", "WARNING")
+                    continue
+                raise
+
+        log("    ⚠️ 모든 on_conflict 후보 실패. row-by-row insert fallback을 실행합니다.", "WARNING")
+        fallback_saved = self._insert_with_duplicate_skip(records, table_name)
+        # 기존 로직과 호환되도록 data 길이를 반환하는 형태로 맞춤
+        return type("FallbackResponse", (), {"data": [None] * fallback_saved})()
+
+    def _insert_with_duplicate_skip(self, records: List[Dict[str, Any]], table_name: str) -> int:
+        """upsert 충돌 키를 확정할 수 없을 때, 중복은 건너뛰고 신규만 삽입."""
+        saved_count = 0
+        duplicate_count = 0
+        for record in records:
+            try:
+                response = get_supabase_table(supabase, table_name).insert(record).execute()
+                if response.data:
+                    saved_count += 1
+            except Exception as e:
+                error_text = str(e)
+                if '23505' in error_text or 'duplicate key value violates unique constraint' in error_text:
+                    duplicate_count += 1
+                    continue
+                raise
+        log(f"    ℹ️ fallback insert 결과: 저장 {saved_count}개, 중복 스킵 {duplicate_count}개")
+        return saved_count
 
     def save_to_supabase_legacy(self, data: List[Dict[str, Any]], table_name: str = 'kpi_price_data') -> int:
         """
