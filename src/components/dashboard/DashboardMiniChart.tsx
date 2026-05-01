@@ -208,40 +208,58 @@ const calculateSmartAxisAssignment = (data: any[], materials: string[]): {
         return { leftAxisMaterials: [], rightAxisMaterials: [], leftAxisDomain: [0, 0], rightAxisDomain: [0, 0], leftAxisTicks: [], rightAxisTicks: [] };
     }
 
-    const materialRanges = materials.map(material => ({ material, ...analyzePriceRange(data, material) }))
-        .sort((a, b) => b.max - a.max);
+    const materialRanges = materials
+        .map(material => {
+            const rangeInfo = analyzePriceRange(data, material);
+            return {
+                material,
+                ...rangeInfo,
+                average: (rangeInfo.min + rangeInfo.max) / 2
+            };
+        })
+        .sort((a, b) => b.average - a.average);
 
     if (materialRanges.length <= 1) {
         const [domainMin, domainMax, ticks] = calculateYAxisDomain(data, materials);
         return { leftAxisMaterials: materials, rightAxisMaterials: [], leftAxisDomain: [domainMin, domainMax], rightAxisDomain: ['auto', 'auto'], leftAxisTicks: ticks, rightAxisTicks: [] };
     }
 
-    const GROUPING_THRESHOLD = 2.5;
-    const groups: string[][] = [];
-    let currentGroup: string[] = [];
+    // 최대 가격 하나만 분리되는 문제를 피하기 위해, 평균 가격의 "가장 큰 단절점"에서 2축을 분리
+    let bestSplitIndex = -1;
+    let bestScore = 0;
 
-    materialRanges.forEach((item, index) => {
-        if (index === 0) {
-            currentGroup.push(item.material);
-        } else {
-            const prevItem = materialRanges[index - 1];
-            if (item.max > 0 && prevItem.max / item.max > GROUPING_THRESHOLD) {
-                groups.push(currentGroup);
-                currentGroup = [item.material];
-            } else {
-                currentGroup.push(item.material);
-            }
+    for (let splitIndex = 1; splitIndex < materialRanges.length; splitIndex++) {
+        const leftGroup = materialRanges.slice(0, splitIndex);
+        const rightGroup = materialRanges.slice(splitIndex);
+        if (leftGroup.length === 0 || rightGroup.length === 0) continue;
+
+        const higherGroupMinAverage = leftGroup[leftGroup.length - 1].average;
+        const lowerGroupMaxAverage = rightGroup[0].average;
+        const separationRatio = higherGroupMinAverage / lowerGroupMaxAverage;
+
+        const leftSpreadRatio = leftGroup[0].average / leftGroup[leftGroup.length - 1].average;
+        const rightSpreadRatio = rightGroup[0].average / rightGroup[rightGroup.length - 1].average;
+        const balanceRatio = Math.min(leftGroup.length, rightGroup.length) / Math.max(leftGroup.length, rightGroup.length);
+
+        const score = (separationRatio * balanceRatio) / (leftSpreadRatio * rightSpreadRatio);
+        if (score > bestScore) {
+            bestScore = score;
+            bestSplitIndex = splitIndex;
         }
-    });
-    groups.push(currentGroup);
+    }
 
-    if (groups.length > 1 && groups[0].length < materials.length) {
-        const leftAxisMaterials = groups[0];
-        const rightAxisMaterials = groups.slice(1).flat();
+    if (bestSplitIndex > 0) {
+        const leftGroup = materialRanges.slice(0, bestSplitIndex);
+        const rightGroup = materialRanges.slice(bestSplitIndex);
+        const separationRatio = leftGroup[leftGroup.length - 1].average / rightGroup[0].average;
 
-        if (rightAxisMaterials.length > 0) {
+        // 단절이 충분히 클 때만 2축 활성화
+        if (separationRatio >= 1.8) {
+            const leftAxisMaterials = leftGroup.map(item => item.material);
+            const rightAxisMaterials = rightGroup.map(item => item.material);
             const [leftDomainMin, leftDomainMax, leftTicks] = calculateYAxisDomain(data, leftAxisMaterials);
             const [rightDomainMin, rightDomainMax, rightTicks] = calculateYAxisDomain(data, rightAxisMaterials);
+
             return {
                 leftAxisMaterials,
                 rightAxisMaterials,
