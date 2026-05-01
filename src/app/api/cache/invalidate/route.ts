@@ -3,6 +3,13 @@ import { redis } from '@/utils/redis';
 
 export async function POST(request: Request) {
   try {
+    if (!redis) {
+      return NextResponse.json({
+        success: false,
+        error: 'Redis is not configured'
+      }, { status: 503 });
+    }
+
     const body = await request.json();
     const { type, materials, pattern } = body;
 
@@ -96,6 +103,19 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
+    if (!redis) {
+      return NextResponse.json({
+        success: true,
+        cache_status: {
+          material_prices: 0,
+          market_indicators: 0,
+          total_keys: 0,
+          sample_keys: [],
+          message: 'Redis is not configured'
+        }
+      });
+    }
+
     // 현재 캐시 상태 조회
     const materialPriceKeys = await redis.keys('material_prices:*');
     const marketIndicatorKeys = await redis.keys('market_indicators');

@@ -4,14 +4,41 @@ import { cookies } from 'next/headers';
 import * as fs from 'fs';
 import * as path from 'path';
 
-if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-  console.error("❌ Redis 환경 변수가 누락되었습니다.");
+const hasRedisConfig =
+  !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
+
+if (!hasRedisConfig && process.env.NODE_ENV !== 'production') {
+  console.warn("⚠️ Redis 환경 변수가 누락되었습니다. 캐시를 건너뜁니다.");
 }
 
-export const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+interface RedisLike {
+  get(key: string): Promise<unknown>;
+  setex(key: string, ttl: number, value: string): Promise<unknown>;
+  del(...keys: string[]): Promise<number>;
+  keys(pattern: string): Promise<string[]>;
+}
+
+class NoopRedis implements RedisLike {
+  async get(_key: string): Promise<null> {
+    return null;
+  }
+  async setex(_key: string, _ttl: number, _value: string): Promise<'OK'> {
+    return 'OK';
+  }
+  async del(..._keys: string[]): Promise<number> {
+    return 0;
+  }
+  async keys(_pattern: string): Promise<string[]> {
+    return [];
+  }
+}
+
+export const redis: RedisLike = hasRedisConfig
+  ? new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    })
+  : new NoopRedis();
 
 /**
  * 통합된 자재 가격 데이터 페칭 함수
@@ -35,7 +62,9 @@ export async function fetchMaterialPrices(
       console.log(`✅ 자재 가격 데이터 Redis 캐시 히트: ${materials.length}개 자재`);
       return typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
     }
-    console.log(`❌ 자재 가격 데이터 Redis 캐시 미스: ${materials.length}개 자재`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`ℹ️ 자재 가격 데이터 Redis 캐시 미스: ${materials.length}개 자재`);
+    }
   } catch (error) {
     console.error('Redis 캐시 조회 오류:', error);
   }
@@ -100,7 +129,9 @@ export async function fetchMaterialPrices(
     // 3. Redis에 데이터 저장
     try {
       await redis.setex(cacheKey, cacheExpiry, JSON.stringify(data));
-      console.log(`✅ 자재 가격 데이터 Redis 캐시 저장: ${materials.length}개 자재 (10일 유지)`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`✅ 자재 가격 데이터 Redis 캐시 저장: ${materials.length}개 자재 (10일 유지)`);
+      }
     } catch (cacheError) {
       console.error('Redis 캐시 저장 오류:', cacheError);
     }
@@ -123,7 +154,9 @@ export async function fetchMarketIndicators() {
   try {
     const cachedData = await redis.get(cacheKey);
     if (cachedData) {
-      console.log('✅ 시장지표 데이터 Redis 캐시 히트');
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('✅ 시장지표 데이터 Redis 캐시 히트');
+      }
       return typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
     }
   } catch (error) {
